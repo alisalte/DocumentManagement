@@ -1,0 +1,34 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Dms.Host/Dms.Host.csproj" />
+    <Project Path="src/Dms.Migrator/Dms.Migrator.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Dms.Application/Dms.Application.csproj" />
+    <Project Path="src/BuildingBlocks/Dms.Infrastructure/Dms.Infrastructure.csproj" />
+    <Project Path="src/BuildingBlocks/Dms.SharedKernel/Dms.SharedKernel.csproj" />
+    <Project Path="src/BuildingBlocks/Dms.Web/Dms.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Audit/">
+    <Project Path="src/Modules/Audit/Dms.Audit.Contracts/Dms.Audit.Contracts.csproj" />
+    <Project Path="src/Modules/Audit/Dms.Audit.Infrastructure/Dms.Audit.Infrastructure.csproj" />
+    <Project Path="src/Modules/Audit/Dms.Audit/Dms.Audit.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Authorization/">
+    <Project Path="src/Modules/Authorization/Dms.Authorization.Contracts/Dms.Authorization.Contracts.csproj" />
+    <Project Path="src/Modules/Authorization/Dms.Authorization.Infrastructure/Dms.Authorization.Infrastructure.csproj" />
+    <Project Path="src/Modules/Authorization/Dms.Authorization/Dms.Authorization.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identity/">
+    <Project Path="src/Modules/Identity/Dms.Identity.Contracts/Dms.Identity.Contracts.csproj" />
+    <Project Path="src/Modules/Identity/Dms.Identity.Infrastructure/Dms.Identity.Infrastructure.csproj" />
+    <Project Path="src/Modules/Identity/Dms.Identity/Dms.Identity.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Dms.ArchitectureTests/Dms.ArchitectureTests.csproj" />
+    <Project Path="tests/Dms.Authorization.UnitTests/Dms.Authorization.UnitTests.csproj" />
+    <Project Path="tests/Dms.Identity.UnitTests/Dms.Identity.UnitTests.csproj" />
+    <Project Path="tests/Dms.IntegrationTests/Dms.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

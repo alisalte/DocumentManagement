@@ -1,0 +1,77 @@
+# Development stack for phase 1: PostgreSQL, the migrator (one shot) and the API.
+#
+# Ports deliberately avoid the ranges used by the unrelated fleetvision stack on this machine
+# (5432, 6379, 3000-3013, 8080-8082, 9092): PostgreSQL is published on 5433 and the API on 5080.
+#
+# MinIO, OpenSearch, Tika, OCR and the gateway arrive with the phases that need them.
+name: dms
+
+services:
+  postgres:
+    # Override with POSTGRES_IMAGE when the target registry is not reachable.
+    image: ${POSTGRES_IMAGE:-postgres:18}
+    container_name: dms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-dms}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dms} -d ${POSTGRES_DB:-dms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Runs to completion before the API starts. The API image has no DDL rights of its own in a
+  # production deployment; here both use the same role for simplicity.
+  migrator:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: dms-backend:latest
+    container_name: dms-migrator
+    entrypoint: ["dotnet", "/app/migrator/Dms.Migrator.dll"]
+    environment:
+      ConnectionStrings__Dms: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
+      Dms__Bootstrap__AdminUsername: ${DMS_ADMIN_USERNAME:-admin}
+      Dms__Bootstrap__AdminPassword: ${DMS_ADMIN_PASSWORD:?set DMS_ADMIN_PASSWORD in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: dms-backend:latest
+    container_name: dms-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Dms: >-
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
+      Dms__Jwt__SigningKey: ${DMS_JWT_SIGNING_KEY:?set DMS_JWT_SIGNING_KEY in .env}
+      # api | worker | all. Split these into two services when OCR arrives in phase 5.
+      Dms__Role: ${DMS_ROLE:-all}
+      Dms__Cors__Origins__0: ${DMS_FRONTEND_ORIGIN:-http://localhost:5173}
+    ports:
+      - "${API_PORT:-5080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

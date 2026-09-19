@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Dms.Identity.UnitTests</RootNamespace>
+    <!-- xUnit1051 wants an explicit CancellationToken on every awaited call; the tests are
+         short lived and run against a throwaway database, so the noise is not worth it. -->
+    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Authorization\Dms.Authorization\Dms.Authorization.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identity\Dms.Identity.Infrastructure\Dms.Identity.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

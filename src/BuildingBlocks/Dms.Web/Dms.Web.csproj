@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Dms.Web</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dms.Application\Dms.Application.csproj" />
+    <ProjectReference Include="..\Dms.SharedKernel\Dms.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Modules\Audit\Dms.Audit.Contracts\Dms.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\Modules\Authorization\Dms.Authorization.Contracts\Dms.Authorization.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
