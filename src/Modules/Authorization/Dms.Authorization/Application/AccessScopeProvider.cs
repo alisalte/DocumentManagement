@@ -150,6 +150,12 @@ public sealed class FlatResourceHierarchy : IResourceHierarchy
     public Task<ResourceDescriptor?> DescribeAsync(ResourceRef resource, CancellationToken cancellationToken) =>
         Task.FromResult<ResourceDescriptor?>(new ResourceDescriptor(resource, []));
 
+    public Task<ResourceDescriptor?> DescribeVersionAsync(
+        ResourceRef resource,
+        Guid versionId,
+        CancellationToken cancellationToken) =>
+        DescribeAsync(resource, cancellationToken);
+
     public Task<IReadOnlyList<CategoryNode>> GetCategoriesAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<CategoryNode>>([]);
 }

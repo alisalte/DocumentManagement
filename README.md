@@ -72,13 +72,22 @@ server to use one.
 ## Everything in Docker
 
 ```bash
-cp deploy/.env.example deploy/.env    # fill in the passwords and the JWT signing key
-docker compose -f deploy/docker-compose.yml up --build
+cp deploy/.env.example deploy/.env    # then fill in every value marked below
+cd deploy && docker compose up -d --build
 ```
 
-This builds one image with two entrypoints: the migrator runs to completion, then the API starts.
-It needs registry access for `mcr.microsoft.com/dotnet/*`; on a machine without it, use the local
-workflow above and set `POSTGRES_IMAGE` to a locally cached image.
+`.env` must have **`POSTGRES_PASSWORD`, `DMS_ADMIN_PASSWORD` and `DMS_JWT_SIGNING_KEY`** set;
+compose refuses to start otherwise. Generate the key with `openssl rand -base64 64`.
+
+This builds one image with two entrypoints: the migrator runs to completion, then the API starts
+on http://localhost:5080. The API is `dms-api-1`, the database `dms-postgres-1`.
+
+Two things specific to this machine:
+
+- The Docker daemon reaches `mcr.microsoft.com` but **not Docker Hub**, so `postgres:18` cannot be
+  pulled. `.env` sets `POSTGRES_IMAGE` to a locally cached image instead.
+- The compose stack and `scripts/dev-db.sh` both publish port 5433, so run one or the other.
+  `docker stop dms-postgres` frees it for compose; `docker compose down` frees it for the script.
 
 ## Layout
 

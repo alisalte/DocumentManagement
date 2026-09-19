@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Dms.Storage</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Application\Dms.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.SharedKernel\Dms.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Audit\Dms.Audit.Contracts\Dms.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\Dms.Storage.Contracts\Dms.Storage.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -65,6 +65,25 @@ public static class AuditActions
 
     public const string AccessDenied = "ACCESS_DENIED";
 
+    public const string DocumentCreated = "DOCUMENT_CREATED";
+    public const string DocumentViewed = "DOCUMENT_VIEWED";
+    public const string DocumentDownloaded = "DOCUMENT_DOWNLOADED";
+    public const string DocumentUpdated = "DOCUMENT_UPDATED";
+    public const string DocumentDeleted = "DOCUMENT_DELETED";
+    public const string DocumentRestored = "DOCUMENT_RESTORED";
+    public const string DocumentPurged = "DOCUMENT_PURGED";
+    public const string DocumentTagsChanged = "DOCUMENT_TAGS_CHANGED";
+
+    /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
+    public const string VersionCreated = "VERSION_CREATED";
+
+    /// <summary>A metadata-only revision, V(n).(r+1), reusing the same file (ADR 0001).</summary>
+    public const string RevisionCreated = "REVISION_CREATED";
+
+    public const string CategoryCreated = "CATEGORY_CREATED";
+    public const string CategoryUpdated = "CATEGORY_UPDATED";
+    public const string CategoryMoved = "CATEGORY_MOVED";
+
     public const string UserCreated = "USER_CREATED";
     public const string UserUpdated = "USER_UPDATED";
     public const string UserActivated = "USER_ACTIVATED";

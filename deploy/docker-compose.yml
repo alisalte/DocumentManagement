@@ -6,11 +6,13 @@
 # MinIO, OpenSearch, Tika, OCR and the gateway arrive with the phases that need them.
 name: dms
 
+# Container names are left to compose (dms-postgres-1, dms-api-1, ...) so this stack can
+# coexist with the standalone development database started by scripts/dev-db.sh.
+
 services:
   postgres:
     # Override with POSTGRES_IMAGE when the target registry is not reachable.
     image: ${POSTGRES_IMAGE:-postgres:18}
-    container_name: dms-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dms}
@@ -33,7 +35,6 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     image: dms-backend:latest
-    container_name: dms-migrator
     entrypoint: ["dotnet", "/app/migrator/Dms.Migrator.dll"]
     environment:
       ConnectionStrings__Dms: >-
@@ -50,7 +51,6 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     image: dms-backend:latest
-    container_name: dms-api
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
@@ -68,10 +68,21 @@ services:
       migrator:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health/ready || exit 1"]
+      # The aspnet runtime image ships neither curl nor wget, so the check talks to the port
+      # directly through bash's /dev/tcp and looks for the readiness payload.
+      # bash explicitly: CMD-SHELL would run /bin/sh (dash), which has no /dev/tcp.
+      test:
+        - "CMD"
+        - "bash"
+        - "-c"
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/8080 &&
+          printf 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 &&
+          grep -q '"status":"ready"' <&3
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 20s
 
 volumes:
   postgres-data:

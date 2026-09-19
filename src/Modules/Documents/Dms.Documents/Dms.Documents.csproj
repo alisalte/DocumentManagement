@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Dms.Documents</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Application\Dms.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.SharedKernel\Dms.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Audit\Dms.Audit.Contracts\Dms.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\Authorization\Dms.Authorization.Contracts\Dms.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\..\DocumentTypes\Dms.DocumentTypes.Contracts\Dms.DocumentTypes.Contracts.csproj" />
+    <ProjectReference Include="..\..\Storage\Dms.Storage.Contracts\Dms.Storage.Contracts.csproj" />
+    <ProjectReference Include="..\Dms.Documents.Contracts\Dms.Documents.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

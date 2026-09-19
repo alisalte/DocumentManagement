@@ -45,18 +45,42 @@ public sealed class Authorizer(
             return AuthorizationDecision.Deny(DecisionReason.DeniedUserInactive, "The request is not authenticated.");
         }
 
-        return await AuthorizeAsync(userId, permissionCode, resource, cancellationToken);
+        return await AuthorizeAsync(userId, permissionCode, resource, null, cancellationToken);
     }
 
-    public async Task<AuthorizationDecision> AuthorizeAsync(
+    public async Task<AuthorizationDecision> AuthorizeVersionAsync(
+        string permissionCode,
+        ResourceRef resource,
+        Guid versionId,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return AuthorizationDecision.Deny(DecisionReason.DeniedUserInactive, "The request is not authenticated.");
+        }
+
+        return await AuthorizeAsync(userId, permissionCode, resource, versionId, cancellationToken);
+    }
+
+    public Task<AuthorizationDecision> AuthorizeAsync(
         UserId userId,
         string permissionCode,
         ResourceRef resource,
+        CancellationToken cancellationToken) =>
+        AuthorizeAsync(userId, permissionCode, resource, null, cancellationToken);
+
+    private async Task<AuthorizationDecision> AuthorizeAsync(
+        UserId userId,
+        string permissionCode,
+        ResourceRef resource,
+        Guid? versionId,
         CancellationToken cancellationToken)
     {
         var principal = await GetPrincipalsAsync(userId, cancellationToken);
 
-        var descriptor = await hierarchy.DescribeAsync(resource, cancellationToken);
+        var descriptor = versionId is { } version
+            ? await hierarchy.DescribeVersionAsync(resource, version, cancellationToken)
+            : await hierarchy.DescribeAsync(resource, cancellationToken);
         if (descriptor is null)
         {
             return AuthorizationDecision.Deny(

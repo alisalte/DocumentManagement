@@ -12,6 +12,10 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
   </ItemGroup>
 
+  <ItemGroup Label="Storage">
+    <PackageVersion Include="AWSSDK.S3" Version="4.0.103.3" />
+  </ItemGroup>
+
   <ItemGroup Label="Hosting and API">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />
