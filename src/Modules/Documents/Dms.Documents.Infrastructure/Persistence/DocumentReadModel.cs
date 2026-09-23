@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
@@ -93,6 +94,10 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
                 Tags = document.Tags
                     .Join(context.Tags, link => link.TagId, tag => tag.Id, (link, tag) => new { tag.Id, tag.Name })
                     .ToList(),
+                Current = context.DocumentVersions
+                    .Where(version => version.Id == document.CurrentVersionId)
+                    .Select(version => new { version.DynamicData, version.DocumentTypeVersionId })
+                    .FirstOrDefault(),
             })
             .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
@@ -121,7 +126,12 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             document.UpdatedBy.Value,
             document.UpdatedAt,
             document.DeletedAt,
-            document.DeleteReason);
+            document.DeleteReason)
+        {
+            // Raw; the handler shapes it with the schema (decimals as strings).
+            CurrentMetadata = row.Current is null ? null : JsonDocument.Parse(row.Current.DynamicData).RootElement.Clone(),
+            CurrentSchemaVersionId = row.Current?.DocumentTypeVersionId.Value,
+        };
     }
 
     public async Task<IReadOnlyList<DocumentVersionDto>> ListVersionsAsync(
@@ -150,7 +160,11 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
                 version.ApprovalStatus.ToString(),
                 version.IsPublished,
                 version.CreatedBy.Value,
-                version.CreatedAt))
+                version.CreatedAt)
+            {
+                SchemaVersionId = version.DocumentTypeVersionId.Value,
+                Metadata = JsonDocument.Parse(version.DynamicData).RootElement.Clone(),
+            })
             .ToList();
     }
 

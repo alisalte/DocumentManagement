@@ -113,6 +113,9 @@ public sealed class DocumentRepository(DocumentsDbContext context) : IDocumentRe
 
     public void Add(Document document) => context.Documents.Add(document);
 
+    public Task AllowInPlaceMetadataEditAsync(CancellationToken cancellationToken) =>
+        context.Database.ExecuteSqlRawAsync("SELECT set_config('dms.metadata_in_place', 'on', true)", cancellationToken);
+
     public async Task PurgeAsync(Document document, CancellationToken cancellationToken)
     {
         // Transaction-local switch read by the immutability trigger. Outside a purge, no code path

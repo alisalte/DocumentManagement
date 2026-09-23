@@ -33,6 +33,7 @@ public sealed record CreateDocumentCommand(
     Guid UploadId,
     IReadOnlyList<string>? Tags,
     string? ChangeDescription,
+    JsonElement? Metadata = null,
     string? IdempotencyKey = null) : ICommand<Result<CreatedVersionDto>>;
 
 public sealed record AddVersionCommand(
@@ -40,7 +41,25 @@ public sealed record AddVersionCommand(
     Guid UploadId,
     string? ChangeDescription,
     Guid? BaseVersionId,
+    JsonElement? Metadata = null,
     string? IdempotencyKey = null) : ICommand<Result<CreatedVersionDto>>;
+
+/// <summary>
+/// A metadata-only edit (ADR 0001). Under NEW_REVISION it adds V(n).(r+1) on the same file; under
+/// IN_PLACE it rewrites the current row, unless an approval-relevant field changed or the schema
+/// is being upgraded, which always takes a new revision.
+/// </summary>
+/// <param name="UpgradeSchema">Validate against the type's latest published schema instead of the current row's.</param>
+public sealed record UpdateMetadataCommand(
+    Guid DocumentId,
+    JsonElement Metadata,
+    string? ChangeDescription,
+    Guid? BaseVersionId,
+    bool UpgradeSchema = false,
+    string? IdempotencyKey = null) : ICommand<Result<MetadataUpdateDto>>;
+
+/// <param name="Outcome">"revision", "in_place" or "unchanged".</param>
+public sealed record MetadataUpdateDto(Guid DocumentId, Guid VersionId, string Label, string Outcome);
 
 public sealed record CreatedVersionDto(Guid DocumentId, Guid VersionId, string Label);
 
@@ -262,6 +281,7 @@ public sealed class CreateDocumentHandler(
     IDocumentTypeCatalog documentTypes,
     UploadAttachment uploads,
     TagResolver tagResolver,
+    MetadataGate metadataGate,
     IStorageService storage,
     IResourceAclWriter acl,
     IIdempotencyStore idempotency,
@@ -333,7 +353,7 @@ public sealed class CreateDocumentHandler(
             return Result.Failure<CreatedVersionDto>(schemaVersion.Error);
         }
 
-        var metadata = await documentTypes.ValidateMetadataAsync(schemaVersion.Value, "{}", cancellationToken);
+        var metadata = await metadataGate.ValidateAsync(schemaVersion.Value, command.Metadata, cancellationToken);
         if (metadata.IsFailure)
         {
             return Result.Failure<CreatedVersionDto>(metadata.Error);
@@ -369,7 +389,7 @@ public sealed class CreateDocumentHandler(
             file.Size,
             file.Sha256,
             schemaVersion.Value,
-            "{}",
+            metadata.Value,
             command.ChangeDescription,
             ApprovalStatus.NotRequired,
             actor,
@@ -426,6 +446,7 @@ public sealed class AddVersionHandler(
     IDocumentRepository documents,
     IDocumentTypeCatalog documentTypes,
     UploadAttachment uploads,
+    MetadataGate metadataGate,
     IStorageService storage,
     IIdempotencyStore idempotency,
     IAuditWriter audit,
@@ -493,9 +514,30 @@ public sealed class AddVersionHandler(
             return Result.Failure<CreatedVersionDto>(upload.Error);
         }
 
-        // A new file keeps the schema its document was written against. Moving a document to a
-        // newer schema is a metadata decision that arrives with the field editor in phase 3.
         var previous = document.Versions.First(version => version.Id == document.CurrentVersionId);
+
+        // Without new metadata the file carries the previous row's metadata and schema over
+        // unchanged. With it, the metadata is validated against the type's latest schema, and the
+        // new row binds to that schema.
+        var schemaVersion = previous.DocumentTypeVersionId;
+        var dynamicData = previous.DynamicData;
+        if (command.Metadata is { ValueKind: not (JsonValueKind.Null or JsonValueKind.Undefined) } metadata)
+        {
+            var latest = await documentTypes.ResolveVersionForNewDocumentAsync(document.DocumentTypeId, cancellationToken);
+            if (latest.IsFailure)
+            {
+                return Result.Failure<CreatedVersionDto>(latest.Error);
+            }
+
+            var validated = await metadataGate.ValidateAsync(latest.Value, metadata, cancellationToken);
+            if (validated.IsFailure)
+            {
+                return Result.Failure<CreatedVersionDto>(validated.Error);
+            }
+
+            schemaVersion = latest.Value;
+            dynamicData = validated.Value;
+        }
 
         var file = upload.Value;
         var now = timeProvider.GetUtcNow();
@@ -505,12 +547,13 @@ public sealed class AddVersionHandler(
             file.MimeType,
             file.Size,
             file.Sha256,
-            previous.DocumentTypeVersionId,
-            previous.DynamicData,
+            schemaVersion,
+            dynamicData,
             command.ChangeDescription,
             ApprovalStatus.NotRequired,
             actor,
-            now);
+            now,
+            metadataChanged: MetadataPresenter.ChangedFields(previous.DynamicData, dynamicData).Count > 0);
 
         var committed = await storage.CommitAsync(file.Id, cancellationToken);
         if (committed.IsFailure)
@@ -939,5 +982,169 @@ public sealed class OpenContentHandler(
         // The stored name of the version, not the storage row's: they only differ if someone
         // renamed the file in a later revision, and the reader asked for this version.
         return Result.Success(content.Value with { FileName = version.FileName, MimeType = version.MimeType });
+    }
+}
+
+public sealed class UpdateMetadataHandler(
+    DocumentAccess access,
+    IDocumentRepository documents,
+    IDocumentTypeCatalog documentTypes,
+    MetadataGate metadataGate,
+    IIdempotencyStore idempotency,
+    IAuditWriter audit,
+    ICurrentUser currentUser,
+    TimeProvider timeProvider) : ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>
+{
+    public async Task<Result<MetadataUpdateDto>> HandleAsync(
+        UpdateMetadataCommand command,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } actor)
+        {
+            return Result.Failure<MetadataUpdateDto>(DocumentErrors.Unauthenticated);
+        }
+
+        var requestHash = DocumentRules.RequestHash(command with { IdempotencyKey = null });
+        if (command.IdempotencyKey is { } key)
+        {
+            switch (await idempotency.FindAsync(actor, key, requestHash, cancellationToken))
+            {
+                case IdempotencyLookup.Replay replay:
+                    return Result.Success(JsonSerializer.Deserialize<MetadataUpdateDto>(replay.ResultJson)!);
+                case IdempotencyLookup.Mismatch:
+                    return Result.Failure<MetadataUpdateDto>(DocumentRules.IdempotencyMismatch);
+            }
+        }
+
+        var allowed = await access.RequireAsync(command.DocumentId, PermissionCodes.DocumentEdit, cancellationToken);
+        if (allowed.IsFailure)
+        {
+            return Result.Failure<MetadataUpdateDto>(allowed.Error);
+        }
+
+        // Locked like a new version: a revision number is allocated from the same counter space.
+        var document = await documents.FindForUpdateAsync(new DocumentId(command.DocumentId), cancellationToken);
+        if (document?.Versions.FirstOrDefault(version => version.Id == document.CurrentVersionId) is not { } current)
+        {
+            return Result.Failure<MetadataUpdateDto>(DocumentErrors.DocumentNotFound);
+        }
+
+        if (command.BaseVersionId is { } baseVersion && current.Id.Value != baseVersion)
+        {
+            return Result.Failure<MetadataUpdateDto>(Error.Conflict(
+                "version.stale",
+                $"A newer version ({current.Label}) was added after the one you started from."));
+        }
+
+        var type = await documentTypes.FindAsync(document.DocumentTypeId, cancellationToken);
+        if (type is null)
+        {
+            return Result.Failure<MetadataUpdateDto>(Error.Validation("document_type.not_found", "The document type does not exist."));
+        }
+
+        var schemaVersion = current.DocumentTypeVersionId;
+        if (command.UpgradeSchema)
+        {
+            var latest = await documentTypes.ResolveVersionForNewDocumentAsync(document.DocumentTypeId, cancellationToken);
+            if (latest.IsFailure)
+            {
+                return Result.Failure<MetadataUpdateDto>(latest.Error);
+            }
+
+            schemaVersion = latest.Value;
+        }
+
+        var validated = await metadataGate.ValidateAsync(schemaVersion, command.Metadata, cancellationToken);
+        if (validated.IsFailure)
+        {
+            return Result.Failure<MetadataUpdateDto>(validated.Error);
+        }
+
+        var changed = MetadataPresenter.ChangedFields(current.DynamicData, validated.Value);
+        var schemaChanged = schemaVersion != current.DocumentTypeVersionId;
+        if (changed.Count == 0 && !schemaChanged)
+        {
+            return Result.Success(new MetadataUpdateDto(document.Id.Value, current.Id.Value, current.Label, "unchanged"));
+        }
+
+        // A field is approval-relevant if either schema says so: dropping the flag in a newer
+        // schema must not open a way to edit an old approved value in place.
+        var oldSchema = await documentTypes.GetSchemaAsync(current.DocumentTypeVersionId, cancellationToken);
+        var newSchema = await documentTypes.GetSchemaAsync(schemaVersion, cancellationToken);
+        var governedChange = changed.Any(code =>
+            oldSchema?.Find(code)?.IsApprovalRelevant == true || newSchema?.Find(code)?.IsApprovalRelevant == true);
+
+        var now = timeProvider.GetUtcNow();
+        var inPlace = type.Settings.MetadataEditPolicy == MetadataEditPolicy.InPlace && !governedChange && !schemaChanged;
+
+        MetadataUpdateDto result;
+        if (inPlace)
+        {
+            var before = current.DynamicData;
+            await documents.AllowInPlaceMetadataEditAsync(cancellationToken);
+            var updated = document.UpdateCurrentMetadataInPlace(validated.Value, actor, now);
+            if (updated.IsFailure)
+            {
+                return Result.Failure<MetadataUpdateDto>(updated.Error);
+            }
+
+            // In place is only acceptable because the audit keeps what was overwritten.
+            await audit.WriteAsync(
+                new AuditRecord
+                {
+                    Action = AuditActions.MetadataUpdatedInPlace,
+                    EntityType = "DocumentVersion",
+                    EntityId = current.Id.Value,
+                    DocumentId = document.Id.Value,
+                    VersionId = current.Id.Value,
+                    Metadata = new Dictionary<string, object?>
+                    {
+                        ["label"] = current.Label,
+                        ["changedFields"] = changed,
+                        ["before"] = JsonDocument.Parse(before).RootElement.Clone(),
+                        ["after"] = JsonDocument.Parse(validated.Value).RootElement.Clone(),
+                    },
+                },
+                cancellationToken);
+
+            result = new MetadataUpdateDto(document.Id.Value, current.Id.Value, current.Label, "in_place");
+        }
+        else
+        {
+            var revision = document.AddMetadataRevision(
+                current,
+                schemaVersion,
+                validated.Value,
+                command.ChangeDescription,
+                ApprovalStatus.NotRequired,
+                actor,
+                now);
+
+            if (revision.IsFailure)
+            {
+                return Result.Failure<MetadataUpdateDto>(revision.Error);
+            }
+
+            var record = VersionAudit.Created(revision.Value);
+            await audit.WriteAsync(
+                record with
+                {
+                    Metadata = new Dictionary<string, object?>(record.Metadata!)
+                    {
+                        ["changedFields"] = changed,
+                        ["schemaUpgraded"] = schemaChanged,
+                    },
+                },
+                cancellationToken);
+
+            result = new MetadataUpdateDto(document.Id.Value, revision.Value.Id.Value, revision.Value.Label, "revision");
+        }
+
+        if (command.IdempotencyKey is { } newKey)
+        {
+            idempotency.Record(actor, newKey, requestHash, JsonSerializer.Serialize(result));
+        }
+
+        return Result.Success(result);
     }
 }

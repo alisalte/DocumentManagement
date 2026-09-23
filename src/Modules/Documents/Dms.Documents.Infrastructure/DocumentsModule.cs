@@ -38,6 +38,7 @@ public static class DocumentsModule
         services.AddScoped<DocumentAccess>();
         services.AddScoped<UploadAttachment>();
         services.AddScoped<TagResolver>();
+        services.AddScoped<MetadataGate>();
 
         services.AddScoped<ICommandHandler<CreateCategoryCommand, Result<Guid>>, CreateCategoryHandler>();
         services.AddScoped<ICommandHandler<UpdateCategoryCommand, Result>, UpdateCategoryHandler>();
@@ -47,6 +48,7 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<CreateDocumentCommand, Result<CreatedVersionDto>>, CreateDocumentHandler>();
         services.AddScoped<ICommandHandler<AddVersionCommand, Result<CreatedVersionDto>>, AddVersionHandler>();
         services.AddScoped<ICommandHandler<UpdateDocumentCommand, Result>, UpdateDocumentHandler>();
+        services.AddScoped<ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>, UpdateMetadataHandler>();
         services.AddScoped<ICommandHandler<SetDocumentTagsCommand, Result>, SetDocumentTagsHandler>();
         services.AddScoped<ICommandHandler<DeleteDocumentCommand, Result>, DeleteDocumentHandler>();
         services.AddScoped<ICommandHandler<RestoreDocumentCommand, Result>, RestoreDocumentHandler>();

@@ -17,6 +17,21 @@ public interface IUserDirectory
     Task<IReadOnlyList<UserSummary>> FindManyAsync(
         IReadOnlyCollection<UserId> userIds,
         CancellationToken cancellationToken);
+
+    /// <summary>Active users whose name or username contains the text. For pickers; capped.</summary>
+    Task<IReadOnlyList<UserSummary>> SearchAsync(string? text, int limit, CancellationToken cancellationToken);
+}
+
+public sealed record GroupSummary(GroupId Id, string Code, string Name, bool IsActive);
+
+/// <summary>Read-only view of groups for other modules, for example GROUP metadata fields.</summary>
+public interface IGroupDirectory
+{
+    Task<IReadOnlyList<GroupSummary>> FindManyAsync(
+        IReadOnlyCollection<GroupId> groupIds,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<GroupSummary>> SearchAsync(string? text, int limit, CancellationToken cancellationToken);
 }
 
 /// <summary>

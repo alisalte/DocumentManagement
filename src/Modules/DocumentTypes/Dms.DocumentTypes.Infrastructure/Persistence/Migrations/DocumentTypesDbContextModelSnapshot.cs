@@ -132,6 +132,172 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
                     b.ToTable("document_type_versions", "doctypes");
                 });
 
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("character varying(63)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("DefaultValue")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("default_value");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("FieldType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("field_type");
+
+                    b.Property<string>("HelpText")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("help_text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("IsApprovalRelevant")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_approval_relevant");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_required");
+
+                    b.Property<bool>("IsSearchable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_searchable");
+
+                    b.Property<bool>("IsSortable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_sortable");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("label");
+
+                    b.Property<bool>("ShowInList")
+                        .HasColumnType("boolean")
+                        .HasColumnName("show_in_list");
+
+                    b.Property<Guid>("TypeVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("type_version_id");
+
+                    b.Property<string>("Validation")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("validation");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TypeVersionId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_field_definitions_code");
+
+                    b.ToTable("field_definitions", "doctypes", t =>
+                        {
+                            t.HasCheckConstraint("ck_field_definitions_code", "code ~ '^[a-z][a-z0-9_]{0,62}$'");
+                        });
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldOption", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<Guid>("FieldDefinitionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("field_definition_id");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("label");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FieldDefinitionId", "Value")
+                        .IsUnique()
+                        .HasDatabaseName("ux_field_options_value");
+
+                    b.ToTable("field_options", "doctypes");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Assertion")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("assertion");
+
+                    b.Property<string>("Condition")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("condition");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("message");
+
+                    b.PrimitiveCollection<string[]>("TargetFieldCodes")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("target_field_codes");
+
+                    b.Property<Guid>("TypeVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("type_version_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TypeVersionId")
+                        .HasDatabaseName("ix_field_rules_version");
+
+                    b.ToTable("field_rules", "doctypes");
+                });
+
             modelBuilder.Entity("Dms.DocumentTypes.Domain.DocumentTypeVersion", b =>
                 {
                     b.HasOne("Dms.DocumentTypes.Domain.DocumentType", null)
@@ -141,9 +307,51 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldDefinition", b =>
+                {
+                    b.HasOne("Dms.DocumentTypes.Domain.DocumentTypeVersion", null)
+                        .WithMany("Fields")
+                        .HasForeignKey("TypeVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_field_definitions_version");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldOption", b =>
+                {
+                    b.HasOne("Dms.DocumentTypes.Domain.FieldDefinition", null)
+                        .WithMany("Options")
+                        .HasForeignKey("FieldDefinitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_field_options_field");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldRule", b =>
+                {
+                    b.HasOne("Dms.DocumentTypes.Domain.DocumentTypeVersion", null)
+                        .WithMany("Rules")
+                        .HasForeignKey("TypeVersionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_field_rules_version");
+                });
+
             modelBuilder.Entity("Dms.DocumentTypes.Domain.DocumentType", b =>
                 {
                     b.Navigation("Versions");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.DocumentTypeVersion", b =>
+                {
+                    b.Navigation("Fields");
+
+                    b.Navigation("Rules");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldDefinition", b =>
+                {
+                    b.Navigation("Options");
                 });
 #pragma warning restore 612, 618
         }

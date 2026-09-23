@@ -125,7 +125,8 @@ public sealed class Document : AggregateRoot<DocumentId>
         string? changeDescription,
         ApprovalStatus approvalStatus,
         UserId createdBy,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        bool metadataChanged = false)
     {
         LatestVersionNumber++;
         var version = DocumentVersion.Create(
@@ -139,7 +140,9 @@ public sealed class Document : AggregateRoot<DocumentId>
             sha256,
             documentTypeVersionId,
             dynamicData,
-            LatestVersionNumber == 1 ? VersionChangeKind.Initial : VersionChangeKind.Content,
+            LatestVersionNumber == 1
+                ? VersionChangeKind.Initial
+                : metadataChanged ? VersionChangeKind.ContentAndMetadata : VersionChangeKind.Content,
             changeDescription,
             approvalStatus,
             createdBy,
@@ -155,6 +158,7 @@ public sealed class Document : AggregateRoot<DocumentId>
     /// </summary>
     public Result<DocumentVersion> AddMetadataRevision(
         DocumentVersion basedOn,
+        DocumentTypeVersionId documentTypeVersionId,
         string dynamicData,
         string? changeDescription,
         ApprovalStatus approvalStatus,
@@ -181,7 +185,7 @@ public sealed class Document : AggregateRoot<DocumentId>
             basedOn.MimeType,
             basedOn.FileSize,
             basedOn.Sha256,
-            basedOn.DocumentTypeVersionId,
+            documentTypeVersionId,
             dynamicData,
             VersionChangeKind.Metadata,
             changeDescription,
@@ -207,6 +211,30 @@ public sealed class Document : AggregateRoot<DocumentId>
 
         UpdatedAt = now;
         UpdatedBy = actor;
+    }
+
+    /// <summary>
+    /// MetadataEditPolicy.InPlace: rewrites the metadata of the current row without a new
+    /// revision. Only for ungoverned types, never for approval-relevant fields (the caller decides
+    /// that), and the database accepts it only inside a transaction that declared it.
+    /// </summary>
+    public Result UpdateCurrentMetadataInPlace(string dynamicData, UserId actor, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return Result.Failure(Error.Conflict("document.deleted", "A deleted document cannot be edited."));
+        }
+
+        var current = _versions.FirstOrDefault(version => version.Id == CurrentVersionId);
+        if (current is null)
+        {
+            return Result.Failure(Error.Conflict("version.missing", "The document has no current version."));
+        }
+
+        current.ReplaceMetadataInPlace(dynamicData);
+        UpdatedAt = now;
+        UpdatedBy = actor;
+        return Result.Success();
     }
 
     /// <summary>Used by the workflow phase when a version is approved.</summary>

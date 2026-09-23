@@ -3,11 +3,13 @@ import {
   Box,
   Button,
   Chip,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   LinearProgress,
   List,
   ListItem,
@@ -22,8 +24,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router';
 import { FilePicker } from '../components/FilePicker';
+import { DynamicForm } from '../components/metadata/DynamicForm';
+import { MetadataView } from '../components/metadata/MetadataView';
 import { TagInput } from '../components/TagInput';
-import { api, type DocumentDetails, type DocumentVersion } from '../lib/api';
+import { api, ApiError, type DocumentDetails, type DocumentVersion, type Metadata } from '../lib/api';
+import { clientErrors, toSubmission } from '../lib/metadata';
 import { formatDateTime } from '../lib/dates';
 import { formatBytes, newIdempotencyKey } from '../lib/format';
 import { describeError, t } from '../strings';
@@ -38,10 +43,19 @@ export function DocumentPage() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>((location.state as { notice?: string } | null)?.notice ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<'edit' | 'version' | 'delete' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | null>(null);
 
   const document = useQuery({ queryKey: ['document', id], queryFn: () => api.document(id) });
   const versions = useQuery({ queryKey: ['versions', id], queryFn: () => api.versions(id), enabled: document.isSuccess });
+
+  // Read with the schema the current row was written against, never with a newer one.
+  const schemaId = document.data?.currentSchemaVersionId;
+  const schema = useQuery({
+    queryKey: ['schema', schemaId],
+    queryFn: () => api.schema(schemaId!),
+    enabled: !!schemaId,
+    staleTime: Infinity,
+  });
 
   const refresh = async (message: string) => {
     setDialog(null);
@@ -117,6 +131,22 @@ export function DocumentPage() {
             <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{doc.description}</Typography>
           )}
 
+          {schema.data && schema.data.fields.length > 0 && (
+            <Box>
+              <Stack direction="row" sx={{ alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle1" component="h2" sx={{ flexGrow: 1 }}>
+                  {t.metadata}
+                </Typography>
+                {can(doc, 'DOCUMENT_EDIT') && (
+                  <Button size="small" onClick={() => setDialog('metadata')}>
+                    {t.editMetadata}
+                  </Button>
+                )}
+              </Stack>
+              <MetadataView schema={schema.data} metadata={doc.currentMetadata} />
+            </Box>
+          )}
+
           {doc.tags.length > 0 && (
             <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
               {doc.tags.map((tag) => (
@@ -154,6 +184,16 @@ export function DocumentPage() {
 
       {dialog === 'edit' && (
         <EditDialog document={doc} onClose={() => setDialog(null)} onSaved={() => refresh(t.saved)} />
+      )}
+      {dialog === 'metadata' && schema.data && (
+        <MetadataDialog
+          document={doc}
+          currentSchemaId={schema.data.versionId}
+          onClose={() => setDialog(null)}
+          onSaved={(outcome) =>
+            refresh(outcome === 'revision' ? t.revisionCreated : outcome === 'in_place' ? t.updatedInPlace : t.unchanged)
+          }
+        />
       )}
       {dialog === 'version' && (
         <AddVersionDialog
@@ -203,6 +243,7 @@ function VersionRow({
             <Typography sx={{ fontWeight: 600 }} dir="ltr">
               {version.label}
             </Typography>
+            <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
             {version.isCurrent && <Chip size="small" color="primary" label={t.current} />}
             {version.isEffective && !version.isCurrent && <Chip size="small" label={t.effective} />}
             {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}
@@ -237,6 +278,118 @@ function VersionRow({
         )}
       </Stack>
     </ListItem>
+  );
+}
+
+function changeKindLabel(kind: string): string {
+  switch (kind) {
+    case 'Initial':
+      return t.changeKindInitial;
+    case 'Metadata':
+      return t.changeKindMetadata;
+    case 'ContentAndMetadata':
+      return t.changeKindBoth;
+    default:
+      return t.changeKindContent;
+  }
+}
+
+/**
+ * Edits metadata without a new file. The server decides between a new revision (V3.2) and an
+ * in-place update from the type's edit policy and the approval-relevant flags; the dialog only
+ * reports which one happened. Offers moving to the latest schema when there is a newer one.
+ */
+function MetadataDialog({
+  document,
+  currentSchemaId,
+  onClose,
+  onSaved,
+}: {
+  document: DocumentDetails;
+  currentSchemaId: string;
+  onClose: () => void;
+  onSaved: (outcome: string) => void;
+}) {
+  const latest = useQuery({
+    queryKey: ['schema-latest', document.documentTypeId],
+    queryFn: () => api.latestSchema(document.documentTypeId),
+  });
+  const [upgrade, setUpgrade] = useState(false);
+  const schemaId = upgrade && latest.data ? latest.data.versionId : currentSchemaId;
+  const schema = useQuery({ queryKey: ['schema', schemaId], queryFn: () => api.schema(schemaId), staleTime: Infinity });
+
+  const [values, setValues] = useState<Metadata>(() => ({ ...(document.currentMetadata ?? {}) }));
+  const [changeDescription, setChangeDescription] = useState('');
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const idempotencyKey = useRef(newIdempotencyKey());
+
+  const save = async () => {
+    if (!schema.data) return;
+    const local = clientErrors(schema.data, values);
+    setErrors(local);
+    if (Object.keys(local).length > 0) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.updateMetadata(
+        document.id,
+        {
+          metadata: toSubmission(schema.data, values),
+          changeDescription: changeDescription.trim() || null,
+          baseVersionId: document.currentVersionId,
+          upgradeSchema: upgrade,
+        },
+        idempotencyKey.current,
+      );
+      onSaved(result.outcome);
+    } catch (caught) {
+      setError(describeError(caught));
+      if (caught instanceof ApiError) setErrors(caught.fieldErrors);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const newerSchema = latest.data && latest.data.versionId !== currentSchemaId;
+
+  return (
+    <FormDialog
+      title={t.editMetadata}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={save}
+      submitLabel={t.save}
+      disabled={!schema.data}
+    >
+      {newerSchema && (
+        <FormControlLabel
+          control={<Checkbox checked={upgrade} onChange={(event) => setUpgrade(event.target.checked)} disabled={busy} />}
+          label={
+            <Box>
+              <Typography variant="body2">{t.upgradeSchema}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {t.upgradeSchemaHelp}
+              </Typography>
+            </Box>
+          }
+        />
+      )}
+      {schema.data ? (
+        <DynamicForm schema={schema.data} value={values} onChange={setValues} errors={errors} disabled={busy} />
+      ) : (
+        <LinearProgress />
+      )}
+      <TextField
+        label={t.changeDescription}
+        value={changeDescription}
+        onChange={(event) => setChangeDescription(event.target.value)}
+        fullWidth
+      />
+    </FormDialog>
   );
 }
 

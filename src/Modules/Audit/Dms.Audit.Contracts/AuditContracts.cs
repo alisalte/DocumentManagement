@@ -80,6 +80,14 @@ public static class AuditActions
     /// <summary>A metadata-only revision, V(n).(r+1), reusing the same file (ADR 0001).</summary>
     public const string RevisionCreated = "REVISION_CREATED";
 
+    public const string DocumentTypeCreated = "DOCUMENT_TYPE_CREATED";
+    public const string DocumentTypeUpdated = "DOCUMENT_TYPE_UPDATED";
+    public const string DocumentTypeDraftSaved = "DOCUMENT_TYPE_DRAFT_SAVED";
+    public const string DocumentTypePublished = "DOCUMENT_TYPE_PUBLISHED";
+
+    /// <summary>A metadata edit applied to the latest revision in place (MetadataEditPolicy.InPlace), with a diff.</summary>
+    public const string MetadataUpdatedInPlace = "METADATA_UPDATED_IN_PLACE";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

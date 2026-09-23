@@ -71,6 +71,19 @@ export const t = {
   of: 'از',
   menu: 'پوشه‌ها',
   back: 'بازگشت',
+  metadata: 'مشخصات سند',
+  editMetadata: 'ویرایش مشخصات',
+  upgradeSchema: 'انتقال به آخرین نسخه‌ی نوع سند',
+  upgradeSchemaHelp: 'فرم با نسخه‌ی جدیدتر نوع سند پر می‌شود و ممکن است فیلدهای تازه‌ای بخواهد.',
+  revisionCreated: 'بازنگری تازه ثبت شد.',
+  updatedInPlace: 'مشخصات به‌روز شد.',
+  unchanged: 'تغییری نبود.',
+  changeKindInitial: 'نسخه‌ی اول',
+  changeKindContent: 'فایل جدید',
+  changeKindMetadata: 'تغییر مشخصات',
+  changeKindBoth: 'فایل و مشخصات',
+  documentTypes: 'انواع سند',
+  administration: 'مدیریت',
 } as const;
 
 /** Server error codes worth a friendlier sentence than the English problem detail. */

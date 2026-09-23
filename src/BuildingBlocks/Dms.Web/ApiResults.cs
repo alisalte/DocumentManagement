@@ -30,11 +30,18 @@ public static class ApiResults
             _ => StatusCodes.Status500InternalServerError,
         };
 
+        var extensions = new Dictionary<string, object?> { ["code"] = error.Code };
+        if (error.FieldErrors is { Count: > 0 } fields)
+        {
+            // Same shape as ASP.NET Core's ValidationProblemDetails, so clients handle both alike.
+            extensions["errors"] = fields;
+        }
+
         return Results.Problem(
             title: TitleFor(error.Type),
             detail: error.Message,
             statusCode: statusCode,
-            extensions: new Dictionary<string, object?> { ["code"] = error.Code });
+            extensions: extensions);
     }
 
     private static string TitleFor(ErrorType type) => type switch

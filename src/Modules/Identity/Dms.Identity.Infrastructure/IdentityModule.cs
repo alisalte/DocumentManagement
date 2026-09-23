@@ -32,7 +32,9 @@ public static class IdentityModule
         services.AddScoped<MembershipRepository>();
         services.AddScoped<IMembershipRepository>(sp => sp.GetRequiredService<MembershipRepository>());
         services.AddScoped<IGroupMembershipReader>(sp => sp.GetRequiredService<MembershipRepository>());
-        services.AddScoped<IGroupRepository, GroupRepository>();
+        services.AddScoped<GroupRepository>();
+        services.AddScoped<IGroupRepository>(sp => sp.GetRequiredService<GroupRepository>());
+        services.AddScoped<IGroupDirectory>(sp => sp.GetRequiredService<GroupRepository>());
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();

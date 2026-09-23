@@ -14,6 +14,15 @@ public sealed record Error(string Code, string Message, ErrorType Type)
 {
     public static readonly Error None = new(string.Empty, string.Empty, ErrorType.Failure);
 
+    /// <summary>
+    /// Per-field messages for a form, keyed by field code (or a path such as "fields[2].code").
+    /// Null when the error is about the request as a whole.
+    /// </summary>
+    public IReadOnlyDictionary<string, string[]>? FieldErrors { get; init; }
+
+    public static Error ValidationFields(string code, string message, IReadOnlyDictionary<string, string[]> fieldErrors) =>
+        new(code, message, ErrorType.Validation) { FieldErrors = fieldErrors };
+
     public static Error Validation(string code, string message) => new(code, message, ErrorType.Validation);
 
     public static Error NotFound(string code, string message) => new(code, message, ErrorType.NotFound);

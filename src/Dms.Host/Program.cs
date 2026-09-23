@@ -89,7 +89,12 @@ builder.Services.AddAuthorization();
 // Enums travel as names, not numbers: "Allow"/"Deny" survives a reordering of the enum, a number
 // does not, and permission decisions are the last place we want a silent off-by-one.
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+
+    // Typed ids travel as plain GUID strings, never as {"value": ...} objects.
+    options.SerializerOptions.Converters.Add(new Dms.Web.StronglyTypedIdJsonConverterFactory());
+});
 
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DmsExceptionHandler>();

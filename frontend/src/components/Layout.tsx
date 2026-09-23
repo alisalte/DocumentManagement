@@ -31,6 +31,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const selectedCategory = params.get('category');
+  const canManageTypes = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES'));
 
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
 
@@ -79,6 +80,11 @@ export function Layout({ children }: { children: ReactNode }) {
                 {t.recycleBin}
               </Button>
             )}
+            {isDesktop && canManageTypes && (
+              <Button color="inherit" component={RouterLink} to="/admin/document-types">
+                {t.documentTypes}
+              </Button>
+            )}
             {isDesktop && (
               <Typography variant="body2" sx={{ opacity: 0.85 }}>
                 {user?.displayName}
@@ -111,9 +117,14 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <Toolbar />
           {tree}
-          <Button component={RouterLink} to="/recycle-bin" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+          <Button component={RouterLink} to="/recycle-bin" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
             {t.recycleBin}
           </Button>
+          {canManageTypes && (
+            <Button component={RouterLink} to="/admin/document-types" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+              {t.documentTypes}
+            </Button>
+          )}
         </Drawer>
       )}
 

@@ -111,10 +111,42 @@ public sealed class DocumentType : AggregateRoot<DocumentTypeId>
         LatestPublishedVersionId = draft.Id;
         UpdatedAt = now;
 
-        // The next round of changes starts from a fresh draft; published schemas never change.
-        _versions.Add(DocumentTypeVersion.CreateDraft(Id, draft.VersionNumber + 1, now));
+        // The next round of changes starts from a copy of what was just published; the published
+        // schema itself never changes again.
+        var next = DocumentTypeVersion.CreateDraft(Id, draft.VersionNumber + 1, now);
+        next.ReplaceSchema(draft.ToSchema().Fields, draft.ToSchema().Rules);
+        _versions.Add(next);
         return Result.Success(draft.Id);
     }
+
+    /// <summary>
+    /// Replaces the draft's fields and rules wholesale. Callers validate the design first
+    /// (SchemaDesignValidator); the aggregate only guards that a draft exists.
+    /// </summary>
+    public Result ReplaceDraftSchema(
+        IReadOnlyList<FieldSchema> fields,
+        IReadOnlyList<FieldRuleSchema> rules,
+        DateTimeOffset now)
+    {
+        var draft = Draft;
+        if (draft is null)
+        {
+            return Result.Failure(Error.Conflict("document_type.no_draft", "There is no draft version to edit."));
+        }
+
+        draft.ReplaceSchema(fields, rules);
+        UpdatedAt = now;
+        return Result.Success();
+    }
+
+    /// <summary>Every published field code with the type it was published as, for the "type never changes" rule.</summary>
+    public IReadOnlyDictionary<string, FieldType> PublishedFieldTypes() =>
+        _versions
+            .Where(version => version.Status != DocumentTypeVersionStatus.Draft)
+            .OrderBy(version => version.VersionNumber)
+            .SelectMany(version => version.Fields)
+            .GroupBy(field => field.Code, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().FieldType, StringComparer.Ordinal);
 
     public DocumentTypeSummary ToSummary() =>
         new(Id, Code, Name, IsActive, LatestPublishedVersionId, Settings);
@@ -123,6 +155,9 @@ public sealed class DocumentType : AggregateRoot<DocumentTypeId>
 /// <summary>One immutable schema version. Published versions never change.</summary>
 public sealed class DocumentTypeVersion : Entity<DocumentTypeVersionId>
 {
+    private readonly List<FieldDefinition> _fields = [];
+    private readonly List<FieldRule> _rules = [];
+
     private DocumentTypeVersion()
     {
     }
@@ -151,6 +186,35 @@ public sealed class DocumentTypeVersion : Entity<DocumentTypeVersionId>
     public DateTimeOffset? PublishedAt { get; private set; }
 
     public UserId? PublishedBy { get; private set; }
+
+    public IReadOnlyList<FieldDefinition> Fields => _fields;
+
+    public IReadOnlyList<FieldRule> Rules => _rules;
+
+    public DocumentTypeSchema ToSchema() => new(
+        DocumentTypeId,
+        Id,
+        VersionNumber,
+        Status != DocumentTypeVersionStatus.Draft,
+        _fields
+            .OrderBy(field => field.DisplayOrder)
+            .ThenBy(field => field.Code, StringComparer.Ordinal)
+            .Select(field => field.ToSchema())
+            .ToList(),
+        _rules.OrderBy(rule => rule.DisplayOrder).Select(rule => rule.ToSchema()).ToList());
+
+    internal void ReplaceSchema(IReadOnlyList<FieldSchema> fields, IReadOnlyList<FieldRuleSchema> rules)
+    {
+        if (Status != DocumentTypeVersionStatus.Draft)
+        {
+            throw new InvalidOperationException("A published schema version never changes.");
+        }
+
+        _fields.Clear();
+        _fields.AddRange(fields.Select(field => FieldDefinition.From(Id, field)));
+        _rules.Clear();
+        _rules.AddRange(rules.Select(rule => FieldRule.From(Id, rule)));
+    }
 
     internal static DocumentTypeVersion CreateDraft(
         DocumentTypeId documentTypeId,

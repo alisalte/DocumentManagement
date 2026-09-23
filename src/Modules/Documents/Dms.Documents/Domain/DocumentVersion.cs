@@ -107,6 +107,9 @@ public sealed class DocumentVersion : Entity<DocumentVersionId>
         };
     }
 
+    internal void ReplaceMetadataInPlace(string dynamicData) =>
+        DynamicData = string.IsNullOrWhiteSpace(dynamicData) ? "{}" : dynamicData;
+
     /// <summary>Only the workflow phase changes approval state; the file never changes.</summary>
     public void RecordApproval(ApprovalStatus status, DateTimeOffset now)
     {

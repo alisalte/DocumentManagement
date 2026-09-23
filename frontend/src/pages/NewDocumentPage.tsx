@@ -9,11 +9,13 @@ import {
   Typography,
 } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { FilePicker } from '../components/FilePicker';
+import { DynamicForm } from '../components/metadata/DynamicForm';
 import { TagInput } from '../components/TagInput';
-import { api, type UploadResult } from '../lib/api';
+import { api, ApiError, type Metadata, type UploadResult } from '../lib/api';
+import { clientErrors, defaultsOf, toSubmission } from '../lib/metadata';
 import { newIdempotencyKey } from '../lib/format';
 import { describeError, t } from '../strings';
 
@@ -45,6 +47,8 @@ export function NewDocumentPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>([]);
+  const [metadata, setMetadata] = useState<Metadata>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   const staged = useRef<{ file: File; upload: UploadResult } | null>(null);
   const idempotencyKey = useRef(newIdempotencyKey());
@@ -52,9 +56,27 @@ export function NewDocumentPage() {
   const selectedCategory = creatable.some((category) => category.id === categoryId) ? categoryId : '';
   const selectedType = documentTypeId || types.data?.find((type) => type.code === 'GENERAL')?.id || '';
 
+  // The form is the latest published schema of the chosen type.
+  const schema = useQuery({
+    queryKey: ['schema-latest', selectedType],
+    queryFn: () => api.latestSchema(selectedType),
+    enabled: !!selectedType,
+  });
+
+  useEffect(() => {
+    if (schema.data) {
+      setMetadata(defaultsOf(schema.data));
+      setFieldErrors({});
+    }
+  }, [schema.data]);
+
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!file || !selectedCategory || !selectedType) return;
+    if (!file || !selectedCategory || !selectedType || !schema.data) return;
+
+    const local = clientErrors(schema.data, metadata);
+    setFieldErrors(local);
+    if (Object.keys(local).length > 0) return;
 
     setBusy(true);
     setError(null);
@@ -77,6 +99,7 @@ export function NewDocumentPage() {
           uploadId: staged.current!.upload.uploadId,
           tags,
           changeDescription: null,
+          metadata: toSubmission(schema.data, metadata),
         },
         idempotencyKey.current,
       );
@@ -85,6 +108,7 @@ export function NewDocumentPage() {
       navigate(`/documents/${created.documentId}`, { state: { notice: t.created } });
     } catch (caught) {
       setError(describeError(caught));
+      if (caught instanceof ApiError) setFieldErrors(caught.fieldErrors);
       setProgress(null);
     } finally {
       setBusy(false);
@@ -179,6 +203,21 @@ export function NewDocumentPage() {
         />
 
         <TagInput value={tags} onChange={setTags} disabled={busy} />
+
+        {schema.data && schema.data.fields.length > 0 && (
+          <>
+            <Typography variant="subtitle1" component="h2" sx={{ pt: 1 }}>
+              {t.metadata}
+            </Typography>
+            <DynamicForm
+              schema={schema.data}
+              value={metadata}
+              onChange={setMetadata}
+              errors={fieldErrors}
+              disabled={busy}
+            />
+          </>
+        )}
 
         {error && <Alert severity="error">{error}</Alert>}
 

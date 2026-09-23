@@ -1,5 +1,6 @@
 using Dms.Application;
 using Dms.Authorization.Contracts;
+using Dms.DocumentTypes.Contracts;
 using Dms.SharedKernel;
 using Dms.Storage.Contracts;
 
@@ -65,7 +66,7 @@ public sealed class ListDocumentsHandler(
     }
 }
 
-public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel readModel)
+public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel readModel, IDocumentTypeCatalog documentTypes)
     : IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>
 {
     /// <summary>Actions the UI may offer. Checked one by one with the real evaluator.</summary>
@@ -101,7 +102,15 @@ public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel
             }
         }
 
-        return Result.Success(details with { AllowedActions = actions });
+        var schema = details.CurrentSchemaVersionId is { } schemaId
+            ? await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(schemaId), cancellationToken)
+            : null;
+
+        return Result.Success(details with
+        {
+            AllowedActions = actions,
+            CurrentMetadata = MetadataPresenter.ForApi(schema, details.CurrentMetadata?.GetRawText()),
+        });
     }
 }
 
@@ -109,6 +118,7 @@ public sealed class ListVersionsHandler(
     DocumentAccess access,
     IDocumentReadModel readModel,
     IStorageService storage,
+    IDocumentTypeCatalog documentTypes,
     ICurrentUser currentUser) : IQueryHandler<ListVersionsQuery, Result<IReadOnlyList<DocumentVersionDto>>>
 {
     public async Task<Result<IReadOnlyList<DocumentVersionDto>>> HandleAsync(
@@ -144,9 +154,18 @@ public sealed class ListVersionsHandler(
             visibleVersions.Select(version => new StorageObjectId(version.StorageObjectId)).Distinct().ToList(),
             cancellationToken);
 
+        // Each row is read with the schema it was written against, so a field added or retyped in
+        // a later schema never changes how an old version's values are presented.
+        var schemas = new Dictionary<Guid, DocumentTypeSchema?>();
+        foreach (var schemaId in visibleVersions.Select(version => version.SchemaVersionId).Distinct())
+        {
+            schemas[schemaId] = await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(schemaId), cancellationToken);
+        }
+
         IReadOnlyList<DocumentVersionDto> result = visibleVersions
             .Select(version => version with
             {
+                Metadata = MetadataPresenter.ForApi(schemas[version.SchemaVersionId], version.Metadata?.GetRawText()),
                 IsCurrent = version.Id == details.CurrentVersionId,
                 IsEffective = version.Id == details.EffectiveVersionId,
                 ScanStatus = files.TryGetValue(new StorageObjectId(version.StorageObjectId), out var file)

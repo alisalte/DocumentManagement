@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
@@ -28,9 +29,16 @@ public static class DocumentEndpoints
         Guid DocumentTypeId,
         Guid UploadId,
         IReadOnlyList<string>? Tags,
-        string? ChangeDescription);
+        string? ChangeDescription,
+        JsonElement? Metadata);
 
-    public sealed record AddVersionRequest(Guid UploadId, string? ChangeDescription, Guid? BaseVersionId);
+    public sealed record AddVersionRequest(Guid UploadId, string? ChangeDescription, Guid? BaseVersionId, JsonElement? Metadata);
+
+    public sealed record UpdateMetadataRequest(
+        JsonElement Metadata,
+        string? ChangeDescription,
+        Guid? BaseVersionId,
+        bool UpgradeSchema = false);
 
     public sealed record UpdateDocumentRequest(string Title, string? Description, Guid CategoryId);
 
@@ -177,6 +185,7 @@ public static class DocumentEndpoints
                     request.UploadId,
                     request.Tags,
                     request.ChangeDescription,
+                    request.Metadata,
                     NormalizeKey(idempotencyKey));
 
                 var result = await dispatcher.SendAsync(command, ct);
@@ -245,6 +254,7 @@ public static class DocumentEndpoints
                     request.UploadId,
                     request.ChangeDescription,
                     request.BaseVersionId,
+                    request.Metadata,
                     NormalizeKey(idempotencyKey));
 
                 var result = await dispatcher.SendAsync(command, ct);
@@ -252,6 +262,25 @@ public static class DocumentEndpoints
                     Results.Created($"/api/v1/documents/{id}/versions/{created.VersionId}", created));
             })
             .WithSummary("Add a new file version. Send baseVersionId to get 409 if someone else was faster.");
+
+        documents.MapPut("/{id:guid}/metadata", async (
+                Guid id,
+                UpdateMetadataRequest request,
+                [FromHeader(Name = IdempotencyHeader)] string? idempotencyKey,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var command = new UpdateMetadataCommand(
+                    id,
+                    request.Metadata,
+                    request.ChangeDescription,
+                    request.BaseVersionId,
+                    request.UpgradeSchema,
+                    NormalizeKey(idempotencyKey));
+
+                return (await dispatcher.SendAsync(command, ct)).ToHttpResult();
+            })
+            .WithSummary("Edit metadata without a new file: a new revision (V3.2), or in place for ungoverned types.");
 
         documents.MapGet("/{id:guid}/content", (Guid id, IDispatcher dispatcher, HttpContext http, CancellationToken ct) =>
                 DownloadAsync(new OpenContentCommand(id, null), dispatcher, http, ct))

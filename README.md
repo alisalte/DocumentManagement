@@ -6,11 +6,12 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phase 2 (documents and storage) is implemented and awaiting review.** On top of the phase 1
-foundation (identity, authorization engine, audit log, job queue) there are now categories, a
-minimal document type, streamed uploads, immutable versions, downloads, soft delete / restore /
-purge, tags, and a Persian RTL frontend to browse, file and inspect documents. Workflow, search and
-sharing are the later phases listed in the architecture document.
+**Status: phase 3 (dynamic document types) is implemented and awaiting review.** Phases 1–2 are
+done: identity, authorization, audit, the job queue, categories, streamed uploads, immutable
+versions, downloads, soft delete / restore / purge and tags. Phase 3 adds versioned document type
+schemas with fields, options and rules, a rule language shared by the server and the browser,
+per-version metadata with revisions, and an admin schema editor. Workflow, search and sharing are
+the later phases listed in the architecture document.
 
 ## Stack
 
@@ -84,6 +85,7 @@ API reference while the API is running in development: <http://localhost:5080/sc
 ```bash
 ./scripts/dev-db.sh     # integration tests need PostgreSQL
 ./scripts/test.sh
+cd frontend && npx vitest run   # rule language (shared vectors), Jalali dates, form logic
 ```
 
 The test projects are xunit v3 / Microsoft.Testing.Platform executables. `scripts/test.sh` runs

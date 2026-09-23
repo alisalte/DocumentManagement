@@ -854,8 +854,8 @@ Every phase needs explicit approval before it starts.
 | Phase | Scope | Exit criteria (tests) |
 |---|---|---|
 | **1 Foundation** ✱ **(done)** | Solution, building blocks, compose (Postgres), Migrator, Identity (local login, sessions), Authorization core (catalog, roles, ACL, evaluator, access scope), Audit writer, job queue, architecture tests | Evaluator unit tests for every §5 rule: deny precedence, inheritance, override, view/download/print separation, default deny |
-| **2 Documents + Storage** ✱ **(implemented, awaiting approval)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
-| **3 Dynamic document types** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
+| **2 Documents + Storage** ✱ **(done)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
+| **3 Dynamic document types** **(implemented, awaiting approval)** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
 | **4 Workflow** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
 | **5 Processing + Search** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
 | **6 Sharing** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
@@ -887,6 +887,38 @@ Every phase needs explicit approval before it starts.
   and duplicate notices that exclude documents only visible through shares (phase 6).
 - **Filenames** keep ZWNJ and ZWJ, which Persian writes inside words; every other format character,
   bidi overrides in particular, is still removed.
+
+**Phase 3 as built.**
+
+- **Rule language** lives in `Dms.SharedKernel.Rules` (parser with depth 8 / 100 nodes, total
+  evaluator) and `frontend/src/lib/rules.ts`. Both run the same vectors in
+  `tests/rules/rule-cases.json`; the only known divergence is number precision beyond 2^53, which
+  only affects form hints.
+- **Validation** is `MetadataValidator` (pure): unknown keys are refused, values are normalised
+  (Persian digits, trimmed text, UTC date-times, ordered multi-select), SHOW rules are resolved to
+  a fixed point and hidden values are dropped, then REQUIRE, declarative limits and VALIDATE rules.
+  USER and GROUP ids are checked against Identity; DOCUMENT_REFERENCE must point at a document the
+  author can VIEW, otherwise it is refused exactly like a missing one. Messages are Persian.
+- **Schemas** are edited as a whole draft (`PUT …/draft`) and checked on save and again on publish
+  (`SchemaDesignValidator`): codes, options, settings that fit the type, patterns that compile under
+  `NonBacktracking`, defaults that pass their own field, rules that parse and name real fields, no
+  SHOW rule on its own targets, and a field code never changes type across versions. Publishing
+  starts the next draft as a copy. Triggers make published fields, options, rules and versions
+  immutable in the database.
+- **Metadata edits** (`PUT /documents/{id}/metadata`) follow ADR 0001: a new revision V(n).(r+1) on
+  the same storage object under NEW_REVISION; under IN_PLACE the current row is rewritten with a
+  before/after audit record, except when an approval-relevant field (in the old or new schema)
+  changes or the schema is upgraded, which always makes a revision. The version trigger accepts a
+  `dynamic_data` change only in a transaction that set `dms.metadata_in_place`.
+- **Schema binding.** A document binds to the latest published schema at creation. A new file
+  without new metadata carries the previous row's metadata and schema; with metadata it binds to
+  the latest schema. A metadata edit keeps the row's schema unless `upgradeSchema` is set. Every
+  row is always read with its own schema version.
+- **API shape.** DECIMAL values leave the API as strings; strongly typed ids serialise as plain
+  GUIDs. Field errors come back as `errors: { "<field or path>": [messages] }`.
+- **Not in phase 3:** owner default ACLs from the type's permission policy (still the fixed §5.5
+  set), `show_in_list` columns in the browser, search over metadata (phase 5), and field-level
+  security (§5.10).
 
 **Test stack:**
 

@@ -69,12 +69,59 @@ public sealed class UserRepository(IdentityDbContext context) : IUserRepository,
             .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin))
             .ToListAsync(cancellationToken);
 
+    async Task<IReadOnlyList<UserSummary>> IUserDirectory.SearchAsync(
+        string? text,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var query = context.Users.AsNoTracking().Where(user => user.IsActive);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var normalized = User.Normalize(text);
+            var trimmed = text.Trim();
+            query = query.Where(user => user.NormalizedUsername.Contains(normalized) || user.DisplayName.Contains(trimmed));
+        }
+
+        return await query
+            .OrderBy(user => user.DisplayName)
+            .Take(limit)
+            .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin))
+            .ToListAsync(cancellationToken);
+    }
+
     private static UserSummary ToSummary(User user) =>
         new(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin);
 }
 
-public sealed class GroupRepository(IdentityDbContext context) : IGroupRepository
+public sealed class GroupRepository(IdentityDbContext context) : IGroupRepository, IGroupDirectory
 {
+    public async Task<IReadOnlyList<GroupSummary>> FindManyAsync(
+        IReadOnlyCollection<GroupId> groupIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = groupIds.ToArray();
+        return await context.Groups.AsNoTracking()
+            .Where(group => ids.Contains(group.Id))
+            .Select(group => new GroupSummary(group.Id, group.Code, group.Name, group.IsActive))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<GroupSummary>> SearchAsync(string? text, int limit, CancellationToken cancellationToken)
+    {
+        var query = context.Groups.AsNoTracking().Where(group => group.IsActive);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            var trimmed = text.Trim();
+            query = query.Where(group => group.Name.Contains(trimmed) || group.Code.Contains(trimmed.ToUpper()));
+        }
+
+        return await query
+            .OrderBy(group => group.Name)
+            .Take(limit)
+            .Select(group => new GroupSummary(group.Id, group.Code, group.Name, group.IsActive))
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Group?> FindAsync(GroupId groupId, CancellationToken cancellationToken) =>
         context.Groups.FirstOrDefaultAsync(group => group.Id == groupId, cancellationToken);
 

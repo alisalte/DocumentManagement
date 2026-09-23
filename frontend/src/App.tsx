@@ -10,6 +10,8 @@ import { DocumentPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewDocumentPage } from './pages/NewDocumentPage';
 import { RecycleBinPage } from './pages/RecycleBinPage';
+import { DocumentTypeEditorPage } from './pages/admin/DocumentTypeEditorPage';
+import { DocumentTypesPage } from './pages/admin/DocumentTypesPage';
 import { SessionProvider, useSession } from './session';
 import { createAppTheme, rtlCache } from './theme';
 
@@ -67,6 +69,9 @@ function Shell() {
     return <LoginPage />;
   }
 
+  // Only hides screens that would be refused anyway; the server checks every call.
+  const canManageTypes = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES');
+
   return (
     <Layout>
       <Routes>
@@ -74,6 +79,8 @@ function Shell() {
         <Route path="/new" element={<NewDocumentPage />} />
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/recycle-bin" element={<RecycleBinPage />} />
+        {canManageTypes && <Route path="/admin/document-types" element={<DocumentTypesPage />} />}
+        {canManageTypes && <Route path="/admin/document-types/:id" element={<DocumentTypeEditorPage />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

@@ -86,6 +86,8 @@ export interface DocumentDetails {
   ownerId: string;
   currentVersionId: string | null;
   effectiveVersionId: string | null;
+  currentMetadata: Metadata | null;
+  currentSchemaVersionId: string | null;
   latestVersionNumber: number;
   status: string;
   tags: Tag[];
@@ -117,6 +119,8 @@ export interface DocumentVersion {
   isCurrent: boolean;
   isEffective: boolean;
   scanStatus: string;
+  schemaVersionId: string;
+  metadata: Metadata | null;
 }
 
 export interface DocumentType {
@@ -126,6 +130,105 @@ export interface DocumentType {
   description: string | null;
   isActive: boolean;
   latestPublishedVersionId: string | null;
+  settings?: DocumentTypeSettings;
+}
+
+export type FieldType =
+  | 'Text' | 'LongText' | 'Integer' | 'Decimal' | 'Boolean' | 'Date' | 'DateTime' | 'Select' | 'MultiSelect'
+  | 'User' | 'Group' | 'DocumentReference' | 'Url' | 'Email' | 'Phone';
+
+export interface LocalizedText {
+  fa: string;
+  en?: string | null;
+}
+
+export interface FieldValidation {
+  minLength?: number | null;
+  maxLength?: number | null;
+  min?: number | null;
+  max?: number | null;
+  pattern?: string | null;
+  patternMessage?: LocalizedText | null;
+  minDate?: string | null;
+  maxDate?: string | null;
+  scale?: number | null;
+  maxItems?: number | null;
+}
+
+export interface FieldOption {
+  value: string;
+  label: LocalizedText;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export interface FieldSchema {
+  code: string;
+  label: LocalizedText;
+  type: FieldType;
+  isRequired: boolean;
+  isSearchable: boolean;
+  isSortable: boolean;
+  showInList: boolean;
+  isApprovalRelevant: boolean;
+  defaultValue?: unknown;
+  validation: FieldValidation;
+  options: FieldOption[];
+  helpText?: LocalizedText | null;
+  displayOrder: number;
+  isActive: boolean;
+}
+
+export type RuleKind = 'Show' | 'Require' | 'Validate';
+
+export interface FieldRuleSchema {
+  kind: RuleKind;
+  condition?: unknown;
+  targets: string[];
+  assertion?: unknown;
+  message?: LocalizedText | null;
+  displayOrder: number;
+}
+
+export interface DocumentTypeSchema {
+  documentTypeId: string;
+  versionId: string;
+  versionNumber: number;
+  isPublished: boolean;
+  fields: FieldSchema[];
+  rules: FieldRuleSchema[];
+}
+
+export type MetadataEditPolicy = 'NewRevision' | 'InPlace';
+
+export interface DocumentTypeSettings {
+  allowedExtensions: string[];
+  maxUploadBytes: number | null;
+  metadataEditPolicy: MetadataEditPolicy;
+  allowExternalSharing: boolean;
+}
+
+export interface DocumentTypeAdmin {
+  type: DocumentType & { settings: DocumentTypeSettings };
+  versions: { id: string; versionNumber: number; status: string; publishedAt: string | null; fieldCount: number }[];
+  draft: DocumentTypeSchema | null;
+}
+
+export type Metadata = Record<string, unknown>;
+
+export interface MetadataUpdate {
+  documentId: string;
+  versionId: string;
+  label: string;
+  outcome: 'revision' | 'in_place' | 'unchanged';
+}
+
+export interface DirectoryEntry {
+  id: string;
+  displayName?: string;
+  name?: string;
+  username?: string;
+  code?: string;
 }
 
 export interface UploadResult {
@@ -148,6 +251,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string | undefined,
     message: string,
+    /** Per-field messages, keyed by field code or path (e.g. "fields[2].code"). */
+    readonly fieldErrors: Record<string, string[]> = {},
   ) {
     super(message);
   }
@@ -155,7 +260,12 @@ export class ApiError extends Error {
 
 async function toError(response: Response): Promise<ApiError> {
   const problem = await response.json().catch(() => ({}));
-  return new ApiError(response.status, problem.code, problem.detail ?? problem.title ?? response.statusText);
+  return new ApiError(
+    response.status,
+    problem.code,
+    problem.detail ?? problem.title ?? response.statusText,
+    problem.errors ?? {},
+  );
 }
 
 /** Exchanges the stored refresh token once, even when several requests hit a 401 together. */
@@ -324,7 +434,7 @@ export const api = {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(body as UploadResult);
           } else {
-            reject(new ApiError(xhr.status, body.code, body.detail ?? body.title ?? xhr.statusText));
+            reject(new ApiError(xhr.status, body.code, body.detail ?? body.title ?? xhr.statusText, body.errors ?? {}));
           }
         };
 
@@ -352,6 +462,7 @@ export const api = {
     uploadId: string;
     tags: string[];
     changeDescription: string | null;
+    metadata: Metadata;
   }, idempotencyKey: string): Promise<CreatedVersion> {
     return request<CreatedVersion>('/api/v1/documents', {
       method: 'POST',
@@ -370,6 +481,50 @@ export const api = {
       body: JSON.stringify(body),
       headers: { 'Idempotency-Key': idempotencyKey },
     });
+  },
+
+  updateMetadata: (
+    id: string,
+    body: { metadata: Metadata; changeDescription: string | null; baseVersionId: string | null; upgradeSchema: boolean },
+    idempotencyKey: string,
+  ) =>
+    request<MetadataUpdate>(`/api/v1/documents/${id}/metadata`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }),
+
+  /** The latest published schema of a type: the form for a new document. */
+  latestSchema: (documentTypeId: string) =>
+    request<DocumentTypeSchema>(`/api/v1/document-types/${documentTypeId}/schema`),
+
+  /** One schema version; published schemas never change, so callers may cache forever. */
+  schema: (versionId: string) => request<DocumentTypeSchema>(`/api/v1/document-types/schemas/${versionId}`),
+
+  users: (params: { search?: string; ids?: string[] }) =>
+    request<DirectoryEntry[]>(`/api/v1/directory/users${query({ search: params.search, ids: params.ids?.join(',') })}`),
+
+  groups: (params: { search?: string; ids?: string[] }) =>
+    request<DirectoryEntry[]>(`/api/v1/directory/groups${query({ search: params.search, ids: params.ids?.join(',') })}`),
+
+  admin: {
+    documentTypes: () => request<DocumentType[]>('/api/v1/document-types?includeInactive=true'),
+
+    documentType: (id: string) => request<DocumentTypeAdmin>(`/api/v1/admin/document-types/${id}`),
+
+    createDocumentType: (body: { code: string; name: string; description: string | null }) =>
+      request<{ id: string }>('/api/v1/admin/document-types', { method: 'POST', body: JSON.stringify(body) }),
+
+    updateDocumentType: (
+      id: string,
+      body: { name: string; description: string | null; settings: DocumentTypeSettings; isActive: boolean },
+    ) => request<void>(`/api/v1/admin/document-types/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+    saveDraft: (id: string, body: { fields: FieldSchema[]; rules: FieldRuleSchema[] }) =>
+      request<void>(`/api/v1/admin/document-types/${id}/draft`, { method: 'PUT', body: JSON.stringify(body) }),
+
+    publish: (id: string) =>
+      request<{ versionId: string }>(`/api/v1/admin/document-types/${id}/publish`, { method: 'POST' }),
   },
 
   updateDocument: (id: string, body: { title: string; description: string | null; categoryId: string }) =>

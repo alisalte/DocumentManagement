@@ -1,7 +1,9 @@
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Identity.Application;
+using Dms.Identity.Contracts;
 using Dms.Identity.Domain;
+using Dms.SharedKernel;
 using Dms.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -157,6 +159,37 @@ public static class IdentityEndpoints
             return result.ToHttpResult();
         });
 
+        // Pickers for USER and GROUP metadata fields. Any signed-in user may look people up by
+        // name, as in any company directory; only names and ids are returned, never contact data.
+        var directory = endpoints.MapGroup("/api/v1/directory").WithTags("Directory").RequireAuthorization();
+
+        directory.MapGet("/users", async (string? search, string? ids, IUserDirectory users, CancellationToken ct) =>
+        {
+            var found = ParseIds(ids) is { Count: > 0 } wanted
+                ? await users.FindManyAsync(wanted.Select(id => new UserId(id)).ToList(), ct)
+                : await users.SearchAsync(search, 20, ct);
+
+            return Results.Ok(found.Select(user => new { id = user.Id.Value, user.DisplayName, user.Username }));
+        });
+
+        directory.MapGet("/groups", async (string? search, string? ids, IGroupDirectory groups, CancellationToken ct) =>
+        {
+            var found = ParseIds(ids) is { Count: > 0 } wanted
+                ? await groups.FindManyAsync(wanted.Select(id => new GroupId(id)).ToList(), ct)
+                : await groups.SearchAsync(search, 20, ct);
+
+            return Results.Ok(found.Select(group => new { id = group.Id.Value, group.Name, group.Code }));
+        });
+
         return endpoints;
     }
+
+    private static List<Guid> ParseIds(string? ids) =>
+        (ids ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(id => Guid.TryParse(id, out var value) ? value : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .Take(50)
+            .ToList();
 }

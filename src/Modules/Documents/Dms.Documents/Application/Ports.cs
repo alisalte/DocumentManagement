@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Contracts;
@@ -52,6 +53,12 @@ public interface IDocumentRepository
     Task<DocumentVersion?> FindVersionAsync(DocumentVersionId versionId, CancellationToken cancellationToken);
 
     void Add(Document document);
+
+    /// <summary>
+    /// Declares that this transaction may rewrite version metadata in place (MetadataEditPolicy
+    /// InPlace). Without it the immutability trigger refuses any change to dynamic_data.
+    /// </summary>
+    Task AllowInPlaceMetadataEditAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes the document and its versions. The immutability trigger refuses to delete versions
@@ -162,6 +169,11 @@ public sealed record DocumentDetailsDto(
     /// checks every request; this is a convenience, never a decision.
     /// </summary>
     public IReadOnlyList<string> AllowedActions { get; init; } = [];
+
+    /// <summary>Metadata of the current version, and the schema version to read it with.</summary>
+    public JsonElement? CurrentMetadata { get; init; }
+
+    public Guid? CurrentSchemaVersionId { get; init; }
 }
 
 public sealed record DocumentVersionDto(
@@ -187,4 +199,9 @@ public sealed record DocumentVersionDto(
 
     /// <summary>Decision D9: the uploader can always see why content is not available yet.</summary>
     public string ScanStatus { get; init; } = "Pending";
+
+    /// <summary>The schema this row was written against; old rows keep reading with their own.</summary>
+    public Guid SchemaVersionId { get; init; }
+
+    public JsonElement? Metadata { get; init; }
 }
