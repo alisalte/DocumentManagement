@@ -1,10 +1,13 @@
 using Dms.Application;
 using Dms.Audit.Infrastructure;
 using Dms.Authorization.Infrastructure;
+using Dms.DocumentTypes.Infrastructure;
+using Dms.Documents.Infrastructure;
 using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Persistence;
 using Dms.Migrator;
+using Dms.Storage.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,6 +25,9 @@ builder.Services.AddDmsBuildingBlocks(connectionString);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddAuthorizationModule();
 builder.Services.AddAuditModule();
+builder.Services.AddStorageModule(builder.Configuration);
+builder.Services.AddDocumentTypesModule();
+builder.Services.AddDocumentsModule();
 builder.Services.AddScoped<ICurrentUser, SystemCurrentUser>();
 
 using var host = builder.Build();

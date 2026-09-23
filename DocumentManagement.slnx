@@ -20,10 +20,25 @@
     <Project Path="src/Modules/Authorization/Dms.Authorization.Infrastructure/Dms.Authorization.Infrastructure.csproj" />
     <Project Path="src/Modules/Authorization/Dms.Authorization/Dms.Authorization.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Documents/">
+    <Project Path="src/Modules/Documents/Dms.Documents.Contracts/Dms.Documents.Contracts.csproj" />
+    <Project Path="src/Modules/Documents/Dms.Documents.Infrastructure/Dms.Documents.Infrastructure.csproj" />
+    <Project Path="src/Modules/Documents/Dms.Documents/Dms.Documents.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/DocumentTypes/">
+    <Project Path="src/Modules/DocumentTypes/Dms.DocumentTypes.Contracts/Dms.DocumentTypes.Contracts.csproj" />
+    <Project Path="src/Modules/DocumentTypes/Dms.DocumentTypes.Infrastructure/Dms.DocumentTypes.Infrastructure.csproj" />
+    <Project Path="src/Modules/DocumentTypes/Dms.DocumentTypes/Dms.DocumentTypes.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Identity/">
     <Project Path="src/Modules/Identity/Dms.Identity.Contracts/Dms.Identity.Contracts.csproj" />
     <Project Path="src/Modules/Identity/Dms.Identity.Infrastructure/Dms.Identity.Infrastructure.csproj" />
     <Project Path="src/Modules/Identity/Dms.Identity/Dms.Identity.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Storage/">
+    <Project Path="src/Modules/Storage/Dms.Storage.Contracts/Dms.Storage.Contracts.csproj" />
+    <Project Path="src/Modules/Storage/Dms.Storage.Infrastructure/Dms.Storage.Infrastructure.csproj" />
+    <Project Path="src/Modules/Storage/Dms.Storage/Dms.Storage.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dms.ArchitectureTests/Dms.ArchitectureTests.csproj" />

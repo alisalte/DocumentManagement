@@ -20,7 +20,8 @@ public sealed class ScanStorageObjectJob(
 
     public async Task HandleAsync(string payload, CancellationToken cancellationToken)
     {
-        var id = JsonSerializer.Deserialize<ScanPayload>(payload)?.StorageObjectId;
+        // Web defaults: the payload is written camelCase by the job queue.
+        var id = JsonSerializer.Deserialize<ScanPayload>(payload, JsonSerializerOptions.Web)?.StorageObjectId;
         if (id is null)
         {
             return;

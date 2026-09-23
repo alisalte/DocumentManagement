@@ -58,18 +58,19 @@ public sealed class CreateCategoryHandler(
             return Result.Failure<Guid>(DocumentErrors.Forbidden(decision.Explanation));
         }
 
-        Category? parent = null;
-        if (command.ParentId is { } parentId)
+        // One tree with one root (section 5.2), so an ACL entry on the root covers the whole
+        // archive. "No parent" therefore means "directly under the root", never a second root.
+        var parent = command.ParentId is { } parentId
+            ? await categories.FindAsync(new CategoryId(parentId), cancellationToken)
+            : await categories.FindRootAsync(cancellationToken);
+
+        if (parent is null)
         {
-            parent = await categories.FindAsync(new CategoryId(parentId), cancellationToken);
-            if (parent is null)
-            {
-                return Result.Failure<Guid>(DocumentErrors.CategoryNotFound);
-            }
+            return Result.Failure<Guid>(DocumentErrors.CategoryNotFound);
         }
 
-        var code = command.Code.Trim().ToUpperInvariant();
-        if (await categories.FindSiblingByCodeAsync(parent?.Id, code, cancellationToken) is not null)
+        var code = (command.Code ?? string.Empty).Trim().ToUpperInvariant();
+        if (await categories.FindSiblingByCodeAsync(parent.Id, code, cancellationToken) is not null)
         {
             return Result.Failure<Guid>(Error.Conflict(
                 "category.duplicate_code",
@@ -79,7 +80,7 @@ public sealed class CreateCategoryHandler(
         var created = Category.Create(
             parent,
             command.Name,
-            command.Code,
+            code,
             command.Description,
             actor,
             timeProvider.GetUtcNow());
@@ -99,7 +100,7 @@ public sealed class CreateCategoryHandler(
                 Metadata = new Dictionary<string, object?>
                 {
                     ["code"] = created.Value.Code,
-                    ["parentId"] = command.ParentId,
+                    ["parentId"] = parent.Id.Value,
                 },
             },
             cancellationToken);
@@ -172,14 +173,27 @@ public sealed class MoveCategoryHandler(
             return Result.Failure(DocumentErrors.CategoryNotFound);
         }
 
-        Category? newParent = null;
-        if (command.NewParentId is { } parentId)
+        if (category.ParentId is null)
         {
-            newParent = await categories.FindAsync(new CategoryId(parentId), cancellationToken);
-            if (newParent is null)
-            {
-                return Result.Failure(DocumentErrors.CategoryNotFound);
-            }
+            return Result.Failure(Error.Validation("category.root_fixed", "The root category cannot be moved."));
+        }
+
+        var newParent = command.NewParentId is { } parentId
+            ? await categories.FindAsync(new CategoryId(parentId), cancellationToken)
+            : await categories.FindRootAsync(cancellationToken);
+
+        if (newParent is null)
+        {
+            return Result.Failure(DocumentErrors.CategoryNotFound);
+        }
+
+        // The whole subtree moves, so its deepest leaf has to fit under the new parent too.
+        var newDepth = newParent.Depth + 1;
+        if (newDepth + await categories.GetSubtreeHeightAsync(category, cancellationToken) > Category.MaxDepth)
+        {
+            return Result.Failure(Error.Validation(
+                "category.too_deep",
+                $"The category tree is limited to {Category.MaxDepth} levels."));
         }
 
         var oldPath = category.Path;

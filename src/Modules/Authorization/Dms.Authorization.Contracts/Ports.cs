@@ -76,3 +76,20 @@ public interface ITemporaryGrantSource
         ResourceRef resource,
         CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Writes ACL entries that the system itself decides on, such as the defaults a new document gets
+/// (docs/architecture.md section 5.5). This is not a way around DOCUMENT_MANAGE_PERMISSION: it is
+/// called from application code that has already authorized the surrounding operation, never from
+/// an endpoint, and every entry it writes is audited like any other grant.
+/// </summary>
+public interface IResourceAclWriter
+{
+    Task GrantAsync(
+        ResourceRef resource,
+        SubjectType subjectType,
+        Guid subjectId,
+        IReadOnlyCollection<string> permissionCodes,
+        string reason,
+        CancellationToken cancellationToken);
+}

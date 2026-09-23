@@ -20,6 +20,9 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
     private readonly string _databaseName = $"dms_test_{Guid.NewGuid():N}";
 
+    /// <summary>Filesystem storage in a throwaway directory: real bytes on a real disk, no object store needed.</summary>
+    public string StorageRoot { get; } = Path.Combine(Path.GetTempPath(), $"dms_test_{Guid.NewGuid():N}");
+
     private static string AdminConnectionString =>
         Environment.GetEnvironmentVariable("DMS_TEST_POSTGRES")
         ?? "Host=localhost;Port=5433;Username=dms;Password=dms;Database=postgres";
@@ -49,6 +52,9 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         // API role only: the background worker would compete with the tests for jobs.
         Environment.SetEnvironmentVariable("Dms__Role", "api");
 
+        Environment.SetEnvironmentVariable("Dms__Storage__Provider", "filesystem");
+        Environment.SetEnvironmentVariable("Dms__Storage__FileSystem__RootPath", StorageRoot);
+
         // Every test signs in, and they all come from the same address. The limiter itself is
         // covered by its own test rather than by throttling the whole suite.
         Environment.SetEnvironmentVariable("Dms__RateLimits__LoginPerMinute", "10000");
@@ -76,6 +82,11 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         await using var command = connection.CreateCommand();
         command.CommandText = $"""DROP DATABASE IF EXISTS "{_databaseName}" WITH (FORCE);""";
         await command.ExecuteNonQueryAsync();
+
+        if (Directory.Exists(StorageRoot))
+        {
+            Directory.Delete(StorageRoot, recursive: true);
+        }
     }
 
     public async Task<NpgsqlConnection> OpenConnectionAsync()

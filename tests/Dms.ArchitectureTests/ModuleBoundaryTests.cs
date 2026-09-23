@@ -15,14 +15,47 @@ public sealed class ModuleBoundaryTests
     private static readonly Assembly IdentityCore = typeof(Identity.Domain.User).Assembly;
     private static readonly Assembly AuthorizationCore = typeof(Authorization.Domain.Role).Assembly;
     private static readonly Assembly AuditCore = typeof(Audit.Domain.AuditEntry).Assembly;
+    private static readonly Assembly DocumentsCore = typeof(Documents.Domain.Document).Assembly;
+    private static readonly Assembly DocumentTypesCore = typeof(DocumentTypes.Domain.DocumentType).Assembly;
+    private static readonly Assembly StorageCore = typeof(Storage.Domain.StorageObject).Assembly;
     private static readonly Assembly SharedKernel = typeof(Entity<>).Assembly;
+
+    /// <summary>Every module, so a new one cannot quietly skip the boundary rules.</summary>
+    private static readonly string[] Modules = ["Identity", "Authorization", "Audit", "Documents", "DocumentTypes", "Storage"];
 
     public static TheoryData<string, Assembly> CoreAssemblies => new()
     {
         { "Identity", IdentityCore },
         { "Authorization", AuthorizationCore },
         { "Audit", AuditCore },
+        { "Documents", DocumentsCore },
+        { "DocumentTypes", DocumentTypesCore },
+        { "Storage", StorageCore },
     };
+
+    [Theory]
+    [MemberData(nameof(CoreAssemblies))]
+    public void Modules_reach_each_other_only_through_contracts(string module, Assembly assembly)
+    {
+        // Namespaces of other modules, except their .Contracts. "Dms.Documents" must not match
+        // "Dms.DocumentTypes", hence the trailing dot.
+        var forbidden = Modules
+            .Where(other => other != module)
+            .SelectMany(other => new[]
+            {
+                $"Dms.{other}.Domain",
+                $"Dms.{other}.Application",
+                $"Dms.{other}.Infrastructure",
+            })
+            .ToArray();
+
+        var result = Types.InAssembly(assembly)
+            .ShouldNot()
+            .HaveDependencyOnAny(forbidden)
+            .GetResult();
+
+        result.IsSuccessful.ShouldBeTrue($"{module}: {Describe(result)}");
+    }
 
     [Theory]
     [MemberData(nameof(CoreAssemblies))]
@@ -120,7 +153,7 @@ public sealed class ModuleBoundaryTests
     public void Aggregate_roots_keep_their_identifiers_strongly_typed()
     {
         // Guid ids are easy to swap by accident; every aggregate uses a typed id instead.
-        var offenders = Types.InAssemblies([IdentityCore, AuthorizationCore, AuditCore])
+        var offenders = Types.InAssemblies([IdentityCore, AuthorizationCore, AuditCore, DocumentsCore, DocumentTypesCore, StorageCore])
             .That().Inherit(typeof(AggregateRoot<>))
             .GetTypes()
             .Where(type => type.BaseType?.GenericTypeArguments.FirstOrDefault() == typeof(Guid))

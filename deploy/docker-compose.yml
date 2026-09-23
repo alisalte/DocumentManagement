@@ -60,6 +60,12 @@ services:
       # api | worker | all. Split these into two services when OCR arrives in phase 5.
       Dms__Role: ${DMS_ROLE:-all}
       Dms__Cors__Origins__0: ${DMS_FRONTEND_ORIGIN:-http://localhost:5173}
+      # Filesystem storage on a named volume. Switch to s3 (MinIO) with Dms__Storage__Provider=s3
+      # and Dms__Storage__S3__* once an object store is part of the stack.
+      Dms__Storage__Provider: ${DMS_STORAGE_PROVIDER:-filesystem}
+      Dms__Storage__FileSystem__RootPath: /var/lib/dms/objects
+    volumes:
+      - object-data:/var/lib/dms/objects
     ports:
       - "${API_PORT:-5080}:8080"
     depends_on:
@@ -86,3 +92,4 @@ services:
 
 volumes:
   postgres-data:
+  object-data:

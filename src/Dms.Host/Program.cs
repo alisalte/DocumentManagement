@@ -5,11 +5,14 @@ using System.Threading.RateLimiting;
 using Dms.Application;
 using Dms.Audit.Infrastructure;
 using Dms.Authorization.Infrastructure;
+using Dms.DocumentTypes.Infrastructure;
+using Dms.Documents.Infrastructure;
 using Dms.Host;
 using Dms.Identity.Application;
 using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Jobs;
+using Dms.Storage.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,6 +33,9 @@ builder.Services.AddDmsBuildingBlocks(connectionString);
 builder.Services.AddIdentityModule(builder.Configuration);
 builder.Services.AddAuthorizationModule();
 builder.Services.AddAuditModule();
+builder.Services.AddStorageModule(builder.Configuration);
+builder.Services.AddDocumentTypesModule();
+builder.Services.AddDocumentsModule();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
@@ -112,7 +118,10 @@ if (corsOrigins.Length > 0)
         .WithOrigins(corsOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()
-        .AllowCredentials()));
+        .AllowCredentials()
+
+        // Downloads carry the file name here; browsers hide it from scripts unless exposed.
+        .WithExposedHeaders("Content-Disposition")));
 }
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -174,6 +183,8 @@ if (role is "api" or "all")
     app.MapIdentityEndpoints();
     app.MapAuthorizationEndpoints();
     app.MapAuditEndpoints();
+    app.MapDocumentTypeEndpoints();
+    app.MapDocumentEndpoints();
 }
 
 app.Run();

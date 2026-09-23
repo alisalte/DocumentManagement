@@ -32,8 +32,12 @@ public static class FileNames
         var builder = new StringBuilder(leaf.Length);
         foreach (var character in leaf)
         {
+            // Persian writes the half-space (ZWNJ) and ZWJ inside ordinary words, so they stay.
+            // Every other format character goes, in particular the bidi overrides that can make
+            // "gpj.exe" display as "exe.jpg".
             var category = CharUnicodeInfo.GetUnicodeCategory(character);
-            if (category is UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.Surrogate)
+            if (character is not ('\u200C' or '\u200D')
+                && category is UnicodeCategory.Control or UnicodeCategory.Format or UnicodeCategory.Surrogate)
             {
                 continue;
             }

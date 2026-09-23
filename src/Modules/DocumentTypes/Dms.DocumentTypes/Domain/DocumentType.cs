@@ -96,7 +96,8 @@ public sealed class DocumentType : AggregateRoot<DocumentTypeId>
     public DocumentTypeVersion? Draft =>
         _versions.FirstOrDefault(version => version.Status == DocumentTypeVersionStatus.Draft);
 
-    public Result<DocumentTypeVersionId> PublishDraft(UserId publishedBy, DateTimeOffset now)
+    /// <param name="publishedBy">Null when the system publishes a seeded type.</param>
+    public Result<DocumentTypeVersionId> PublishDraft(UserId? publishedBy, DateTimeOffset now)
     {
         var draft = Draft;
         if (draft is null)
@@ -157,7 +158,7 @@ public sealed class DocumentTypeVersion : Entity<DocumentTypeVersionId>
         DateTimeOffset now) =>
         new(DocumentTypeVersionId.New(), documentTypeId, versionNumber, now);
 
-    internal void Publish(UserId publishedBy, DateTimeOffset now)
+    internal void Publish(UserId? publishedBy, DateTimeOffset now)
     {
         Status = DocumentTypeVersionStatus.Published;
         PublishedBy = publishedBy;

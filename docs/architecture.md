@@ -854,7 +854,7 @@ Every phase needs explicit approval before it starts.
 | Phase | Scope | Exit criteria (tests) |
 |---|---|---|
 | **1 Foundation** ✱ **(done)** | Solution, building blocks, compose (Postgres), Migrator, Identity (local login, sessions), Authorization core (catalog, roles, ACL, evaluator, access scope), Audit writer, job queue, architecture tests | Evaluator unit tests for every §5 rule: deny precedence, inheritance, override, view/download/print separation, default deny |
-| **2 Documents + Storage** ✱ | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
+| **2 Documents + Storage** ✱ **(implemented, awaiting approval)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
 | **3 Dynamic document types** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
 | **4 Workflow** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
 | **5 Processing + Search** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
@@ -862,6 +862,31 @@ Every phase needs explicit approval before it starts.
 | **7 Audit hardening + notifications** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
 | **9 Hardening** | Security test suite, load tests (k6), pen-test checklist, backup/restore drill | Performance targets based on the sizing answers (D11) |
+
+**Phase 2 as built: where it differs from the plan above, and what it leaves for later.**
+
+- **One bucket, not four.** Staged and committed files share one bucket (`dms-objects`, or a
+  directory for the filesystem provider); the lifecycle lives in `storage_objects.status`, and
+  committing is a status change rather than a server-side copy. Quarantine gets its own location
+  when ClamAV arrives in phase 5.
+- **Filesystem storage is the default provider** so the stack runs without MinIO. `S3FileStorage`
+  is implemented behind the same `IFileStorage`; the bucket is not created automatically yet.
+- **One root category.** "No parent" means "under the root"; a unique index refuses a second root.
+- **Owner defaults** (section 5.5) are the example set, VIEW, DOWNLOAD, EDIT and CREATE_VERSION,
+  written as ordinary audited ACL rows by `IResourceAclWriter`. Phase 3 moves them onto the
+  document type's permission policy.
+- **Concurrent version creation** is serialised with `SELECT … FOR UPDATE` on the document row, so
+  every concurrent upload gets the next number and none has to retry. The unique index on
+  `(document_id, version_number, revision_number)` and `xmin` stay as backstops.
+- **Idempotency-Key** is honoured on "create document" and "add version" (`infra.idempotency_keys`,
+  written in the same transaction, kept one day). A retried upload simply stages a second copy that
+  the staged-upload collector removes. Expired keys are not yet swept.
+- **Not in phase 2:** metadata-only revisions over the API (the domain supports them; the endpoint
+  needs field definitions, phase 3), ETag / `If-Match` on metadata edits, preview and print (they
+  need renditions, phase 5, and so does the `DOCUMENT_VIEWED` event), HTTP Range for S3 downloads,
+  and duplicate notices that exclude documents only visible through shares (phase 6).
+- **Filenames** keep ZWNJ and ZWJ, which Persian writes inside words; every other format character,
+  bidi overrides in particular, is still removed.
 
 **Test stack:**
 

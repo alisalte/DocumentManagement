@@ -17,7 +17,7 @@ public sealed class StorageService(
     TimeProvider timeProvider,
     ILogger<StorageService> logger) : IStorageService
 {
-    public async Task<Result<StagedUpload>> StageAsync(
+    public async Task<Result<WrittenFile>> WriteAsync(
         Stream content,
         string fileName,
         string? declaredMimeType,
@@ -27,6 +27,8 @@ public sealed class StorageService(
         var now = timeProvider.GetUtcNow();
         var id = StorageObjectId.New();
         var safeName = FileNames.Sanitize(fileName);
+
+        // The same id names the row and the object key, so an orphaned object can always be traced.
         var location = new ObjectLocation(settings.Bucket, FileNames.BuildObjectKey("objects", id.Value, now));
 
         await using var measured = new HashingReadStream(content, settings.MaxUploadBytes);
@@ -39,13 +41,13 @@ public sealed class StorageService(
         catch (UploadTooLargeException tooLarge)
         {
             await TryDeleteAsync(location, cancellationToken);
-            return Result.Failure<StagedUpload>(Error.Validation(
+            return Result.Failure<WrittenFile>(Error.Validation(
                 "upload.too_large",
                 $"The file exceeds the maximum upload size of {tooLarge.MaxBytes} bytes."));
         }
         catch (Exception exception)
         {
-            await TryDeleteAsync(location, cancellationToken);
+            await TryDeleteAsync(location, CancellationToken.None);
             logger.LogError(exception, "Upload of {FileName} failed while streaming to storage.", safeName);
             throw;
         }
@@ -53,43 +55,59 @@ public sealed class StorageService(
         if (measured.BytesRead == 0)
         {
             await TryDeleteAsync(location, cancellationToken);
-            return Result.Failure<StagedUpload>(Error.Validation("upload.empty", "The file is empty."));
+            return Result.Failure<WrittenFile>(Error.Validation("upload.empty", "The file is empty."));
         }
 
-        var detected = MimeSniffer.Detect(measured.Sample, safeName, declaredMimeType);
+        return Result.Success(new WrittenFile(
+            id,
+            location.Bucket,
+            location.Key,
+            safeName,
+            MimeSniffer.Detect(measured.Sample, safeName, declaredMimeType),
+            declaredMimeType,
+            measured.BytesRead,
+            measured.Digest));
+    }
+
+    public async Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken)
+    {
         var scanStatus = scanner.IsEnabled ? ScanStatus.Pending : ScanStatus.Skipped;
 
         var storageObject = StorageObject.Stage(
+            file.Id,
             fileStorage.Provider,
-            location.Bucket,
-            location.Key,
+            file.Bucket,
+            file.ObjectKey,
             StorageObjectPurpose.Original,
-            safeName,
-            detected,
-            declaredMimeType,
-            measured.BytesRead,
-            measured.Digest,
+            file.FileName,
+            file.DetectedMimeType,
+            file.DeclaredMimeType,
+            file.Size,
+            file.Sha256,
             scanStatus,
             currentUser.UserId,
-            now);
+            timeProvider.GetUtcNow());
 
         repository.Add(storageObject);
 
         if (scanner.IsEnabled)
         {
-            // Queued in the caller's transaction: a stored object always gets its scan.
+            // Queued in the caller's transaction: a recorded object always gets its scan.
             await jobs.EnqueueAsync(
                 new JobRequest(ScanStorageObjectJob.Type, new { storageObjectId = storageObject.Id.Value }),
                 cancellationToken);
         }
 
-        return Result.Success(new StagedUpload(
+        return new StagedUpload(
             storageObject.Id,
-            safeName,
-            detected,
-            measured.BytesRead,
-            Convert.ToHexStringLower(measured.Digest)));
+            file.FileName,
+            file.DetectedMimeType,
+            file.Size,
+            Convert.ToHexStringLower(file.Sha256));
     }
+
+    public Task DiscardAsync(WrittenFile file, CancellationToken cancellationToken) =>
+        TryDeleteAsync(new ObjectLocation(file.Bucket, file.ObjectKey), cancellationToken);
 
     public async Task<Result> CommitAsync(StorageObjectId id, CancellationToken cancellationToken)
     {
@@ -104,6 +122,14 @@ public sealed class StorageService(
 
     public async Task<StorageObjectInfo?> FindAsync(StorageObjectId id, CancellationToken cancellationToken) =>
         (await repository.FindAsync(id, cancellationToken))?.ToInfo();
+
+    public async Task<IReadOnlyDictionary<StorageObjectId, StorageObjectInfo>> FindManyAsync(
+        IReadOnlyCollection<StorageObjectId> ids,
+        CancellationToken cancellationToken)
+    {
+        var found = await repository.FindManyAsync(ids, cancellationToken);
+        return found.ToDictionary(item => item.Id, item => item.ToInfo());
+    }
 
     public async Task<Result<StoredContent>> OpenAsync(
         StorageObjectId id,

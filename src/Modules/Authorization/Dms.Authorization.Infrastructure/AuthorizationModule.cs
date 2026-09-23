@@ -25,6 +25,7 @@ public static class AuthorizationModule
 
         services.AddScoped<IDmsAuthorizer, Authorizer>();
         services.AddScoped<IAccessScopeProvider, AccessScopeProvider>();
+        services.AddScoped<IResourceAclWriter, ResourceAclWriter>();
 
         // Replaced by the Documents module in phase 2.
         services.TryAddScoped<IResourceHierarchy, FlatResourceHierarchy>();

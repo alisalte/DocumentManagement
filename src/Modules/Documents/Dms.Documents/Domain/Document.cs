@@ -267,10 +267,15 @@ public sealed class Document : AggregateRoot<DocumentId>
         return Result.Success();
     }
 
+    /// <summary>
+    /// Replaces the tag set. Applied as a difference, so a tag that stays keeps its original
+    /// "added by / at" and the persistence layer never sees the same link removed and re-added.
+    /// </summary>
     public void SetTags(IEnumerable<TagId> tagIds, DateTimeOffset now, UserId actor)
     {
-        _tags.Clear();
-        foreach (var tagId in tagIds.Distinct())
+        var wanted = tagIds.ToHashSet();
+        _tags.RemoveAll(tag => !wanted.Contains(tag.TagId));
+        foreach (var tagId in wanted.Where(id => _tags.All(tag => tag.TagId != id)))
         {
             _tags.Add(new DocumentTag(Id, tagId, actor, now));
         }

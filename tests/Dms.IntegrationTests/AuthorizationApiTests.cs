@@ -110,10 +110,12 @@ public sealed class AuthorizationApiTests(DmsApiFactory factory)
         client.WithToken(tokens.AccessToken);
 
         var (_, userId) = await CreateOrdinaryUserAsync("grantee.user");
-        var documentId = Guid.CreateVersion7();
+
+        // ACL entries attach to resources that exist; phase 1 accepted any id, phase 2 knows better.
+        var categoryId = await client.CreateCategoryAsync();
 
         var granted = await client.PostAsJsonAsync(
-            $"/api/v1/resources/Document/{documentId}/permissions",
+            $"/api/v1/resources/Category/{categoryId}/permissions",
             new
             {
                 subjectType = "User",
@@ -127,7 +129,7 @@ public sealed class AuthorizationApiTests(DmsApiFactory factory)
         var entryId = (await granted.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         await factory.ShouldHaveAuditAsync("PERMISSION_GRANTED");
 
-        var listed = await client.GetAsync($"/api/v1/resources/Document/{documentId}/permissions");
+        var listed = await client.GetAsync($"/api/v1/resources/Category/{categoryId}/permissions");
         listed.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await listed.Content.ReadFromJsonAsync<JsonElement>()).GetArrayLength().ShouldBe(1);
 
@@ -144,10 +146,10 @@ public sealed class AuthorizationApiTests(DmsApiFactory factory)
         client.WithToken(tokens.AccessToken);
 
         var (_, userId) = await CreateOrdinaryUserAsync("explained.user");
-        var documentId = Guid.CreateVersion7();
+        var categoryId = await client.CreateCategoryAsync();
 
         await client.PostAsJsonAsync(
-            $"/api/v1/resources/Document/{documentId}/permissions",
+            $"/api/v1/resources/Category/{categoryId}/permissions",
             new
             {
                 subjectType = "User",
@@ -158,7 +160,7 @@ public sealed class AuthorizationApiTests(DmsApiFactory factory)
             });
 
         var explained = await client.GetAsync(
-            $"/api/v1/permissions/explain?userId={userId}&resourceType=Document&resourceId={documentId}");
+            $"/api/v1/permissions/explain?userId={userId}&resourceType=Category&resourceId={categoryId}");
 
         explained.StatusCode.ShouldBe(HttpStatusCode.OK);
         var rows = await explained.Content.ReadFromJsonAsync<JsonElement>();

@@ -86,6 +86,7 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
     public DateTimeOffset? DeletedAt { get; private set; }
 
     public static StorageObject Stage(
+        StorageObjectId id,
         string provider,
         string bucket,
         string objectKey,
@@ -106,7 +107,7 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
         }
 
         return new StorageObject(
-            StorageObjectId.New(),
+            id,
             provider,
             bucket,
             objectKey,
@@ -158,5 +159,5 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
     }
 
     public StorageObjectInfo ToInfo() =>
-        new(Id, OriginalFileName, DetectedMimeType, Size, Sha256, Status, ScanStatus);
+        new(Id, OriginalFileName, DetectedMimeType, Size, Sha256, Status, ScanStatus, CreatedBy);
 }

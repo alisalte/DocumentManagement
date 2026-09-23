@@ -10,6 +10,8 @@ public sealed class InfraDbContext : DbContext
 
     public DbSet<JobRecord> Jobs => Set<JobRecord>();
 
+    public DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(InfraSchema.Name);
@@ -52,6 +54,19 @@ public sealed class InfraDbContext : DbContext
                 .HasDatabaseName("ux_jobs_idempotency_key")
                 .IsUnique()
                 .HasFilter("status IN ('QUEUED','RUNNING')");
+        });
+
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.ToTable("idempotency_keys");
+            entity.HasKey(item => new { item.UserId, item.Key });
+            entity.Property(item => item.UserId).HasColumnName("user_id");
+            entity.Property(item => item.Key).HasColumnName("key").HasMaxLength(200);
+            entity.Property(item => item.RequestHash).HasColumnName("request_hash").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Response).HasColumnName("response").HasColumnType("jsonb").IsRequired();
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.ExpiresAt).HasColumnName("expires_at");
+            entity.HasIndex(item => item.ExpiresAt).HasDatabaseName("ix_idempotency_keys_expires_at");
         });
     }
 }

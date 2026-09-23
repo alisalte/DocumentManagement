@@ -10,6 +10,21 @@ public sealed class StorageObjectRepository(StorageDbContext context) : IStorage
     public Task<StorageObject?> FindAsync(StorageObjectId id, CancellationToken cancellationToken) =>
         context.StorageObjects.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
+    public async Task<IReadOnlyList<StorageObject>> FindManyAsync(
+        IReadOnlyCollection<StorageObjectId> ids,
+        CancellationToken cancellationToken)
+    {
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var keys = ids.ToArray();
+        return await context.StorageObjects.AsNoTracking()
+            .Where(item => keys.Contains(item.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<StorageObject>> FindByHashAsync(
         byte[] sha256,
         CancellationToken cancellationToken) =>

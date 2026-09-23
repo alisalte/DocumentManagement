@@ -23,7 +23,7 @@ public sealed class Category : AggregateRoot<CategoryId>
         string? description,
         string path,
         int depth,
-        UserId createdBy,
+        UserId? createdBy,
         DateTimeOffset now)
         : base(id)
     {
@@ -56,7 +56,8 @@ public sealed class Category : AggregateRoot<CategoryId>
 
     public int SortOrder { get; private set; }
 
-    public UserId CreatedBy { get; private set; }
+    /// <summary>Null for categories seeded by the system, such as the root.</summary>
+    public UserId? CreatedBy { get; private set; }
 
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -67,7 +68,7 @@ public sealed class Category : AggregateRoot<CategoryId>
         string name,
         string code,
         string? description,
-        UserId createdBy,
+        UserId? createdBy,
         DateTimeOffset now)
     {
         if (string.IsNullOrWhiteSpace(name))

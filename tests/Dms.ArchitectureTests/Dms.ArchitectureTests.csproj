@@ -14,6 +14,9 @@
     <ProjectReference Include="..\..\src\Modules\Audit\Dms.Audit\Dms.Audit.csproj" />
     <ProjectReference Include="..\..\src\Modules\Authorization\Dms.Authorization\Dms.Authorization.csproj" />
     <ProjectReference Include="..\..\src\Modules\Identity\Dms.Identity\Dms.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Documents\Dms.Documents\Dms.Documents.csproj" />
+    <ProjectReference Include="..\..\src\Modules\DocumentTypes\Dms.DocumentTypes\Dms.DocumentTypes.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Storage\Dms.Storage\Dms.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -32,6 +32,7 @@ public enum ScanStatus
 }
 
 /// <summary>What another module needs to know about a stored file.</summary>
+/// <param name="CreatedBy">The uploader. Only they may attach a staged upload to a document.</param>
 public sealed record StorageObjectInfo(
     StorageObjectId Id,
     string FileName,
@@ -39,7 +40,8 @@ public sealed record StorageObjectInfo(
     long Size,
     byte[] Sha256,
     StorageObjectStatus Status,
-    ScanStatus ScanStatus)
+    ScanStatus ScanStatus,
+    UserId? CreatedBy)
 {
     public string Sha256Hex => Convert.ToHexStringLower(Sha256);
 
@@ -48,6 +50,21 @@ public sealed record StorageObjectInfo(
 }
 
 public sealed record StagedUpload(StorageObjectId Id, string FileName, string MimeType, long Size, string Sha256Hex);
+
+/// <summary>
+/// Bytes that have reached storage but are not yet recorded in the database. Produced by
+/// <see cref="IStorageService.WriteAsync"/> outside any transaction and turned into a row by
+/// <see cref="IStorageService.RegisterAsync"/> inside a short one.
+/// </summary>
+public sealed record WrittenFile(
+    StorageObjectId Id,
+    string Bucket,
+    string ObjectKey,
+    string FileName,
+    string DetectedMimeType,
+    string? DeclaredMimeType,
+    long Size,
+    byte[] Sha256);
 
 /// <summary>A stream of stored bytes, plus what the caller needs to send response headers.</summary>
 public sealed record StoredContent(Stream Content, string MimeType, string FileName, long Size) : IAsyncDisposable
@@ -61,17 +78,35 @@ public sealed record StoredContent(Stream Content, string MimeType, string FileN
 /// </summary>
 public interface IStorageService
 {
-    /// <summary>Streams an upload into storage, hashing and sniffing it on the way through.</summary>
-    Task<Result<StagedUpload>> StageAsync(
+    /// <summary>
+    /// Streams an upload into storage, hashing and sniffing it on the way through. Touches no
+    /// database: an upload can take minutes, and no transaction or pooled connection may be held
+    /// open for that long (docs/architecture.md section 4.11).
+    /// </summary>
+    Task<Result<WrittenFile>> WriteAsync(
         Stream content,
         string fileName,
         string? declaredMimeType,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Records written bytes as a STAGED object and queues its malware scan, in the caller's
+    /// transaction.
+    /// </summary>
+    Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken);
+
+    /// <summary>Best effort removal of bytes that never got a database row.</summary>
+    Task DiscardAsync(WrittenFile file, CancellationToken cancellationToken);
+
     /// <summary>Attaches a staged object to a document. Idempotent.</summary>
     Task<Result> CommitAsync(StorageObjectId id, CancellationToken cancellationToken);
 
     Task<StorageObjectInfo?> FindAsync(StorageObjectId id, CancellationToken cancellationToken);
+
+    /// <summary>Batch lookup for listings, so a version history is one query rather than N.</summary>
+    Task<IReadOnlyDictionary<StorageObjectId, StorageObjectInfo>> FindManyAsync(
+        IReadOnlyCollection<StorageObjectId> ids,
+        CancellationToken cancellationToken);
 
     Task<Result<StoredContent>> OpenAsync(StorageObjectId id, ByteRange? range, CancellationToken cancellationToken);
 

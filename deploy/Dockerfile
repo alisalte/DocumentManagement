@@ -15,8 +15,10 @@ RUN dotnet publish src/Dms.Host/Dms.Host.csproj -c Release -o /app/api --no-rest
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# Never run as root.
-RUN useradd --uid 64198 --create-home --shell /usr/sbin/nologin dms
+# Never run as root. The object directory is created here, owned by dms, so a fresh named volume
+# mounted on it inherits that ownership.
+RUN useradd --uid 64198 --create-home --shell /usr/sbin/nologin dms \
+ && mkdir -p /var/lib/dms/objects && chown dms:dms /var/lib/dms/objects
 COPY --from=build --chown=dms:dms /app/ /app/
 USER dms
 

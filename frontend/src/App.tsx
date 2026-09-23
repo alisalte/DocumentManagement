@@ -1,149 +1,81 @@
 import { CacheProvider } from '@emotion/react';
-import {
-  Alert,
-  AppBar,
-  Box,
-  Button,
-  Chip,
-  Container,
-  CssBaseline,
-  Paper,
-  Stack,
-  TextField,
-  ThemeProvider,
-  Toolbar,
-  Typography,
-} from '@mui/material';
-import { useEffect, useState } from 'react';
-import { api, ApiError, type CurrentUser } from './lib/api';
-import { formatDateTime } from './lib/dates';
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { Layout } from './components/Layout';
+import { ApiError } from './lib/api';
+import { BrowsePage } from './pages/BrowsePage';
+import { DocumentPage } from './pages/DocumentPage';
+import { LoginPage } from './pages/LoginPage';
+import { NewDocumentPage } from './pages/NewDocumentPage';
+import { RecycleBinPage } from './pages/RecycleBinPage';
+import { SessionProvider, useSession } from './session';
 import { createAppTheme, rtlCache } from './theme';
 
-const strings = {
-  title: 'بایگانی اسناد',
-  username: 'نام کاربری',
-  password: 'گذرواژه',
-  signIn: 'ورود',
-  signOut: 'خروج',
-  signedInAs: 'وارد شده به عنوان',
-  mustChangePassword: 'باید گذرواژه خود را تغییر دهید.',
-  administrator: 'مدیر سامانه',
-  permissions: 'مجوزهای سامانه‌ای',
-  now: 'اکنون',
-  phaseNotice: 'فاز ۱: احراز هویت، مجوزها، ممیزی. مدیریت اسناد در فاز بعد اضافه می‌شود.',
-};
+const theme = createAppTheme('rtl');
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      // A 403 or 404 is an answer, not a glitch; retrying it only delays the message.
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && error.status >= 400 && error.status < 500) && failureCount < 2,
+    },
+  },
+});
 
 /**
- * Phase 1 shell: enough UI to sign in and prove the Persian/RTL foundation works end to end.
- * The document browser, upload and admin screens arrive with their phases.
+ * Phase 2 shell: sign-in, the document browser, filing a new document, details with version
+ * history, and the recycle bin. Persian, right to left, phone first.
  */
 export default function App() {
-  const theme = createAppTheme('rtl');
-  const [user, setUser] = useState<CurrentUser | null>(null);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
   useEffect(() => {
     document.documentElement.dir = 'rtl';
     document.documentElement.lang = 'fa';
   }, []);
 
-  async function signIn(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await api.login(username, password);
-      setUser(await api.me());
-    } catch (caught) {
-      setError(caught instanceof ApiError ? caught.message : String(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function signOut() {
-    await api.logout();
-    setUser(null);
-    setPassword('');
-  }
-
   return (
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <AppBar position="static" color="primary">
-          <Toolbar>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              {strings.title}
-            </Typography>
-            {user && (
-              <Button color="inherit" onClick={signOut}>
-                {strings.signOut}
-              </Button>
-            )}
-          </Toolbar>
-        </AppBar>
-
-        <Container maxWidth="sm" sx={{ py: { xs: 2, sm: 4 } }}>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            {strings.phaseNotice}
-          </Alert>
-
-          {!user ? (
-            <Paper component="form" onSubmit={signIn} sx={{ p: { xs: 2, sm: 3 } }} elevation={2}>
-              <Stack spacing={2}>
-                <TextField
-                  label={strings.username}
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                  autoComplete="username"
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label={strings.password}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  type="password"
-                  autoComplete="current-password"
-                  fullWidth
-                  required
-                />
-                {error && <Alert severity="error">{error}</Alert>}
-                <Button type="submit" variant="contained" disabled={busy} size="large">
-                  {strings.signIn}
-                </Button>
-              </Stack>
-            </Paper>
-          ) : (
-            <Paper sx={{ p: { xs: 2, sm: 3 } }} elevation={2}>
-              <Stack spacing={2}>
-                <Typography variant="h6">
-                  {strings.signedInAs}: {user.displayName}
-                </Typography>
-                {user.isSystemAdmin && <Chip color="secondary" label={strings.administrator} />}
-                {user.mustChangePassword && (
-                  <Alert severity="warning">{strings.mustChangePassword}</Alert>
-                )}
-                <Box>
-                  <Typography variant="subtitle2">{strings.permissions}</Typography>
-                  <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 1 }}>
-                    {user.systemPermissions.map((permission) => (
-                      <Chip key={permission} size="small" label={permission} />
-                    ))}
-                  </Stack>
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {strings.now}: {formatDateTime(new Date().toISOString())}
-                </Typography>
-              </Stack>
-            </Paper>
-          )}
-        </Container>
+        <QueryClientProvider client={queryClient}>
+          <SessionProvider>
+            <BrowserRouter>
+              <Shell />
+            </BrowserRouter>
+          </SessionProvider>
+        </QueryClientProvider>
       </ThemeProvider>
     </CacheProvider>
+  );
+}
+
+function Shell() {
+  const { user, ready } = useSession();
+
+  if (!ready) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
+  return (
+    <Layout>
+      <Routes>
+        <Route path="/" element={<BrowsePage />} />
+        <Route path="/new" element={<NewDocumentPage />} />
+        <Route path="/documents/:id" element={<DocumentPage />} />
+        <Route path="/recycle-bin" element={<RecycleBinPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Layout>
   );
 }

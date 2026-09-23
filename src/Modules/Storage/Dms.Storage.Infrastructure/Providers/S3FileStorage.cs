@@ -6,6 +6,8 @@ using Dms.Storage.Application;
 using Dms.Storage.Contracts;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ByteRange = Dms.Storage.Contracts.ByteRange;
+using S3ByteRange = Amazon.S3.Model.ByteRange;
 
 namespace Dms.Storage.Infrastructure.Providers;
 
@@ -75,7 +77,7 @@ public sealed class S3FileStorage : IFileStorage, IDisposable
 
         if (range is { } wanted)
         {
-            request.ByteRange = new ByteRange(wanted.From, wanted.To ?? long.MaxValue);
+            request.ByteRange = new S3ByteRange(wanted.From, wanted.To ?? long.MaxValue);
         }
 
         var response = await _client.GetObjectAsync(request, cancellationToken);

@@ -1,0 +1,200 @@
+import {
+  Alert,
+  Button,
+  Link,
+  MenuItem,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
+import { FilePicker } from '../components/FilePicker';
+import { TagInput } from '../components/TagInput';
+import { api, type UploadResult } from '../lib/api';
+import { newIdempotencyKey } from '../lib/format';
+import { describeError, t } from '../strings';
+
+/**
+ * Two steps behind one button: the file streams to staging (with progress), then the document
+ * is filed against the staged upload. A retry after a dropped connection reuses both the staged
+ * upload and the Idempotency-Key, so it can never file the same document twice.
+ */
+export function NewDocumentPage() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [params] = useSearchParams();
+
+  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  const types = useQuery({ queryKey: ['document-types'], queryFn: api.documentTypes });
+
+  const creatable = useMemo(
+    () => (categories.data ?? []).filter((category) => category.canCreate),
+    [categories.data],
+  );
+
+  const [categoryId, setCategoryId] = useState(params.get('category') ?? '');
+  const [documentTypeId, setDocumentTypeId] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>([]);
+
+  const staged = useRef<{ file: File; upload: UploadResult } | null>(null);
+  const idempotencyKey = useRef(newIdempotencyKey());
+
+  const selectedCategory = creatable.some((category) => category.id === categoryId) ? categoryId : '';
+  const selectedType = documentTypeId || types.data?.find((type) => type.code === 'GENERAL')?.id || '';
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!file || !selectedCategory || !selectedType) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      if (staged.current?.file !== file) {
+        setProgress(0);
+        const upload = await api.upload(file, setProgress);
+        staged.current = { file, upload };
+        idempotencyKey.current = newIdempotencyKey();
+        setDuplicates(upload.duplicates);
+      }
+
+      setProgress(null);
+      const created = await api.createDocument(
+        {
+          title: title.trim(),
+          description: description.trim() || null,
+          categoryId: selectedCategory,
+          documentTypeId: selectedType,
+          uploadId: staged.current!.upload.uploadId,
+          tags,
+          changeDescription: null,
+        },
+        idempotencyKey.current,
+      );
+
+      await queryClient.invalidateQueries({ queryKey: ['documents'] });
+      navigate(`/documents/${created.documentId}`, { state: { notice: t.created } });
+    } catch (caught) {
+      setError(describeError(caught));
+      setProgress(null);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (categories.isSuccess && creatable.length === 0) {
+    return <Alert severity="info">{t.noCreatableCategory}</Alert>;
+  }
+
+  return (
+    <Paper component="form" onSubmit={submit} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, maxWidth: 720, mx: 'auto' }}>
+      <Stack spacing={2}>
+        <Typography variant="h5" component="h1">
+          {t.newDocument}
+        </Typography>
+
+        <FilePicker
+          file={file}
+          onChange={(next) => {
+            setFile(next);
+            setDuplicates([]);
+            if (next && !title) setTitle(next.name.replace(/\.[^.]+$/, ''));
+          }}
+          progress={progress}
+          disabled={busy}
+        />
+
+        {duplicates.length > 0 && (
+          <Alert severity="warning">
+            {t.duplicateNotice}{' '}
+            {duplicates.map((duplicate, index) => (
+              <span key={duplicate.documentId}>
+                {index > 0 && '، '}
+                <Link component={RouterLink} to={`/documents/${duplicate.documentId}`}>
+                  {duplicate.title}
+                </Link>
+              </span>
+            ))}
+          </Alert>
+        )}
+
+        <TextField
+          label={t.title}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          required
+          fullWidth
+          slotProps={{ htmlInput: { maxLength: 500 } }}
+        />
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField
+            select
+            label={t.category}
+            value={selectedCategory}
+            onChange={(event) => setCategoryId(event.target.value)}
+            required
+            fullWidth
+          >
+            {creatable.map((category) => (
+              <MenuItem key={category.id} value={category.id} sx={{ paddingInlineStart: 2 + category.depth }}>
+                {category.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label={t.documentType}
+            value={selectedType}
+            onChange={(event) => setDocumentTypeId(event.target.value)}
+            required
+            fullWidth
+          >
+            {(types.data ?? []).map((type) => (
+              <MenuItem key={type.id} value={type.id} disabled={!type.latestPublishedVersionId}>
+                {type.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+
+        <TextField
+          label={t.description}
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          multiline
+          minRows={3}
+          fullWidth
+          slotProps={{ htmlInput: { maxLength: 4000 } }}
+        />
+
+        <TagInput value={tags} onChange={setTags} disabled={busy} />
+
+        {error && <Alert severity="error">{error}</Alert>}
+
+        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+          <Button onClick={() => navigate(-1)} disabled={busy}>
+            {t.cancel}
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={busy || !file || !selectedCategory || !selectedType || !title.trim()}
+          >
+            {busy ? t.saving : t.submit}
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}

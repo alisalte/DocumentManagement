@@ -6,9 +6,11 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phase 1 (foundation) is complete.** Identity, the authorization engine, the audit log and
-the transactional job queue exist and are tested. Documents, storage, document types, workflow,
-search and sharing are the later phases listed in the architecture document.
+**Status: phase 2 (documents and storage) is implemented and awaiting review.** On top of the phase 1
+foundation (identity, authorization engine, audit log, job queue) there are now categories, a
+minimal document type, streamed uploads, immutable versions, downloads, soft delete / restore /
+purge, tags, and a Persian RTL frontend to browse, file and inspect documents. Workflow, search and
+sharing are the later phases listed in the architecture document.
 
 ## Stack
 
@@ -54,6 +56,26 @@ curl -X POST http://localhost:5080/api/v1/auth/login \
   -d '{"username":"admin","password":"ChangeMe!Dev12345"}'
 ```
 
+### First documents
+
+Administrators manage the category tree but get **no document content by default** (decision D5).
+To file documents, grant yourself (or a group) rights on the root category; the grant is audited:
+
+```bash
+TOKEN=...   # accessToken from the login call above
+ME=$(curl -s localhost:5080/api/v1/auth/me -H "Authorization: Bearer $TOKEN" | jq -r .id)
+ROOT=$(curl -s localhost:5080/api/v1/categories -H "Authorization: Bearer $TOKEN" | jq -r '.[] | select(.parentId == null) | .id')
+for P in DOCUMENT_VIEW DOCUMENT_CREATE DOCUMENT_DOWNLOAD DOCUMENT_EDIT DOCUMENT_CREATE_VERSION DOCUMENT_DELETE DOCUMENT_RESTORE; do
+  curl -s -X POST "localhost:5080/api/v1/resources/Category/$ROOT/permissions" \
+    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"subjectType\":\"User\",\"subjectId\":\"$ME\",\"permissionCode\":\"$P\",\"effect\":\"Allow\",\"inherit\":true}"
+done
+```
+
+Files are stored on the local filesystem by default (`Dms:Storage:Provider = filesystem`, under
+`.data/objects` in development). For S3 or MinIO set `Dms__Storage__Provider=s3` and the
+`Dms__Storage__S3__*` values; the bucket must exist.
+
 API reference while the API is running in development: <http://localhost:5080/scalar/v1>
 (OpenAPI document at `/openapi/v1.json`).
 
@@ -93,7 +115,8 @@ Two things specific to this machine:
 
 ```
 src/BuildingBlocks/    SharedKernel, Application (dispatcher), Infrastructure (unit of work, jobs), Web
-src/Modules/           Identity, Authorization, Audit   (Domain+Application / Infrastructure / Contracts)
+src/Modules/           Identity, Authorization, Audit, Storage, DocumentTypes, Documents
+                       (Domain+Application / Infrastructure / Contracts)
 src/Dms.Host/          API composition root, also hosts the background worker
 src/Dms.Migrator/      applies migrations and seeds, runs as a one-shot container
 tests/                 architecture, unit and integration tests
@@ -110,4 +133,8 @@ docs/                  architecture and decision records
 - Authorization is decided in one place (`IDmsAuthorizer`); endpoints and handlers call it and never
   reimplement the rules.
 - The audit log is append-only; the database rejects UPDATE and DELETE on it.
+- Document versions are immutable; a trigger rejects any change except the approval state, and
+  deletes outside the purge routine.
+- Uploads stream to storage before any database transaction opens; the transaction that files the
+  document is short.
 - Module boundaries are enforced by tests in `tests/Dms.ArchitectureTests`.

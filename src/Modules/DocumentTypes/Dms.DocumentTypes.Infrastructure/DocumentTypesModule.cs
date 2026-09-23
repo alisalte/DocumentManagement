@@ -145,6 +145,8 @@ public static class DocumentTypesModule
         services.AddScoped<IQueryHandler<ListDocumentTypesQuery, Result<IReadOnlyList<DocumentTypeDto>>>,
             ListDocumentTypesHandler>();
 
+        services.AddScoped<IDataSeeder, GeneralDocumentTypeSeeder>();
+
         return services;
     }
 
@@ -201,6 +203,32 @@ public static class DocumentTypesModule
     public sealed record CreateDocumentTypeRequest(string Code, string Name, string? Description);
 
     public sealed record UpdateDocumentTypeRequest(string Name, string? Description, DocumentTypeSettings? Settings);
+}
+
+/// <summary>
+/// One published, field-less type so documents can be filed from day one. Phase 3 lets
+/// administrators build real types with fields; this one stays as the catch-all.
+/// </summary>
+public sealed class GeneralDocumentTypeSeeder(DocumentTypesDbContext context, TimeProvider timeProvider) : IDataSeeder
+{
+    public const string Code = "GENERAL";
+
+    public int Order => 28;
+
+    public string Name => "general document type";
+
+    public async Task SeedAsync(CancellationToken cancellationToken)
+    {
+        if (await context.DocumentTypes.AnyAsync(type => type.Code == Code, cancellationToken))
+        {
+            return;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var general = DocumentType.Create(Code, "سند عمومی", "نوع پیش‌فرض برای اسنادی که نوع خاصی ندارند.", now);
+        general.PublishDraft(publishedBy: null, now);
+        context.DocumentTypes.Add(general);
+    }
 }
 
 public sealed class DocumentTypesDbContextFactory : IDesignTimeDbContextFactory<DocumentTypesDbContext>

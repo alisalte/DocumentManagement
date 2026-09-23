@@ -44,6 +44,10 @@ public interface IStorageObjectRepository
 {
     Task<StorageObject?> FindAsync(StorageObjectId id, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<StorageObject>> FindManyAsync(
+        IReadOnlyCollection<StorageObjectId> ids,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<StorageObject>> FindByHashAsync(byte[] sha256, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<StorageObject>> ListStagedBeforeAsync(
