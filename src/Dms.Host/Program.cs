@@ -7,6 +7,7 @@ using Dms.Audit.Infrastructure;
 using Dms.Authorization.Infrastructure;
 using Dms.DocumentTypes.Infrastructure;
 using Dms.Documents.Infrastructure;
+using Dms.Workflow.Infrastructure;
 using Dms.Host;
 using Dms.Identity.Application;
 using Dms.Identity.Infrastructure;
@@ -36,6 +37,7 @@ builder.Services.AddAuditModule();
 builder.Services.AddStorageModule(builder.Configuration);
 builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
+builder.Services.AddWorkflowModule();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
@@ -190,6 +192,7 @@ if (role is "api" or "all")
     app.MapAuditEndpoints();
     app.MapDocumentTypeEndpoints();
     app.MapDocumentEndpoints();
+    app.MapWorkflowEndpoints();
 }
 
 app.Run();

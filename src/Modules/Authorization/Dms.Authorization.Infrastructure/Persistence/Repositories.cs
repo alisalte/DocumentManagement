@@ -39,8 +39,18 @@ public sealed class RoleRepository(AuthorizationDbContext context) : IRoleReposi
     public void Add(Role role) => context.Roles.Add(role);
 }
 
-public sealed class UserRoleRepository(AuthorizationDbContext context) : IUserRoleRepository
+public sealed class UserRoleRepository(AuthorizationDbContext context) : IUserRoleRepository, IRoleMembershipReader
 {
+    public async Task<IReadOnlySet<UserId>> GetUserIdsAsync(RoleId roleId, CancellationToken cancellationToken)
+    {
+        var ids = await context.UserRoles.AsNoTracking()
+            .Where(assignment => assignment.RoleId == roleId)
+            .Select(assignment => assignment.UserId)
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
+    }
+
     public async Task<IReadOnlySet<RoleId>> GetRoleIdsAsync(UserId userId, CancellationToken cancellationToken)
     {
         var ids = await context.UserRoles.AsNoTracking()

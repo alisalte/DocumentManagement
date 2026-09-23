@@ -13,6 +13,7 @@
     <ProjectReference Include="..\Modules\Storage\Dms.Storage.Infrastructure\Dms.Storage.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\DocumentTypes\Dms.DocumentTypes.Infrastructure\Dms.DocumentTypes.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Documents\Dms.Documents.Infrastructure\Dms.Documents.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Workflow\Dms.Workflow.Infrastructure\Dms.Workflow.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

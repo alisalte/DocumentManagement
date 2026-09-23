@@ -201,7 +201,11 @@ export interface DocumentTypeSchema {
 
 export type MetadataEditPolicy = 'NewRevision' | 'InPlace';
 
+export type WorkflowMode = 'None' | 'Manual' | 'AutoOnVersion';
+
 export interface DocumentTypeSettings {
+  workflowId: string | null;
+  workflowMode: WorkflowMode;
   allowedExtensions: string[];
   maxUploadBytes: number | null;
   metadataEditPolicy: MetadataEditPolicy;
@@ -221,6 +225,93 @@ export interface MetadataUpdate {
   versionId: string;
   label: string;
   outcome: 'revision' | 'in_place' | 'unchanged';
+}
+
+export type WorkflowAction = 'Approve' | 'Reject' | 'Return' | 'RequestChanges' | 'Forward';
+export type AssigneeType = 'User' | 'Group' | 'Role' | 'DocumentOwner' | 'Creator' | 'Manager' | 'DynamicUserField';
+
+export interface WorkflowTask {
+  id: string;
+  instanceId: string;
+  documentId: string;
+  documentTitle: string;
+  versionId: string;
+  versionLabel: string;
+  stepCode: string;
+  stepName: string;
+  status: 'Pending' | 'Completed' | 'Cancelled';
+  assignedUserId: string | null;
+  assignedGroupId: string | null;
+  assignedRoleId: string | null;
+  createdAt: string;
+  dueAt: string | null;
+  completedAt: string | null;
+  completedBy: string | null;
+  action: WorkflowAction | null;
+  comment: string | null;
+  forwardedFromTaskId: string | null;
+  allowedActions: WorkflowAction[];
+  canAct: boolean;
+  isOverdue: boolean;
+}
+
+export interface WorkflowInstance {
+  id: string;
+  versionId: string;
+  versionLabel: string;
+  workflowVersionId: string;
+  status: 'Running' | 'Approved' | 'Rejected' | 'ChangesRequested' | 'Cancelled';
+  currentSequence: number;
+  startedBy: string;
+  startedAt: string;
+  completedAt: string | null;
+  cancelReason: string | null;
+  attentionReason: string | null;
+  skippedSteps: string[];
+  tasks: WorkflowTask[];
+  canCancel: boolean;
+}
+
+export interface StepAction {
+  action: WorkflowAction;
+  commentRequired: boolean;
+  targetStepCode: string | null;
+}
+
+export interface WorkflowStep {
+  code: string;
+  name: string;
+  sequence: number;
+  assigneeType: AssigneeType;
+  assigneeId: string | null;
+  assigneeFieldCode: string | null;
+  completionRule: 'Any' | 'All';
+  isRequired: boolean;
+  slaHours: number | null;
+  allowSelfApproval: boolean;
+  condition?: unknown;
+  actions: StepAction[];
+}
+
+export interface WorkflowDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  latestPublishedVersionId: string | null;
+}
+
+export interface WorkflowAdmin {
+  workflow: WorkflowDefinition;
+  versions: { id: string; versionNumber: number; status: string; publishedAt: string | null; stepCount: number }[];
+  draft: WorkflowStep[] | null;
+}
+
+export interface RoleSummary {
+  id: string;
+  code: string;
+  name: string;
 }
 
 export interface DirectoryEntry {
@@ -507,7 +598,46 @@ export const api = {
   groups: (params: { search?: string; ids?: string[] }) =>
     request<DirectoryEntry[]>(`/api/v1/directory/groups${query({ search: params.search, ids: params.ids?.join(',') })}`),
 
+  workflow: {
+    tasks: () => request<WorkflowTask[]>('/api/v1/workflow/tasks'),
+
+    forDocument: (documentId: string) => request<WorkflowInstance[]>(`/api/v1/documents/${documentId}/workflow`),
+
+    start: (documentId: string, versionId: string) =>
+      request<{ instanceId: string }>(`/api/v1/documents/${documentId}/versions/${versionId}/workflow/start`, { method: 'POST' }),
+
+    act: (
+      taskId: string,
+      action: WorkflowAction,
+      body: { comment: string | null; targetStepCode?: string | null; forwardToUserId?: string | null },
+    ) => {
+      const route = { Approve: 'approve', Reject: 'reject', Return: 'return', RequestChanges: 'request-changes', Forward: 'forward' }[action];
+      return request<void>(`/api/v1/workflow/tasks/${taskId}/${route}`, { method: 'POST', body: JSON.stringify(body) });
+    },
+
+    cancel: (instanceId: string, reason: string) =>
+      request<void>(`/api/v1/workflow/instances/${instanceId}/cancel`, { method: 'POST', body: JSON.stringify({ reason }) }),
+
+    definitions: () => request<WorkflowDefinition[]>('/api/v1/workflow/definitions'),
+  },
+
   admin: {
+    roles: () => request<RoleSummary[]>('/api/v1/admin/roles'),
+
+    workflow: (id: string) => request<WorkflowAdmin>(`/api/v1/admin/workflows/${id}`),
+
+    createWorkflow: (body: { code: string; name: string; description: string | null }) =>
+      request<{ id: string }>('/api/v1/admin/workflows', { method: 'POST', body: JSON.stringify(body) }),
+
+    updateWorkflow: (id: string, body: { name: string; description: string | null; isActive: boolean }) =>
+      request<void>(`/api/v1/admin/workflows/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+    saveWorkflowDraft: (id: string, steps: WorkflowStep[]) =>
+      request<void>(`/api/v1/admin/workflows/${id}/draft`, { method: 'PUT', body: JSON.stringify({ steps }) }),
+
+    publishWorkflow: (id: string) =>
+      request<{ versionId: string }>(`/api/v1/admin/workflows/${id}/publish`, { method: 'POST' }),
+
     documentTypes: () => request<DocumentType[]>('/api/v1/document-types?includeInactive=true'),
 
     documentType: (id: string) => request<DocumentTypeAdmin>(`/api/v1/admin/document-types/${id}`),

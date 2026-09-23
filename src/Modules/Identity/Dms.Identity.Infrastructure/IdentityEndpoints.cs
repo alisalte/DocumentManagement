@@ -29,6 +29,8 @@ public static class IdentityEndpoints
 
     public sealed record SetActiveRequest(bool IsActive);
 
+    public sealed record SetManagerRequest(Guid? ManagerId);
+
     public sealed record CreateGroupRequest(string Code, string Name, GroupKind Kind = GroupKind.Other);
 
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder endpoints)
@@ -108,6 +110,9 @@ public static class IdentityEndpoints
             var result = await dispatcher.SendAsync(command, ct);
             return result.ToHttpResult(id => Results.Created($"/api/v1/admin/users/{id}", new { id }));
         });
+
+        users.MapPut("/{id:guid}/manager", async (Guid id, SetManagerRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.SendAsync(new SetUserManagerCommand(id, request.ManagerId), ct)).ToHttpResult());
 
         users.MapPost("/{id:guid}/active", async (
             Guid id,

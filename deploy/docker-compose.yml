@@ -90,6 +90,22 @@ services:
       retries: 10
       start_period: 20s
 
+  # The web app on http://localhost:${WEB_PORT:-8090}. nginx serves the built frontend and proxies
+  # /api to the API, so the browser sees one origin.
+  web:
+    build:
+      context: ../frontend
+      dockerfile: ../deploy/frontend.Dockerfile
+      additional_contexts:
+        nginxconf: ./nginx
+    image: dms-web:latest
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8090}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   object-data:

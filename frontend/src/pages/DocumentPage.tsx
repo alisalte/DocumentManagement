@@ -26,6 +26,8 @@ import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-r
 import { FilePicker } from '../components/FilePicker';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { MetadataView } from '../components/metadata/MetadataView';
+import { WorkflowPanel } from '../components/workflow/WorkflowPanel';
+import { approvalLabels } from '../components/workflow/workflowStrings';
 import { TagInput } from '../components/TagInput';
 import { api, ApiError, type DocumentDetails, type DocumentVersion, type Metadata } from '../lib/api';
 import { clientErrors, toSubmission } from '../lib/metadata';
@@ -56,6 +58,10 @@ export function DocumentPage() {
     enabled: !!schemaId,
     staleTime: Infinity,
   });
+
+  // The type decides whether versions go through a workflow at all.
+  const types = useQuery({ queryKey: ['document-types'], queryFn: api.documentTypes });
+  const workflowMode = types.data?.find((type) => type.id === document.data?.documentTypeId)?.settings?.workflowMode ?? 'None';
 
   const refresh = async (message: string) => {
     setDialog(null);
@@ -163,6 +169,15 @@ export function DocumentPage() {
         </Stack>
       </Paper>
 
+      {workflowMode !== 'None' && (
+        <WorkflowPanel
+          documentId={doc.id}
+          currentVersion={current}
+          canStart={workflowMode === 'Manual' && can(doc, 'DOCUMENT_EDIT')}
+          onChanged={setNotice}
+        />
+      )}
+
       <Paper variant="outlined">
         <Typography variant="h6" component="h2" sx={{ px: { xs: 2, sm: 3 }, pt: 2 }}>
           {t.versions}
@@ -244,6 +259,13 @@ function VersionRow({
               {version.label}
             </Typography>
             <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
+            {version.approvalStatus !== 'NotRequired' && (
+              <Chip
+                size="small"
+                color={version.approvalStatus === 'Approved' ? 'success' : version.approvalStatus === 'Rejected' ? 'error' : 'default'}
+                label={approvalLabels[version.approvalStatus] ?? version.approvalStatus}
+              />
+            )}
             {version.isCurrent && <Chip size="small" color="primary" label={t.current} />}
             {version.isEffective && !version.isCurrent && <Chip size="small" label={t.effective} />}
             {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}

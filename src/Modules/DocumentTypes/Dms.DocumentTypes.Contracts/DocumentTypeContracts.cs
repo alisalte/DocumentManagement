@@ -32,8 +32,26 @@ public enum MetadataEditPolicy
     InPlace,
 }
 
+/// <summary>How versions of a type enter their workflow (section 6.1).</summary>
+public enum WorkflowMode
+{
+    /// <summary>No approval: every version is published as soon as it is created.</summary>
+    None,
+
+    /// <summary>Versions start as drafts; the author starts the workflow when ready.</summary>
+    Manual,
+
+    /// <summary>Every new version or revision starts the workflow in the same transaction.</summary>
+    AutoOnVersion,
+}
+
 public sealed record DocumentTypeSettings
 {
+    /// <summary>The workflow definition versions of this type go through; required unless the mode is None.</summary>
+    public Guid? WorkflowId { get; init; }
+
+    public WorkflowMode WorkflowMode { get; init; } = WorkflowMode.None;
+
     /// <summary>Empty means any extension is accepted.</summary>
     public IReadOnlyList<string> AllowedExtensions { get; init; } = [];
 

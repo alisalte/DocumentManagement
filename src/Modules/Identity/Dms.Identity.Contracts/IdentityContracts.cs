@@ -7,7 +7,8 @@ public sealed record UserSummary(
     string Username,
     string DisplayName,
     bool IsActive,
-    bool IsSystemAdmin);
+    bool IsSystemAdmin,
+    UserId? ManagerId = null);
 
 /// <summary>Read-only view of the user registry for other modules.</summary>
 public interface IUserDirectory
@@ -42,4 +43,7 @@ public interface IGroupDirectory
 public interface IGroupMembershipReader
 {
     Task<IReadOnlySet<GroupId>> GetGroupIdsAsync(UserId userId, CancellationToken cancellationToken);
+
+    /// <summary>Active members of an active group; empty for an inactive or unknown group.</summary>
+    Task<IReadOnlySet<UserId>> GetActiveMemberIdsAsync(GroupId groupId, CancellationToken cancellationToken);
 }

@@ -40,6 +40,14 @@ public interface IDmsAuthorizer
     Task<PrincipalSet> GetPrincipalsAsync(UserId userId, CancellationToken cancellationToken);
 }
 
+/// <summary>Who holds a role, for workflow steps assigned to a role.</summary>
+public interface IRoleMembershipReader
+{
+    Task<IReadOnlySet<UserId>> GetUserIdsAsync(RoleId roleId, CancellationToken cancellationToken);
+
+    Task<IReadOnlySet<RoleId>> GetRoleIdsAsync(UserId userId, CancellationToken cancellationToken);
+}
+
 public interface IAccessScopeProvider
 {
     Task<AccessScope> GetScopeAsync(UserId userId, string permissionCode, CancellationToken cancellationToken);

@@ -125,6 +125,10 @@ internal static class DocumentRules
         return Convert.ToHexStringLower(SHA256.HashData(json));
     }
 
+    /// <summary>Without a workflow a row is published at once; with one it starts as a draft (decision D7).</summary>
+    public static ApprovalStatus InitialStatus(DocumentTypeSummary type) =>
+        type.Settings.WorkflowMode == WorkflowMode.None ? ApprovalStatus.NotRequired : ApprovalStatus.Draft;
+
     public static readonly Error IdempotencyMismatch = Error.Conflict(
         "idempotency.key_reused",
         "This Idempotency-Key was already used for a different request.");
@@ -285,6 +289,7 @@ public sealed class CreateDocumentHandler(
     IStorageService storage,
     IResourceAclWriter acl,
     IIdempotencyStore idempotency,
+    IVersionCreatedHook versionCreated,
     IAuditWriter audit,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<CreateDocumentCommand, Result<CreatedVersionDto>>
@@ -371,6 +376,12 @@ public sealed class CreateDocumentHandler(
             return Result.Failure<CreatedVersionDto>(tagIds.Error);
         }
 
+        var workflowReady = await versionCreated.EnsureReadyAsync(documentType.Value.Id.Value, cancellationToken);
+        if (workflowReady.IsFailure)
+        {
+            return Result.Failure<CreatedVersionDto>(workflowReady.Error);
+        }
+
         var now = timeProvider.GetUtcNow();
         var document = Document.Create(
             command.Title,
@@ -391,7 +402,7 @@ public sealed class CreateDocumentHandler(
             schemaVersion.Value,
             metadata.Value,
             command.ChangeDescription,
-            ApprovalStatus.NotRequired,
+            DocumentRules.InitialStatus(documentType.Value),
             actor,
             now);
 
@@ -430,6 +441,7 @@ public sealed class CreateDocumentHandler(
             cancellationToken);
 
         await audit.WriteAsync(VersionAudit.Created(version), cancellationToken);
+        await versionCreated.OnVersionCreatedAsync(documentType.Value.Id.Value, document.Id.Value, version.Id.Value, cancellationToken);
 
         var result = new CreatedVersionDto(document.Id.Value, version.Id.Value, version.Label);
         if (command.IdempotencyKey is { } newKey)
@@ -449,6 +461,7 @@ public sealed class AddVersionHandler(
     MetadataGate metadataGate,
     IStorageService storage,
     IIdempotencyStore idempotency,
+    IVersionCreatedHook versionCreated,
     IAuditWriter audit,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<AddVersionCommand, Result<CreatedVersionDto>>
@@ -516,6 +529,12 @@ public sealed class AddVersionHandler(
 
         var previous = document.Versions.First(version => version.Id == document.CurrentVersionId);
 
+        var workflowReady = await versionCreated.EnsureReadyAsync(documentType.Id.Value, cancellationToken);
+        if (workflowReady.IsFailure)
+        {
+            return Result.Failure<CreatedVersionDto>(workflowReady.Error);
+        }
+
         // Without new metadata the file carries the previous row's metadata and schema over
         // unchanged. With it, the metadata is validated against the type's latest schema, and the
         // new row binds to that schema.
@@ -550,7 +569,7 @@ public sealed class AddVersionHandler(
             schemaVersion,
             dynamicData,
             command.ChangeDescription,
-            ApprovalStatus.NotRequired,
+            DocumentRules.InitialStatus(documentType),
             actor,
             now,
             metadataChanged: MetadataPresenter.ChangedFields(previous.DynamicData, dynamicData).Count > 0);
@@ -562,6 +581,7 @@ public sealed class AddVersionHandler(
         }
 
         await audit.WriteAsync(VersionAudit.Created(version), cancellationToken);
+        await versionCreated.OnVersionCreatedAsync(documentType.Id.Value, document.Id.Value, version.Id.Value, cancellationToken);
 
         var result = new CreatedVersionDto(document.Id.Value, version.Id.Value, version.Label);
         if (command.IdempotencyKey is { } newKey)
@@ -991,6 +1011,7 @@ public sealed class UpdateMetadataHandler(
     IDocumentTypeCatalog documentTypes,
     MetadataGate metadataGate,
     IIdempotencyStore idempotency,
+    IVersionCreatedHook versionCreated,
     IAuditWriter audit,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>
@@ -1077,6 +1098,15 @@ public sealed class UpdateMetadataHandler(
         var now = timeProvider.GetUtcNow();
         var inPlace = type.Settings.MetadataEditPolicy == MetadataEditPolicy.InPlace && !governedChange && !schemaChanged;
 
+        if (!inPlace)
+        {
+            var workflowReady = await versionCreated.EnsureReadyAsync(type.Id.Value, cancellationToken);
+            if (workflowReady.IsFailure)
+            {
+                return Result.Failure<MetadataUpdateDto>(workflowReady.Error);
+            }
+        }
+
         MetadataUpdateDto result;
         if (inPlace)
         {
@@ -1116,7 +1146,7 @@ public sealed class UpdateMetadataHandler(
                 schemaVersion,
                 validated.Value,
                 command.ChangeDescription,
-                ApprovalStatus.NotRequired,
+                DocumentRules.InitialStatus(type),
                 actor,
                 now);
 
@@ -1137,6 +1167,7 @@ public sealed class UpdateMetadataHandler(
                 },
                 cancellationToken);
 
+            await versionCreated.OnVersionCreatedAsync(type.Id.Value, document.Id.Value, revision.Value.Id.Value, cancellationToken);
             result = new MetadataUpdateDto(document.Id.Value, revision.Value.Id.Value, revision.Value.Label, "revision");
         }
 

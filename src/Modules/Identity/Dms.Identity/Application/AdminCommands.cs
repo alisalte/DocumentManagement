@@ -17,6 +17,9 @@ public sealed record CreateUserCommand(
 
 public sealed record SetUserActiveCommand(Guid UserId, bool IsActive) : ICommand<Result>;
 
+/// <summary>Sets whom a user reports to. Workflow steps with a MANAGER assignee resolve through it.</summary>
+public sealed record SetUserManagerCommand(Guid UserId, Guid? ManagerId) : ICommand<Result>;
+
 public sealed record CreateGroupCommand(string Code, string Name, GroupKind Kind) : ICommand<Result<Guid>>;
 
 public sealed record AddUserToGroupCommand(Guid UserId, Guid GroupId) : ICommand<Result>;
@@ -76,6 +79,68 @@ public sealed class CreateUserHandler(
             cancellationToken);
 
         return Result.Success(user.Id.Value);
+    }
+}
+
+public sealed class SetUserManagerHandler(
+    IDmsAuthorizer authorizer,
+    IUserRepository users,
+    IAuditWriter audit,
+    TimeProvider timeProvider) : ICommandHandler<SetUserManagerCommand, Result>
+{
+    public async Task<Result> HandleAsync(SetUserManagerCommand command, CancellationToken cancellationToken)
+    {
+        var decision = await authorizer.AuthorizeSystemAsync(PermissionCodes.AdminManageUsers, cancellationToken);
+        if (!decision.Allowed)
+        {
+            return Result.Failure(Error.Forbidden("auth.forbidden", decision.Explanation));
+        }
+
+        var user = await users.FindAsync(new UserId(command.UserId), cancellationToken);
+        if (user is null)
+        {
+            return Result.Failure(IdentityErrors.UserNotFound);
+        }
+
+        UserId? managerId = command.ManagerId is { } id ? new UserId(id) : null;
+        if (managerId is { } manager)
+        {
+            if (manager == user.Id)
+            {
+                return Result.Failure(Error.Validation("user.manager_self", "A user cannot be their own manager."));
+            }
+
+            // Walk up the chain: a loop would make "the manager's manager" undefined forever.
+            var seen = new HashSet<UserId> { user.Id };
+            for (UserId? current = manager; current is { } step;)
+            {
+                if (!seen.Add(step))
+                {
+                    return Result.Failure(Error.Validation("user.manager_cycle", "This would create a reporting loop."));
+                }
+
+                var next = await users.FindAsync(step, cancellationToken);
+                if (next is null)
+                {
+                    return Result.Failure(IdentityErrors.UserNotFound);
+                }
+
+                current = next.ManagerId;
+            }
+        }
+
+        user.SetManager(managerId, timeProvider.GetUtcNow());
+        await audit.WriteAsync(
+            new AuditRecord
+            {
+                Action = AuditActions.UserUpdated,
+                EntityType = "User",
+                EntityId = command.UserId,
+                Metadata = new Dictionary<string, object?> { ["managerId"] = command.ManagerId },
+            },
+            cancellationToken);
+
+        return Result.Success();
     }
 }
 

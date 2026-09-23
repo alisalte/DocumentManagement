@@ -47,6 +47,7 @@ public static class IdentityModule
         services.AddScoped<ICommandHandler<ChangeOwnPasswordCommand, Result>, ChangeOwnPasswordHandler>();
         services.AddScoped<ICommandHandler<CreateUserCommand, Result<Guid>>, CreateUserHandler>();
         services.AddScoped<ICommandHandler<SetUserActiveCommand, Result>, SetUserActiveHandler>();
+        services.AddScoped<ICommandHandler<SetUserManagerCommand, Result>, SetUserManagerHandler>();
         services.AddScoped<ICommandHandler<CreateGroupCommand, Result<Guid>>, CreateGroupHandler>();
         services.AddScoped<ICommandHandler<AddUserToGroupCommand, Result>, AddUserToGroupHandler>();
         services.AddScoped<ICommandHandler<RemoveUserFromGroupCommand, Result>, RemoveUserFromGroupHandler>();

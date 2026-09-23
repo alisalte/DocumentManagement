@@ -1,5 +1,6 @@
 import {
   AppBar,
+  Badge,
   Box,
   Button,
   Drawer,
@@ -16,6 +17,7 @@ import { api } from '../lib/api';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { CategoryTree } from './CategoryTree';
+import { w } from './workflow/workflowStrings';
 
 const drawerWidth = 280;
 
@@ -32,6 +34,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const [params] = useSearchParams();
   const selectedCategory = params.get('category');
   const canManageTypes = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES'));
+  const canManageWorkflows = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS'));
+  const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
+  const pending = tasks.data?.length ?? 0;
 
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
 
@@ -72,6 +77,11 @@ export function Layout({ children }: { children: ReactNode }) {
             {t.appTitle}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Button color="inherit" component={RouterLink} to="/tasks">
+              <Badge color="secondary" badgeContent={pending} max={99}>
+                {w.inbox}
+              </Badge>
+            </Button>
             <Button color="inherit" component={RouterLink} to="/new">
               {t.newDocument}
             </Button>
@@ -83,6 +93,11 @@ export function Layout({ children }: { children: ReactNode }) {
             {isDesktop && canManageTypes && (
               <Button color="inherit" component={RouterLink} to="/admin/document-types">
                 {t.documentTypes}
+              </Button>
+            )}
+            {isDesktop && canManageWorkflows && (
+              <Button color="inherit" component={RouterLink} to="/admin/workflows">
+                {w.workflows}
               </Button>
             )}
             {isDesktop && (
@@ -121,8 +136,13 @@ export function Layout({ children }: { children: ReactNode }) {
             {t.recycleBin}
           </Button>
           {canManageTypes && (
-            <Button component={RouterLink} to="/admin/document-types" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+            <Button component={RouterLink} to="/admin/document-types" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
               {t.documentTypes}
+            </Button>
+          )}
+          {canManageWorkflows && (
+            <Button component={RouterLink} to="/admin/workflows" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+              {w.workflows}
             </Button>
           )}
         </Drawer>

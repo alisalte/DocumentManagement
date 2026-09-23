@@ -18,10 +18,11 @@ public sealed class ModuleBoundaryTests
     private static readonly Assembly DocumentsCore = typeof(Documents.Domain.Document).Assembly;
     private static readonly Assembly DocumentTypesCore = typeof(DocumentTypes.Domain.DocumentType).Assembly;
     private static readonly Assembly StorageCore = typeof(Storage.Domain.StorageObject).Assembly;
+    private static readonly Assembly WorkflowCore = typeof(Workflow.Domain.WorkflowInstance).Assembly;
     private static readonly Assembly SharedKernel = typeof(Entity<>).Assembly;
 
     /// <summary>Every module, so a new one cannot quietly skip the boundary rules.</summary>
-    private static readonly string[] Modules = ["Identity", "Authorization", "Audit", "Documents", "DocumentTypes", "Storage"];
+    private static readonly string[] Modules = ["Identity", "Authorization", "Audit", "Documents", "DocumentTypes", "Storage", "Workflow"];
 
     public static TheoryData<string, Assembly> CoreAssemblies => new()
     {
@@ -31,6 +32,7 @@ public sealed class ModuleBoundaryTests
         { "Documents", DocumentsCore },
         { "DocumentTypes", DocumentTypesCore },
         { "Storage", StorageCore },
+        { "Workflow", WorkflowCore },
     };
 
     [Theory]
@@ -153,7 +155,7 @@ public sealed class ModuleBoundaryTests
     public void Aggregate_roots_keep_their_identifiers_strongly_typed()
     {
         // Guid ids are easy to swap by accident; every aggregate uses a typed id instead.
-        var offenders = Types.InAssemblies([IdentityCore, AuthorizationCore, AuditCore, DocumentsCore, DocumentTypesCore, StorageCore])
+        var offenders = Types.InAssemblies([IdentityCore, AuthorizationCore, AuditCore, DocumentsCore, DocumentTypesCore, StorageCore, WorkflowCore])
             .That().Inherit(typeof(AggregateRoot<>))
             .GetTypes()
             .Where(type => type.BaseType?.GenericTypeArguments.FirstOrDefault() == typeof(Guid))

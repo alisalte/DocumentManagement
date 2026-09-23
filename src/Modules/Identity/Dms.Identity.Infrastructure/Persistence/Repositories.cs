@@ -66,7 +66,7 @@ public sealed class UserRepository(IdentityDbContext context) : IUserRepository,
         CancellationToken cancellationToken) =>
         await context.Users.AsNoTracking()
             .Where(user => userIds.Contains(user.Id))
-            .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin))
+            .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin, user.ManagerId))
             .ToListAsync(cancellationToken);
 
     async Task<IReadOnlyList<UserSummary>> IUserDirectory.SearchAsync(
@@ -85,12 +85,12 @@ public sealed class UserRepository(IdentityDbContext context) : IUserRepository,
         return await query
             .OrderBy(user => user.DisplayName)
             .Take(limit)
-            .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin))
+            .Select(user => new UserSummary(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin, user.ManagerId))
             .ToListAsync(cancellationToken);
     }
 
     private static UserSummary ToSummary(User user) =>
-        new(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin);
+        new(user.Id, user.Username, user.DisplayName, user.IsActive, user.IsSystemAdmin, user.ManagerId);
 }
 
 public sealed class GroupRepository(IdentityDbContext context) : IGroupRepository, IGroupDirectory
@@ -151,6 +151,21 @@ public sealed class MembershipRepository(IdentityDbContext context) : IMembershi
                 membership => membership.GroupId,
                 group => group.Id,
                 (membership, _) => membership.GroupId)
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
+    }
+
+    public async Task<IReadOnlySet<UserId>> GetActiveMemberIdsAsync(GroupId groupId, CancellationToken cancellationToken)
+    {
+        var ids = await context.Memberships.AsNoTracking()
+            .Where(membership => membership.GroupId == groupId)
+            .Where(membership => context.Groups.Any(group => group.Id == groupId && group.IsActive))
+            .Join(
+                context.Users.Where(user => user.IsActive),
+                membership => membership.UserId,
+                user => user.Id,
+                (membership, _) => membership.UserId)
             .ToListAsync(cancellationToken);
 
         return ids.ToHashSet();

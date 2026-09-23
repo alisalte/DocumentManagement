@@ -6,12 +6,13 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phase 3 (dynamic document types) is implemented and awaiting review.** Phases 1–2 are
-done: identity, authorization, audit, the job queue, categories, streamed uploads, immutable
-versions, downloads, soft delete / restore / purge and tags. Phase 3 adds versioned document type
-schemas with fields, options and rules, a rule language shared by the server and the browser,
-per-version metadata with revisions, and an admin schema editor. Workflow, search and sharing are
-the later phases listed in the architecture document.
+**Status: phase 4 (workflow) is implemented and awaiting review.** Phases 1–3 are done:
+identity, authorization, audit, the job queue, documents and storage, and dynamic document types
+with a rule language shared by the server and the browser. Phase 4 adds versioned approval
+workflows (sequential and parallel steps, conditions, group and role assignees, return, forward,
+request changes), approval recorded per version with a forward-only effective pointer, a task
+inbox, and a workflow editor. Search and sharing are the later phases listed in the architecture
+document.
 
 ## Stack
 
@@ -103,13 +104,23 @@ cd deploy && docker compose up -d --build
 `.env` must have **`POSTGRES_PASSWORD`, `DMS_ADMIN_PASSWORD` and `DMS_JWT_SIGNING_KEY`** set;
 compose refuses to start otherwise. Generate the key with `openssl rand -base64 64`.
 
-This builds one image with two entrypoints: the migrator runs to completion, then the API starts
-on http://localhost:5080. The API is `dms-api-1`, the database `dms-postgres-1`.
+This builds two images and starts four containers:
+
+| Container | What | Where |
+|---|---|---|
+| `dms-postgres-1` | PostgreSQL | `localhost:5433` |
+| `dms-migrator-1` | applies migrations and seeds, then exits | — |
+| `dms-api-1` | API and background worker | `localhost:5080` |
+| `dms-web-1` | nginx: the web app, proxying `/api` to the API | **http://localhost:8090** |
+
+Open **http://localhost:8090** and sign in as `DMS_ADMIN_USERNAME` / `DMS_ADMIN_PASSWORD`. The
+browser talks to one origin, so no CORS setup is needed; nginx streams uploads to the API without
+buffering them. Files live on the `object-data` volume.
 
 Two things specific to this machine:
 
-- The Docker daemon reaches `mcr.microsoft.com` but **not Docker Hub**, so `postgres:18` cannot be
-  pulled. `.env` sets `POSTGRES_IMAGE` to a locally cached image instead.
+- `.env` sets `POSTGRES_IMAGE` to a locally cached image; `postgres:18` works too wherever it can
+  be pulled.
 - The compose stack and `scripts/dev-db.sh` both publish port 5433, so run one or the other.
   `docker stop dms-postgres` frees it for compose; `docker compose down` frees it for the script.
 

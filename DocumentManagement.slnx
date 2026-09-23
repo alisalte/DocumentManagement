@@ -40,6 +40,11 @@
     <Project Path="src/Modules/Storage/Dms.Storage.Infrastructure/Dms.Storage.Infrastructure.csproj" />
     <Project Path="src/Modules/Storage/Dms.Storage/Dms.Storage.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Workflow/">
+    <Project Path="src/Modules/Workflow/Dms.Workflow.Contracts/Dms.Workflow.Contracts.csproj" />
+    <Project Path="src/Modules/Workflow/Dms.Workflow.Infrastructure/Dms.Workflow.Infrastructure.csproj" />
+    <Project Path="src/Modules/Workflow/Dms.Workflow/Dms.Workflow.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Dms.ArchitectureTests/Dms.ArchitectureTests.csproj" />
     <Project Path="tests/Dms.Authorization.UnitTests/Dms.Authorization.UnitTests.csproj" />

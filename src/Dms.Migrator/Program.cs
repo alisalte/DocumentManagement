@@ -3,6 +3,7 @@ using Dms.Audit.Infrastructure;
 using Dms.Authorization.Infrastructure;
 using Dms.DocumentTypes.Infrastructure;
 using Dms.Documents.Infrastructure;
+using Dms.Workflow.Infrastructure;
 using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Persistence;
@@ -28,6 +29,7 @@ builder.Services.AddAuditModule();
 builder.Services.AddStorageModule(builder.Configuration);
 builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
+builder.Services.AddWorkflowModule();
 builder.Services.AddScoped<ICurrentUser, SystemCurrentUser>();
 
 using var host = builder.Build();

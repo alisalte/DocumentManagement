@@ -237,11 +237,33 @@ public sealed class Document : AggregateRoot<DocumentId>
         return Result.Success();
     }
 
-    /// <summary>Used by the workflow phase when a version is approved.</summary>
-    public void MarkVersionEffective(DocumentVersionId versionId, DateTimeOffset now)
+    /// <summary>
+    /// Records a workflow outcome on one row (section 6.7). APPROVED moves the effective pointer to
+    /// it, only ever forward: approving V3 after V4 was approved must not make readers see V3.
+    /// </summary>
+    public Result RecordApproval(DocumentVersionId versionId, ApprovalStatus status, DateTimeOffset now)
     {
-        EffectiveVersionId = versionId;
+        var version = _versions.FirstOrDefault(candidate => candidate.Id == versionId);
+        if (version is null)
+        {
+            return Result.Failure(Error.NotFound("version.not_found", "The version does not exist."));
+        }
+
+        version.RecordApproval(status, now);
+
+        if (status == ApprovalStatus.Approved)
+        {
+            var effective = _versions.FirstOrDefault(candidate => candidate.Id == EffectiveVersionId);
+            if (effective is null || Order(version) > Order(effective))
+            {
+                EffectiveVersionId = version.Id;
+            }
+        }
+
         UpdatedAt = now;
+        return Result.Success();
+
+        static long Order(DocumentVersion row) => (row.VersionNumber * 1_000_000L) + row.RevisionNumber;
     }
 
     public Result UpdateDetails(

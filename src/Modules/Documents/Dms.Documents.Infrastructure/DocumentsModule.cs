@@ -29,6 +29,10 @@ public static class DocumentsModule
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IDocumentReadModel, DocumentReadModel>();
         services.AddScoped<IDocumentLocator, DocumentLocator>();
+        services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
+
+        // Replaced by the Workflow module when it is registered.
+        services.TryAddScoped<IVersionCreatedHook, NoVersionCreatedHook>();
 
         // The real category tree and document state replace the phase 1 flat stand-in,
         // regardless of the order in which the modules are registered.

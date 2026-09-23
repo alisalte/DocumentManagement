@@ -88,6 +88,20 @@ public static class AuditActions
     /// <summary>A metadata edit applied to the latest revision in place (MetadataEditPolicy.InPlace), with a diff.</summary>
     public const string MetadataUpdatedInPlace = "METADATA_UPDATED_IN_PLACE";
 
+    public const string WorkflowCreated = "WORKFLOW_CREATED";
+    public const string WorkflowDraftSaved = "WORKFLOW_DRAFT_SAVED";
+    public const string WorkflowPublished = "WORKFLOW_PUBLISHED";
+    public const string WorkflowStarted = "WORKFLOW_STARTED";
+    public const string WorkflowApproved = "WORKFLOW_APPROVED";
+    public const string WorkflowRejected = "WORKFLOW_REJECTED";
+    public const string WorkflowReturned = "WORKFLOW_RETURNED";
+    public const string WorkflowRequestedChanges = "WORKFLOW_REQUESTED_CHANGES";
+    public const string WorkflowForwarded = "WORKFLOW_FORWARDED";
+    public const string WorkflowCancelled = "WORKFLOW_CANCELLED";
+    public const string WorkflowCompleted = "WORKFLOW_COMPLETED";
+    public const string WorkflowNeedsAttention = "WORKFLOW_NEEDS_ATTENTION";
+    public const string WorkflowTaskOverdue = "WORKFLOW_TASK_OVERDUE";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

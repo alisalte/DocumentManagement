@@ -362,6 +362,7 @@ function SettingsPanel({
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name, description: description ?? '', settings, isActive });
+  const workflows = useQuery({ queryKey: ['workflow-definitions'], queryFn: api.workflow.definitions });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -413,6 +414,36 @@ function SettingsPanel({
           onChange={(event) => setForm({ ...form, description: event.target.value })}
           fullWidth
         />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField
+            select
+            label={a.workflowMode}
+            value={form.settings.workflowMode ?? 'None'}
+            onChange={(event) =>
+              setForm({ ...form, settings: { ...form.settings, workflowMode: event.target.value as DocumentTypeSettings['workflowMode'] } })
+            }
+            fullWidth
+          >
+            <MenuItem value="None">{a.modeNone}</MenuItem>
+            <MenuItem value="Manual">{a.modeManual}</MenuItem>
+            <MenuItem value="AutoOnVersion">{a.modeAuto}</MenuItem>
+          </TextField>
+          <TextField
+            select
+            label={a.workflow}
+            value={form.settings.workflowId ?? ''}
+            onChange={(event) => setForm({ ...form, settings: { ...form.settings, workflowId: event.target.value || null } })}
+            disabled={(form.settings.workflowMode ?? 'None') === 'None'}
+            fullWidth
+          >
+            <MenuItem value="">—</MenuItem>
+            {(workflows.data ?? []).map((workflow) => (
+              <MenuItem key={workflow.id} value={workflow.id} disabled={!workflow.latestPublishedVersionId || !workflow.isActive}>
+                {workflow.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
           <Autocomplete
             multiple

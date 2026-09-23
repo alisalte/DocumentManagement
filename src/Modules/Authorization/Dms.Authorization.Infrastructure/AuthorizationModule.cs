@@ -20,7 +20,9 @@ public static class AuthorizationModule
         services.AddDmsModuleDbContext<AuthorizationDbContext>(MigrationOrder, AuthorizationDbContext.Schema);
 
         services.AddScoped<IRoleRepository, RoleRepository>();
-        services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        services.AddScoped<UserRoleRepository>();
+        services.AddScoped<IUserRoleRepository>(sp => sp.GetRequiredService<UserRoleRepository>());
+        services.AddScoped<IRoleMembershipReader>(sp => sp.GetRequiredService<UserRoleRepository>());
         services.AddScoped<IResourcePermissionRepository, ResourcePermissionRepository>();
 
         services.AddScoped<IDmsAuthorizer, Authorizer>();

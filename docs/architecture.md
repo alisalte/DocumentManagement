@@ -855,8 +855,8 @@ Every phase needs explicit approval before it starts.
 |---|---|---|
 | **1 Foundation** ✱ **(done)** | Solution, building blocks, compose (Postgres), Migrator, Identity (local login, sessions), Authorization core (catalog, roles, ACL, evaluator, access scope), Audit writer, job queue, architecture tests | Evaluator unit tests for every §5 rule: deny precedence, inheritance, override, view/download/print separation, default deny |
 | **2 Documents + Storage** ✱ **(done)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
-| **3 Dynamic document types** **(implemented, awaiting approval)** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
-| **4 Workflow** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
+| **3 Dynamic document types** **(done)** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
+| **4 Workflow** **(implemented, awaiting approval)** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
 | **5 Processing + Search** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
 | **6 Sharing** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
 | **7 Audit hardening + notifications** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
@@ -919,6 +919,41 @@ Every phase needs explicit approval before it starts.
 - **Not in phase 3:** owner default ACLs from the type's permission policy (still the fixed §5.5
   set), `show_in_list` columns in the browser, search over metadata (phase 5), and field-level
   security (§5.10).
+
+**Phase 4 as built.**
+
+- **"Auto-cancel on supersede"** is read together with D7. Creating V(n+1) never touches Vn's
+  run. When a *newer* version is **approved**, still-running instances on older versions of the
+  same document are cancelled ("Superseded by V…") and those versions are marked CANCELLED,
+  because approving them afterwards could only move readers backwards. `effective_version_id`
+  also only ever moves forward.
+- **Module shape.** `Dms.Workflow` depends only on contracts. Documents exposes
+  `IDocumentApprovalGateway` (read a version, record an outcome) and calls `IVersionCreatedHook`
+  after every new version or revision; Workflow implements the hook (AUTO_ON_VERSION starts the
+  run in the same transaction) and `ITemporaryGrantSource` (open tasks as grants). Without the
+  Workflow module Documents runs unchanged.
+- **Type binding.** `workflowId` and `workflowMode` live in the document type's settings. With a
+  mode other than NONE, new rows start as DRAFT, and filing is refused up front if the workflow is
+  missing, inactive or unpublished, so no version is ever created that could never be approved.
+- **Step actions** are stored as a JSONB column on `workflow_steps` rather than a
+  `workflow_step_actions` table: they are frozen with their step either way (triggers make
+  published steps and versions immutable).
+- **RETURN** starts a new *round*: tasks from before the return stay in the history but no longer
+  count, and the target sequence is worked again. The default target is the latest earlier step
+  that actually had tasks.
+- **Self-approval.** Assignee resolution leaves the author out unless the step allows it; a
+  required step that then has nobody stops the run with an `attention_reason` and a
+  WORKFLOW_NEEDS_ATTENTION audit record, for the initiator or an administrator to cancel. A group
+  member who is the author sees the shared task but is refused (403 `workflow.self_approval`).
+- **Concurrency.** Actions lock the instance row; of two members approving one shared task, the
+  second gets 409. A closed task answers its assignee with 409 before any permission check.
+- **Task grants** give exactly what section 5.4 lists: VIEW, VIEW_DRAFT, WORKFLOW_VIEW and the
+  step's actions, on the document. **Not DOWNLOAD**: a reviewer without an ACL entry can see the
+  metadata but not the bytes until previews exist (phase 5). This is a product decision to revisit.
+- **SLA.** A job every 15 minutes records each overdue task once (WORKFLOW_TASK_OVERDUE);
+  notifications arrive in phase 7, escalation later.
+- **Also added:** `PUT /admin/users/{id}/manager` (with cycle detection) for MANAGER steps,
+  `IRoleMembershipReader`, active group members in `IGroupMembershipReader`.
 
 **Test stack:**
 
