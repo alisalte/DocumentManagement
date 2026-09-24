@@ -182,3 +182,33 @@ public interface IDocumentTitleSearch
 {
     Task<(IReadOnlyList<TitleHit> Hits, int Total)> SearchAsync(string? text, int page, int pageSize, CancellationToken cancellationToken);
 }
+
+/// <summary>One version as other modules see it: enough to label it and to serve its file.</summary>
+public sealed record VersionSummary(
+    Guid DocumentId,
+    string DocumentTitle,
+    Guid DocumentTypeId,
+    bool IsDocumentDeleted,
+    Guid VersionId,
+    string Label,
+    Guid StorageObjectId,
+    string FileName,
+    string MimeType,
+    long FileSize,
+    bool IsPublished);
+
+/// <summary>
+/// Read access to single versions for Sharing, which pins everything it hands out to one version
+/// (decision D8). Deleted documents are included; callers decide what that means for them.
+/// </summary>
+public interface IDocumentVersionReader
+{
+    /// <summary>Null when the version does not exist or belongs to another document.</summary>
+    Task<VersionSummary?> FindAsync(Guid documentId, Guid versionId, CancellationToken cancellationToken);
+
+    Task<IReadOnlyDictionary<Guid, VersionSummary>> FindManyAsync(
+        IReadOnlyCollection<Guid> versionIds,
+        CancellationToken cancellationToken);
+
+    Task<Guid?> FindDocumentTypeIdAsync(Guid documentId, CancellationToken cancellationToken);
+}

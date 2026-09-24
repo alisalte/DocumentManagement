@@ -67,7 +67,7 @@ public sealed class PreviewService(
         string permissionCode,
         CancellationToken cancellationToken)
     {
-        var visible = await access.RequireAsync(documentId, PermissionCodes.DocumentView, cancellationToken);
+        var visible = await access.RequireAsync(documentId, PermissionCodes.DocumentView, versionId, cancellationToken);
         if (visible.IsFailure)
         {
             return Result.Failure<(DocumentVersionView, PreviewDto)>(visible.Error);
@@ -95,7 +95,7 @@ public sealed class PreviewService(
     public async Task<Result<StoredContent>> OpenPageAsync(GetPreviewPageQuery query, CancellationToken cancellationToken)
     {
         var permission = query.Purpose == PagePurpose.Print ? PermissionCodes.DocumentPrint : PermissionCodes.DocumentView;
-        var visible = await access.RequireAsync(query.DocumentId, PermissionCodes.DocumentView, cancellationToken);
+        var visible = await access.RequireAsync(query.DocumentId, PermissionCodes.DocumentView, query.VersionId, cancellationToken);
         if (visible.IsFailure)
         {
             return Result.Failure<StoredContent>(visible.Error);

@@ -29,6 +29,7 @@ public static class DocumentsModule
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IDocumentReadModel, DocumentReadModel>();
         services.AddScoped<IDocumentLocator, DocumentLocator>();
+        services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
 
         // Replaced by the Workflow module when it is registered.
@@ -75,6 +76,7 @@ public static class DocumentsModule
         services.AddScoped<IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>, GetDocumentHandler>();
         services.AddScoped<IQueryHandler<ListVersionsQuery, Result<IReadOnlyList<DocumentVersionDto>>>,
             ListVersionsHandler>();
+        services.AddScoped<IQueryHandler<GetVersionQuery, Result<VersionDetailsDto>>, GetVersionHandler>();
         services.AddScoped<IQueryHandler<ListRecycleBinQuery, Result<PagedResult<DocumentListItemDto>>>,
             ListRecycleBinHandler>();
         services.AddScoped<IQueryHandler<ListTagsQuery, Result<IReadOnlyList<TagDto>>>, ListTagsHandler>();

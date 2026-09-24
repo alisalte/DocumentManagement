@@ -37,8 +37,6 @@ public static class IdentityModule
         services.AddScoped<IGroupDirectory>(sp => sp.GetRequiredService<GroupRepository>());
         services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 
-        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
-        services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
         services.AddSingleton<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 
         services.AddScoped<ICommandHandler<LoginCommand, Result<AuthTokens>>, LoginHandler>();

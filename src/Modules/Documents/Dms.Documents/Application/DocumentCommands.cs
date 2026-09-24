@@ -951,7 +951,7 @@ public sealed class OpenContentHandler(
 {
     public async Task<Result<StoredContent>> HandleAsync(OpenContentCommand command, CancellationToken cancellationToken)
     {
-        var visible = await access.RequireAsync(command.DocumentId, PermissionCodes.DocumentView, cancellationToken);
+        var visible = await access.RequireAsync(command.DocumentId, PermissionCodes.DocumentView, command.VersionId, cancellationToken);
         if (visible.IsFailure)
         {
             return Result.Failure<StoredContent>(visible.Error);

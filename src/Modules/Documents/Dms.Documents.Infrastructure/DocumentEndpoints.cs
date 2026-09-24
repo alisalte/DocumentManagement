@@ -242,6 +242,10 @@ public static class DocumentEndpoints
                 (await dispatcher.QueryAsync(new ListVersionsQuery(id), ct)).ToHttpResult())
             .WithSummary("Version history, newest first.");
 
+        documents.MapGet("/{id:guid}/versions/{versionId:guid}", async (Guid id, Guid versionId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetVersionQuery(id, versionId), ct)).ToHttpResult())
+            .WithSummary("One version with its document's title, for readers of that version alone (a share recipient).");
+
         documents.MapPost("/{id:guid}/versions", async (
                 Guid id,
                 AddVersionRequest request,

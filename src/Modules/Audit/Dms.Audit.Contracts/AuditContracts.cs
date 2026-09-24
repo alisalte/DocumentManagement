@@ -125,6 +125,14 @@ public static class AuditActions
     public const string RoleAssigned = "ROLE_ASSIGNED";
     public const string RoleUnassigned = "ROLE_UNASSIGNED";
 
+    /// <summary>An internal share or an external link was created (the metadata says which).</summary>
+    public const string DocumentShared = "DOCUMENT_SHARED";
+    public const string ShareRevoked = "SHARE_REVOKED";
+
+    /// <summary>An external link was opened (or refused, with outcome DENIED); the actor is the link.</summary>
+    public const string ShareLinkAccessed = "SHARE_LINK_ACCESSED";
+    public const string ShareLinkPasswordFailed = "SHARE_LINK_PASSWORD_FAILED";
+
     public const string PermissionGranted = "PERMISSION_GRANTED";
     public const string PermissionRevoked = "PERMISSION_REVOKED";
 

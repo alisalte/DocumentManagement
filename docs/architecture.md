@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phases 1–4 done; phase 5 (processing and search) implemented and awaiting approval.** Phases 6–9 not started. |
+| **Status** | Approved. **Phases 1–6 done.** Phases 7–9 not started. |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -857,8 +857,8 @@ Every phase needs explicit approval before it starts.
 | **2 Documents + Storage** ✱ **(done)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
 | **3 Dynamic document types** **(done)** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
 | **4 Workflow** **(done)** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
-| **5 Processing + Search** **(implemented, awaiting approval)** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
-| **6 Sharing** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
+| **5 Processing + Search** **(done)** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
+| **6 Sharing** **(done)** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
 | **7 Audit hardening + notifications** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
 | **9 Hardening** | Security test suite, load tests (k6), pen-test checklist, backup/restore drill | Performance targets based on the sizing answers (D11) |
@@ -995,6 +995,58 @@ Every phase needs explicit approval before it starts.
 - **OCR quality (R2)** was checked on a rendered Persian page only; real scans still need a look.
 - **Not in phase 5:** HTTP Range on S3, signed URLs, metadata facets, number-phrase parsing, the
   integrity scrub, video thumbnails, per-type OCR settings, and a searchable PDF as the preview.
+
+**Phase 6 as built.**
+
+- **Module.** `Dms.Sharing` owns the `sharing` schema: `document_shares`, `share_links` and
+  `share_link_sessions`. Shares and links reference `documents.document_versions` and
+  `documents.documents` with `ON DELETE CASCADE`, so a purge takes them along. Documents exposes
+  `IDocumentVersionReader` for labels and files; Sharing touches nothing else of it.
+- **Version pinning in the evaluator.** `TemporaryGrant` carries an optional `VersionId` and
+  `GrantedBy`, and `ResourceDescriptor` the version being asked about. A pinned grant answers only
+  for its version; `DescribeAsync` (the document as a whole) has no version, so **a share never
+  answers a document-level question**: a recipient without an ACL entry gets 404 on the document,
+  its history and the "effective version" routes, and reaches the shared version through the
+  version routes. `DocumentAccess` lets a version question in on VIEW of that version alone, and
+  `GET /documents/{id}/versions/{versionId}` returns that one version with its title and metadata.
+- **The sharer's rights, on every use (D8).** The authorizer keeps a share grant only while its
+  sharer holds DOCUMENT_SHARE and the shared permission on that version through their own ACL
+  entries or tasks, never through a share they received (`AuthorizeOwnRightsAsync`). So shares
+  cannot be passed along, cannot exceed the sharer's rights, and end when those rights end.
+  External links go through the same check for their creator (DOCUMENT_SHARE_EXTERNAL), plus the
+  document type's `AllowExternalSharing` and the global switch. Losing only DOWNLOAD or PRINT
+  narrows a link rather than ending it.
+- **What can be shared.** Only published versions whose file the scanner released (D6, D9). The
+  evaluator's draft and scan gates still apply at use, and an explicit DENY on the recipient (or
+  on a link's creator) wins as everywhere else.
+- **Internal shares** are to users. Sharing the same version with the same person again replaces
+  the earlier share (the old row is revoked first, under an advisory lock on version and
+  recipient; a partial unique index keeps one live share).
+  The sharer, the recipient (declining) or a DOCUMENT_MANAGE_PERMISSION holder may revoke; only the
+  latter see all shares of a document (an administrator through the D5 bypass too, without VIEW,
+  so a leaked link can be found and revoked), others see their own. An administrator reaching them
+  through the D5 bypass is audited as ADMIN_PERMISSION_OVERRIDE. "Shared with me" lists only
+  shares that work right now.
+- **External links.** 256-bit token, stored as SHA-256 with an 8-character prefix for recognition;
+  the raw token is returned once. Expiry is required (at most `MaxLinkLifetimeDays`), an opening
+  limit and a password (PBKDF2, the same hasher as user passwords, now in the building blocks)
+  are optional. Five wrong passwords lock the link for 15 minutes. Opening a link counts once, in
+  the single atomic UPDATE of section 4.11, and starts a 30-minute session whose token travels in
+  the `X-Share-Session` header, never in the URL. Pages, print and download use the session; each
+  request re-checks revocation, expiry and the creator's rights, but not the count. Print pages
+  are served only after `POST /print` in that session, which writes DOCUMENT_PRINTED. The public
+  page keeps its session in `sessionStorage`, so a reload does not spend another opening. Unknown,
+  revoked, expired, used-up and no-longer-backed links all answer the same 404.
+- **Audit.** DOCUMENT_SHARED (internal or link), SHARE_REVOKED, SHARE_LINK_ACCESSED (success or
+  DENIED with the reason), SHARE_LINK_PASSWORD_FAILED, and DOCUMENT_DOWNLOADED / DOCUMENT_PRINTED
+  with actor type SHARELINK (the spelling the phase 1 check constraint uses). Page images of a
+  link are watermarked with the link prefix and the time.
+- **Rate limits.** Asking about and opening links: 20 per minute per address; pages and downloads
+  of an opened link: 600 per minute.
+- **Not in phase 6:** shares to groups, editing a share in place, shared documents in the browser
+  and in search (recipients use "Shared with me"; section 5.7's `SharedVersions` stays empty),
+  and notifications to recipients (phase 7). Link sessions live in the database, so several API
+  instances work, but the rate limiter counts per instance.
 
 **Test stack:**
 

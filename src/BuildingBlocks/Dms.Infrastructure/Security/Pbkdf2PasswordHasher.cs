@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
-using Dms.Identity.Application;
+using Dms.Application;
 
-namespace Dms.Identity.Infrastructure.Security;
+namespace Dms.Infrastructure.Security;
 
 /// <summary>
 /// PBKDF2-HMAC-SHA512, written out rather than taking a dependency on ASP.NET Core Identity for one
@@ -67,7 +67,7 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
 }
 
 /// <summary>
-/// Refresh tokens and (later) share-link tokens. 256 bits of entropy from a CSPRNG, stored as a
+/// Refresh tokens and share-link tokens. 256 bits of entropy from a CSPRNG, stored as a
 /// SHA-256 digest: with that much entropy a password-style KDF would only slow lookups down.
 /// </summary>
 public sealed class SecureTokenGenerator : ISecureTokenGenerator

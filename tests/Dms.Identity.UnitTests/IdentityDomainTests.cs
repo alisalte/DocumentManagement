@@ -1,7 +1,7 @@
 using Dms.Authorization.Contracts;
 using Dms.Authorization.Domain;
 using Dms.Identity.Domain;
-using Dms.Identity.Infrastructure.Security;
+using Dms.Infrastructure.Security;
 using Dms.SharedKernel;
 using Shouldly;
 

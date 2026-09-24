@@ -20,10 +20,11 @@ public sealed class ModuleBoundaryTests
     private static readonly Assembly StorageCore = typeof(Storage.Domain.StorageObject).Assembly;
     private static readonly Assembly WorkflowCore = typeof(Workflow.Domain.WorkflowInstance).Assembly;
     private static readonly Assembly SearchCore = typeof(Search.Domain.ContentExtraction).Assembly;
+    private static readonly Assembly SharingCore = typeof(Sharing.Domain.DocumentShare).Assembly;
     private static readonly Assembly SharedKernel = typeof(Entity<>).Assembly;
 
     /// <summary>Every module, so a new one cannot quietly skip the boundary rules.</summary>
-    private static readonly string[] Modules = ["Identity", "Authorization", "Audit", "Documents", "DocumentTypes", "Storage", "Workflow", "Search"];
+    private static readonly string[] Modules = ["Identity", "Authorization", "Audit", "Documents", "DocumentTypes", "Storage", "Workflow", "Search", "Sharing"];
 
     public static TheoryData<string, Assembly> CoreAssemblies => new()
     {
@@ -35,6 +36,7 @@ public sealed class ModuleBoundaryTests
         { "Storage", StorageCore },
         { "Workflow", WorkflowCore },
         { "Search", SearchCore },
+        { "Sharing", SharingCore },
     };
 
     [Theory]

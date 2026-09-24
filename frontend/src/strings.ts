@@ -1,3 +1,5 @@
+import { describeShareError } from './components/sharing/sharingStrings';
+
 /**
  * Every Persian UI string in one place, so wording stays consistent and a second language later
  * is a new table rather than a hunt through components.
@@ -129,6 +131,8 @@ export function describeError(error: unknown): string {
   if (error && typeof error === 'object' && 'status' in error) {
     const { status, code, message } = error as { status: number; code?: string; message: string };
     if (code === 'version.stale') return t.staleVersion;
+    const shareMessage = describeShareError(code);
+    if (shareMessage) return shareMessage;
     if (status === 404) return t.notFound;
     if (status === 403) return t.forbidden;
     if (status === 0) return 'ارتباط با سرور برقرار نشد.';

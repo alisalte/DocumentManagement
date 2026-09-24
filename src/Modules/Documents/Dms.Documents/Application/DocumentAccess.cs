@@ -15,6 +15,10 @@ namespace Dms.Documents.Application;
 ///
 /// Metadata questions are asked about the document; content questions (download) are asked about
 /// the specific version, because the draft and malware-scan gates belong to a version.
+///
+/// A question about one version is also let in by VIEW on that version alone: that is how a share
+/// recipient, whose share is pinned to one version (decision D8), reaches it without seeing the
+/// rest of the document.
 /// </summary>
 public sealed class DocumentAccess(IDmsAuthorizer authorizer, IAuditWriter audit, IUnitOfWork unitOfWork)
 {
@@ -30,6 +34,15 @@ public sealed class DocumentAccess(IDmsAuthorizer authorizer, IAuditWriter audit
         var resource = ResourceRef.Document(documentId);
 
         var view = await authorizer.AuthorizeAsync(PermissionCodes.DocumentView, resource, cancellationToken);
+        if (!view.Allowed && versionId is { } pinned)
+        {
+            var versionView = await authorizer.AuthorizeVersionAsync(PermissionCodes.DocumentView, resource, pinned, cancellationToken);
+            if (versionView.Allowed)
+            {
+                view = versionView;
+            }
+        }
+
         if (!view.Allowed)
         {
             await AuditDeniedAsync(documentId, versionId, PermissionCodes.DocumentView, view, cancellationToken);

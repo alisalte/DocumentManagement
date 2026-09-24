@@ -9,6 +9,7 @@ using Dms.Infrastructure;
 using Dms.Infrastructure.Persistence;
 using Dms.Migrator;
 using Dms.Search.Infrastructure;
+using Dms.Sharing.Infrastructure;
 using Dms.Storage.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,7 @@ builder.Services.AddStorageModule(builder.Configuration);
 builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
 builder.Services.AddWorkflowModule();
+builder.Services.AddSharingModule(builder.Configuration);
 builder.Services.AddSearchModule(builder.Configuration);
 builder.Services.AddScoped<ICurrentUser, SystemCurrentUser>();
 

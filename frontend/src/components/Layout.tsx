@@ -18,6 +18,7 @@ import { api } from '../lib/api';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { CategoryTree } from './CategoryTree';
+import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
 
 const drawerWidth = 280;
@@ -111,6 +112,11 @@ export function Layout({ children }: { children: ReactNode }) {
                 {w.inbox}
               </Badge>
             </Button>
+            {isDesktop && (
+              <Button color="inherit" component={RouterLink} to="/shared">
+                {sharing.sharedWithMe}
+              </Button>
+            )}
             <Button color="inherit" component={RouterLink} to="/new">
               {t.newDocument}
             </Button>
@@ -166,6 +172,9 @@ export function Layout({ children }: { children: ReactNode }) {
         >
           <Toolbar />
           {tree}
+          <Button component={RouterLink} to="/shared" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
+            {sharing.sharedWithMe}
+          </Button>
           <Button component={RouterLink} to="/recycle-bin" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
             {t.recycleBin}
           </Button>

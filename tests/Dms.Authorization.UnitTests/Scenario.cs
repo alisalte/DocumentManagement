@@ -38,14 +38,16 @@ internal static class Scenario
         bool deleted = false,
         ContentState state = ContentState.Published,
         ContentScanState scan = ContentScanState.Clean,
-        UserId? author = null) =>
+        UserId? author = null,
+        Guid? version = null) =>
         new(
             ResourceRef.Document(DocumentId),
             [ContractsCategory, MaintenanceCategory, RootCategory],
             deleted,
             state,
             scan,
-            author);
+            author,
+            version);
 
     public static AclEntry Allow(
         string permission,

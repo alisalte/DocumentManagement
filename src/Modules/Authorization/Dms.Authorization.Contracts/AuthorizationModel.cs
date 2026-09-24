@@ -54,13 +54,18 @@ public readonly record struct ResourceRef(ResourceType Type, Guid Id)
 /// Ordered nearest first. For a document this starts with its own category; for a category it
 /// starts with its parent.
 /// </param>
+/// <param name="VersionId">
+/// The version the question is about, when it is about one. Null for questions about the document
+/// as a whole, which version-pinned grants (shares) never answer.
+/// </param>
 public sealed record ResourceDescriptor(
     ResourceRef Resource,
     IReadOnlyList<Guid> AncestorCategoryIds,
     bool IsSoftDeleted = false,
     ContentState ContentState = ContentState.Published,
     ContentScanState ScanState = ContentScanState.NotApplicable,
-    UserId? AuthorId = null);
+    UserId? AuthorId = null,
+    Guid? VersionId = null);
 
 public sealed record AclEntry(
     ResourceRef Resource,
@@ -76,12 +81,22 @@ public enum TemporaryGrantKind
     WorkflowTask,
 }
 
+/// <param name="VersionId">
+/// Pins the grant to one version: it then answers only questions about that version. A share is
+/// always pinned (decision D8); a workflow task grant is not.
+/// </param>
+/// <param name="GrantedBy">
+/// Whose rights the grant was carved out of. The authorizer re-checks that user on every use and
+/// drops the grant when they no longer hold the permission themselves (decision D8).
+/// </param>
 public sealed record TemporaryGrant(
     TemporaryGrantKind Kind,
     ResourceRef Resource,
     string PermissionCode,
     DateTimeOffset? ExpiresAt = null,
-    Guid? SourceId = null);
+    Guid? SourceId = null,
+    Guid? VersionId = null,
+    UserId? GrantedBy = null);
 
 public sealed record PrincipalSet(
     UserId UserId,

@@ -2,6 +2,7 @@ using Dms.Application;
 using Dms.Infrastructure.Events;
 using Dms.Infrastructure.Jobs;
 using Dms.Infrastructure.Persistence;
+using Dms.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -32,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<IDispatcher, Dispatcher>();
 
         services.AddDmsModuleDbContext<InfraDbContext>(order: 0, name: "infra");
+        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
         services.AddSingleton<JobStore>();
         services.AddSingleton<JobRunner>();
         services.AddScoped<IJobQueue, JobQueue>();

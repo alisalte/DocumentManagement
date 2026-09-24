@@ -168,6 +168,11 @@ export function DocumentViewer({
  */
 async function printPages(documentId: string, info: PreviewInfo): Promise<void> {
   const started = await api.preview.startPrint(documentId, info.versionId);
+  await printImages(started.pageCount, (page) => api.preview.page(documentId, info.versionId, page, 'print'));
+}
+
+/** Prints page images (object URLs from <paramref name="fetchPage"/>) through a hidden frame. */
+export async function printImages(pageCount: number, fetchPage: (page: number) => Promise<string>): Promise<void> {
   const urls: string[] = [];
   const frame = document.createElement('iframe');
   frame.style.position = 'fixed';
@@ -177,8 +182,8 @@ async function printPages(documentId: string, info: PreviewInfo): Promise<void> 
   frame.setAttribute('aria-hidden', 'true');
 
   try {
-    for (let page = 1; page <= started.pageCount; page++) {
-      urls.push(await api.preview.page(documentId, info.versionId, page, 'print'));
+    for (let page = 1; page <= pageCount; page++) {
+      urls.push(await fetchPage(page));
     }
 
     document.body.appendChild(frame);

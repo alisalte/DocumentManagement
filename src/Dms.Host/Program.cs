@@ -14,6 +14,7 @@ using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Jobs;
 using Dms.Search.Infrastructure;
+using Dms.Sharing.Infrastructure;
 using Dms.Storage.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -39,6 +40,7 @@ builder.Services.AddStorageModule(builder.Configuration);
 builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
 builder.Services.AddWorkflowModule();
+builder.Services.AddSharingModule(builder.Configuration);
 builder.Services.AddSearchModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
@@ -115,6 +117,29 @@ builder.Services.AddRateLimiter(options =>
         _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = loginPerMinute,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+
+    // Share links are the other anonymous surface: opening one (and asking whether it needs a
+    // password) is cheap to guess at, so it gets a small budget; the pages of an opened link
+    // get a large one, because a long document has many.
+    var linkOpensPerMinute = builder.Configuration.GetValue("Dms:RateLimits:ShareLinkOpensPerMinute", 20);
+    options.AddPolicy(SharingModule.OpenRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = linkOpensPerMinute,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+        }));
+
+    var linkContentPerMinute = builder.Configuration.GetValue("Dms:RateLimits:ShareLinkContentPerMinute", 600);
+    options.AddPolicy(SharingModule.ContentRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = linkContentPerMinute,
             Window = TimeSpan.FromMinutes(1),
             QueueLimit = 0,
         }));
@@ -195,6 +220,7 @@ if (role is "api" or "all")
     app.MapDocumentTypeEndpoints();
     app.MapDocumentEndpoints();
     app.MapWorkflowEndpoints();
+    app.MapSharingEndpoints();
     app.MapSearchEndpoints();
 }
 

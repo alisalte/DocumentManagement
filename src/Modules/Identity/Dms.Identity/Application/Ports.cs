@@ -49,25 +49,9 @@ public interface IUserSessionRepository
     void Add(UserSession session);
 }
 
-public interface IPasswordHasher
-{
-    string Hash(string password);
-
-    bool Verify(string password, string hash);
-}
-
 public sealed record IssuedAccessToken(string Value, DateTimeOffset ExpiresAt);
 
 public interface IAccessTokenIssuer
 {
     IssuedAccessToken Issue(User user, SessionId sessionId);
-}
-
-public sealed record GeneratedToken(string Value, byte[] Hash);
-
-public interface ISecureTokenGenerator
-{
-    GeneratedToken Create();
-
-    byte[] ComputeHash(string token);
 }

@@ -6,13 +6,13 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phase 5 (processing and search) is implemented and awaiting review.** Phases 1–4 are
-done: identity, authorization, audit, the job queue, documents and storage, dynamic document types
-with a rule language shared by the server and the browser, and versioned approval workflows with a
-task inbox. Phase 5 adds malware scanning (ClamAV), page-image previews and printing with a
-watermark, text extraction and Persian OCR (Tika + Tesseract), and version-aware full-text search
-(OpenSearch) that never shows what the caller may not see. Sharing is the next phase in the
-architecture document.
+**Status: phases 1–6 are done:** identity,
+authorization, audit, the job queue, documents and storage, dynamic document types with a rule
+language shared by the server and the browser, versioned approval workflows with a task inbox,
+malware scanning, watermarked previews and printing, Persian OCR and version-aware full-text
+search, and sharing: internal shares and external links, each pinned to one version, re-checked
+against the sharer's rights on every use and always overridden by an explicit DENY. Audit
+hardening and notifications are the next phase in the architecture document.
 
 ## Stack
 
@@ -61,18 +61,16 @@ curl -X POST http://localhost:5080/api/v1/auth/login \
 ### First documents
 
 Administrators manage the category tree but get **no document content by default** (decision D5).
-To file documents, grant yourself (or a group) rights on the root category; the grant is audited:
+To file documents, grant yourself (or someone else) rights on a category; the grants go through
+the API and are audited. `scripts/grant-access.sh` does it and asks for the password:
 
 ```bash
-TOKEN=...   # accessToken from the login call above
-ME=$(curl -s localhost:5080/api/v1/auth/me -H "Authorization: Bearer $TOKEN" | jq -r .id)
-ROOT=$(curl -s localhost:5080/api/v1/categories -H "Authorization: Bearer $TOKEN" | jq -r '.[] | select(.parentId == null) | .id')
-for P in DOCUMENT_VIEW DOCUMENT_CREATE DOCUMENT_DOWNLOAD DOCUMENT_EDIT DOCUMENT_CREATE_VERSION DOCUMENT_DELETE DOCUMENT_RESTORE; do
-  curl -s -X POST "localhost:5080/api/v1/resources/Category/$ROOT/permissions" \
-    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-    -d "{\"subjectType\":\"User\",\"subjectId\":\"$ME\",\"permissionCode\":\"$P\",\"effect\":\"Allow\",\"inherit\":true}"
-done
+scripts/grant-access.sh                                   # admin, full access to the root category
+scripts/grant-access.sh --user sara.ahmadi --read-only    # someone else, view/download/print only
+scripts/grant-access.sh --url http://localhost:5080       # against scripts/dev-api.sh instead of compose
 ```
+
+Existing entries (ALLOW or DENY) are left untouched; `--help` lists the options.
 
 ### Previews, OCR and search (optional services)
 
@@ -90,6 +88,17 @@ Dms__Search__OpenSearchUrl=http://localhost:9200 Dms__Search__TikaUrl=http://loc
 ClamAV (`Dms__Storage__Scanning__Enabled=true`) and Gotenberg for Office previews
 (`Dms__Storage__Renditions__GotenbergUrl`) work the same way. Administrators see the index and
 extraction status, rebuild the index and retry failed extractions under **جستجو و نمایه**.
+
+### Sharing
+
+A document's **اشتراک‌ها** panel shares a published version with a colleague (DOCUMENT_SHARE) or
+creates an external link (DOCUMENT_SHARE_EXTERNAL, and the document type must allow it). Nobody
+can share more than they may do themselves. Recipients find their shares under
+**اشتراک‌شده با من**; link visitors open `/s/<token>` without an account. Links always expire
+(`Dms__Sharing__MaxLinkLifetimeDays`, default 90), may be limited to a number of openings and may
+need a password (locked for `LinkPasswordLockoutMinutes` after `LinkPasswordMaxAttempts` wrong
+guesses). `Dms__Sharing__ExternalLinksEnabled=false` switches links off altogether. Opening links
+is rate limited per address (`Dms__RateLimits__ShareLinkOpensPerMinute`, default 20).
 
 Files are stored on the local filesystem by default (`Dms:Storage:Provider = filesystem`, under
 `.data/objects` in development). For S3 or MinIO set `Dms__Storage__Provider=s3` and the
@@ -156,7 +165,8 @@ Two things specific to this machine:
 
 ```
 src/BuildingBlocks/    SharedKernel, Application (dispatcher), Infrastructure (unit of work, jobs), Web
-src/Modules/           Identity, Authorization, Audit, Storage, DocumentTypes, Documents, Workflow, Search
+src/Modules/           Identity, Authorization, Audit, Storage, DocumentTypes, Documents, Workflow, Search,
+                       Sharing
                        (Domain+Application / Infrastructure / Contracts)
 src/Dms.Host/          API composition root, also hosts the background worker
 src/Dms.Migrator/      applies migrations and seeds, runs as a one-shot container

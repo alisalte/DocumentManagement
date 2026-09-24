@@ -58,6 +58,7 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         // Every test signs in, and they all come from the same address. The limiter itself is
         // covered by its own test rather than by throttling the whole suite.
         Environment.SetEnvironmentVariable("Dms__RateLimits__LoginPerMinute", "10000");
+        Environment.SetEnvironmentVariable("Dms__RateLimits__ShareLinkOpensPerMinute", "10000");
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
 
         // Development logs every SQL statement, which drowns the test output.

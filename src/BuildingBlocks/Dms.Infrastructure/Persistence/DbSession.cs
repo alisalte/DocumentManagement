@@ -109,6 +109,13 @@ public sealed class DbSession(NpgsqlDataSource dataSource) : IAsyncDisposable
     {
         if (_transaction is not null)
         {
+            // Detach every context, or the next query in this scope (a query handler that wrote
+            // an audit row in its own short transaction, say) runs against the finished one.
+            foreach (var context in _contexts)
+            {
+                await context.Database.UseTransactionAsync(null);
+            }
+
             await _transaction.DisposeAsync();
             _transaction = null;
         }

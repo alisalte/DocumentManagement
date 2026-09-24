@@ -401,6 +401,109 @@ export interface SearchStatus {
   extractions: Record<string, number>;
 }
 
+export type SharePermission = 'View' | 'Download' | 'Print';
+export type ShareState = 'Active' | 'Expired' | 'Revoked' | 'UsedUp';
+
+export interface Person {
+  id: string;
+  displayName: string;
+}
+
+export interface Share {
+  id: string;
+  versionId: string;
+  versionLabel: string;
+  sharedWith: Person;
+  sharedBy: Person;
+  permissions: SharePermission[];
+  createdAt: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  message: string | null;
+  state: ShareState;
+}
+
+/** A link as its creator sees it later: only the first characters of the token, never the token. */
+export interface ShareLink {
+  id: string;
+  versionId: string;
+  versionLabel: string;
+  tokenPrefix: string;
+  label: string | null;
+  createdBy: Person;
+  permissions: SharePermission[];
+  requiresPassword: boolean;
+  createdAt: string;
+  expiresAt: string;
+  maxAccessCount: number | null;
+  accessCount: number;
+  lastAccessedAt: string | null;
+  lockedUntil: string | null;
+  revokedAt: string | null;
+  state: ShareState;
+}
+
+export interface DocumentShares {
+  shares: Share[];
+  links: ShareLink[];
+  canShare: boolean;
+  canShareExternal: boolean;
+  canManageAll: boolean;
+}
+
+export interface ReceivedShare {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  versionId: string;
+  versionLabel: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  sharedBy: Person;
+  permissions: SharePermission[];
+  createdAt: string;
+  expiresAt: string | null;
+  message: string | null;
+}
+
+/** The token is in this response once; the server keeps only its digest. */
+export interface CreatedShareLink {
+  id: string;
+  token: string;
+  tokenPrefix: string;
+  expiresAt: string;
+}
+
+/** One version with just enough of its document: what a share recipient sees. */
+export interface VersionDetails {
+  documentId: string;
+  title: string;
+  description: string | null;
+  documentTypeId: string;
+  version: DocumentVersion;
+  allowedActions: string[];
+}
+
+export interface PublicLinkInfo {
+  requiresPassword: boolean;
+  lockedUntil: string | null;
+}
+
+export interface OpenedLink {
+  sessionToken: string;
+  sessionExpiresAt: string;
+  title: string;
+  versionLabel: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  canDownload: boolean;
+  canPrint: boolean;
+  previewStatus: RenditionStatus;
+  pageCount: number;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -515,6 +618,51 @@ function fileNameFrom(header: string | null, fallback: string): string {
   return plain ? plain[1] : fallback;
 }
 
+/** Downloads a response as a file, keeping the server's file name. */
+async function saveResponse(response: Response, fallbackName: string): Promise<void> {
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileNameFrom(response.headers.get('Content-Disposition'), fallbackName);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Calls for external links. Anonymous on purpose: a signed-in colleague opening a link must not
+ * turn it into a request carrying their own token. The link session goes in a header, never in
+ * the URL, so it stays out of logs and history.
+ */
+async function sendPublic(token: string, path: string, init: RequestInit = {}, session?: string): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (init.body) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (session) {
+    headers.set('X-Share-Session', session);
+  }
+
+  return fetch(`${baseUrl}/api/v1/public/links/${encodeURIComponent(token)}${path}`, {
+    ...init,
+    headers,
+    credentials: 'omit',
+    referrerPolicy: 'no-referrer',
+  });
+}
+
+async function publicRequest<T>(token: string, path: string, init: RequestInit = {}, session?: string): Promise<T> {
+  const response = await sendPublic(token, path, init, session);
+  if (!response.ok) {
+    throw await toError(response);
+  }
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
 export const api = {
   async login(username: string, password: string): Promise<AuthTokens> {
     const tokens = await request<AuthTokens>('/api/v1/auth/login', {
@@ -560,6 +708,10 @@ export const api = {
   document: (id: string) => request<DocumentDetails>(`/api/v1/documents/${id}`),
 
   versions: (id: string) => request<DocumentVersion[]>(`/api/v1/documents/${id}/versions`),
+
+  /** One version on its own; enough for someone who may see only that version (a share). */
+  version: (documentId: string, versionId: string) =>
+    request<VersionDetails>(`/api/v1/documents/${documentId}/versions/${versionId}`),
 
   recycleBin: (page = 1) => request<Paged<DocumentListItem>>(`/api/v1/recycle-bin${query({ page })}`),
 
@@ -746,15 +898,7 @@ export const api = {
       throw await toError(response);
     }
 
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileNameFrom(response.headers.get('Content-Disposition'), fallbackName);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    await saveResponse(response, fallbackName);
   },
 
   search: (params: SearchParams) => request<SearchResult>(`/api/v1/search${query({ ...params })}`),
@@ -789,6 +933,61 @@ export const api = {
 
     reprocess: (documentId: string, versionId: string) =>
       request<void>(`/api/v1/documents/${documentId}/versions/${versionId}/reprocess`, { method: 'POST' }),
+  },
+
+  sharing: {
+    forDocument: (documentId: string) => request<DocumentShares>(`/api/v1/documents/${documentId}/shares`),
+
+    received: () => request<ReceivedShare[]>('/api/v1/shares/received'),
+
+    share: (
+      documentId: string,
+      body: { versionId: string; recipientId: string; permissions: SharePermission[]; expiresAt: string | null; message: string | null },
+    ) => request<{ id: string }>(`/api/v1/documents/${documentId}/shares`, { method: 'POST', body: JSON.stringify(body) }),
+
+    revoke: (shareId: string) => request<void>(`/api/v1/shares/${shareId}`, { method: 'DELETE' }),
+
+    createLink: (
+      documentId: string,
+      body: {
+        versionId: string;
+        permissions: SharePermission[];
+        expiresAt: string;
+        maxAccessCount: number | null;
+        password: string | null;
+        label: string | null;
+      },
+    ) => request<CreatedShareLink>(`/api/v1/documents/${documentId}/links`, { method: 'POST', body: JSON.stringify(body) }),
+
+    revokeLink: (linkId: string) => request<void>(`/api/v1/share-links/${linkId}`, { method: 'DELETE' }),
+  },
+
+  publicLink: {
+    info: (token: string) => publicRequest<PublicLinkInfo>(token, ''),
+
+    /** Spends one opening of the link. */
+    open: (token: string, password: string | null) =>
+      publicRequest<OpenedLink>(token, '/open', { method: 'POST', body: JSON.stringify({ password }) }),
+
+    async page(token: string, session: string, page: number, purpose: 'view' | 'print' = 'view'): Promise<string> {
+      const response = await sendPublic(token, `/${purpose === 'print' ? 'print' : 'pages'}/${page}`, {}, session);
+      if (!response.ok) {
+        throw await toError(response);
+      }
+
+      return URL.createObjectURL(await response.blob());
+    },
+
+    startPrint: (token: string, session: string) => publicRequest<void>(token, '/print', { method: 'POST' }, session),
+
+    async download(token: string, session: string, fallbackName: string): Promise<void> {
+      const response = await sendPublic(token, '/content', {}, session);
+      if (!response.ok) {
+        throw await toError(response);
+      }
+
+      await saveResponse(response, fallbackName);
+    },
   },
 
   searchAdmin: {

@@ -2,15 +2,18 @@ import { CacheProvider } from '@emotion/react';
 import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router';
 import { Layout } from './components/Layout';
 import { ApiError } from './lib/api';
 import { BrowsePage } from './pages/BrowsePage';
 import { DocumentPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewDocumentPage } from './pages/NewDocumentPage';
+import { PublicLinkPage } from './pages/PublicLinkPage';
 import { RecycleBinPage } from './pages/RecycleBinPage';
 import { SearchPage } from './pages/SearchPage';
+import { SharedVersionPage } from './pages/SharedVersionPage';
+import { SharedWithMePage } from './pages/SharedWithMePage';
 import { DocumentTypeEditorPage } from './pages/admin/DocumentTypeEditorPage';
 import { DocumentTypesPage } from './pages/admin/DocumentTypesPage';
 import { SearchAdminPage } from './pages/admin/SearchAdminPage';
@@ -35,7 +38,8 @@ const queryClient = new QueryClient({
 
 /**
  * The app shell: sign-in, the document browser, search, filing a new document, details with the
- * viewer and version history, the task inbox, the recycle bin and the administration screens.
+ * viewer and version history, the task inbox, shares, the recycle bin and the administration
+ * screens, plus the public page behind an external link.
  * Persian, right to left, phone first.
  */
 export default function App() {
@@ -62,6 +66,16 @@ export default function App() {
 
 function Shell() {
   const { user, ready } = useSession();
+  const location = useLocation();
+
+  // External links are for people without an account: no sign-in, no app frame.
+  if (location.pathname.startsWith('/s/')) {
+    return (
+      <Routes>
+        <Route path="/s/:token" element={<PublicLinkPage />} />
+      </Routes>
+    );
+  }
 
   if (!ready) {
     return (
@@ -88,6 +102,8 @@ function Shell() {
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/recycle-bin" element={<RecycleBinPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/shared" element={<SharedWithMePage />} />
+        <Route path="/shared/:documentId/:versionId" element={<SharedVersionPage />} />
         <Route path="/search" element={<SearchPage />} />
         {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
         {canManageWorkflows && <Route path="/admin/workflows" element={<WorkflowsPage />} />}

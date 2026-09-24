@@ -37,6 +37,19 @@ public interface IDmsAuthorizer
         ResourceRef resource,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// A version permission judged on the user's own rights only: ACL entries and workflow tasks,
+    /// never shares the user received. This is the test a sharer has to pass, when sharing and
+    /// again on every use of the share, so a share can never be passed on or outlive the rights
+    /// it was carved out of (decision D8).
+    /// </summary>
+    Task<AuthorizationDecision> AuthorizeOwnRightsAsync(
+        UserId userId,
+        string permissionCode,
+        ResourceRef resource,
+        Guid versionId,
+        CancellationToken cancellationToken);
+
     Task<PrincipalSet> GetPrincipalsAsync(UserId userId, CancellationToken cancellationToken);
 }
 

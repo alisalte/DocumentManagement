@@ -25,6 +25,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router';
 import { DocumentViewer } from '../components/DocumentViewer';
 import { FilePicker } from '../components/FilePicker';
+import { SharesPanel } from '../components/sharing/SharesPanel';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { MetadataView } from '../components/metadata/MetadataView';
 import { WorkflowPanel } from '../components/workflow/WorkflowPanel';
@@ -179,6 +180,16 @@ export function DocumentPage() {
           documentId={doc.id}
           currentVersion={current}
           canStart={workflowMode === 'Manual' && can(doc, 'DOCUMENT_EDIT')}
+          onChanged={setNotice}
+        />
+      )}
+
+      {(can(doc, 'DOCUMENT_SHARE') || can(doc, 'DOCUMENT_SHARE_EXTERNAL') || can(doc, 'DOCUMENT_MANAGE_PERMISSION')) && (
+        <SharesPanel
+          documentId={doc.id}
+          versions={versions.data ?? []}
+          canDownload={can(doc, 'DOCUMENT_DOWNLOAD')}
+          canPrint={can(doc, 'DOCUMENT_PRINT')}
           onChanged={setNotice}
         />
       )}

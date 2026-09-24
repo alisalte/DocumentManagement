@@ -210,6 +210,53 @@ public sealed class PermissionEvaluatorTests
     }
 
     [Fact]
+    public void A_share_pinned_to_a_version_answers_only_for_that_version()
+    {
+        var v3 = Guid.Parse("00000000-0000-0000-0000-0000000000f3");
+        var v4 = Guid.Parse("00000000-0000-0000-0000-0000000000f4");
+        TemporaryGrant[] grants =
+        [
+            new(TemporaryGrantKind.Share, ResourceRef.Document(DocumentId), PermissionCodes.DocumentView,
+                VersionId: v3, GrantedBy: Bob),
+        ];
+
+        Evaluate(User(), PermissionCodes.DocumentView, Document(version: v3), grants: grants)
+            .Reason.ShouldBe(DecisionReason.AllowedByShare);
+
+        // Not the next version, and not the document as a whole (its history, other versions).
+        Evaluate(User(), PermissionCodes.DocumentView, Document(version: v4), grants: grants).Allowed.ShouldBeFalse();
+        Evaluate(User(), PermissionCodes.DocumentView, Document(), grants: grants).Allowed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void A_share_does_not_open_a_draft()
+    {
+        var draft = Guid.Parse("00000000-0000-0000-0000-0000000000f5");
+        TemporaryGrant[] grants =
+        [
+            new(TemporaryGrantKind.Share, ResourceRef.Document(DocumentId), PermissionCodes.DocumentView,
+                VersionId: draft, GrantedBy: Bob),
+        ];
+
+        Evaluate(User(), PermissionCodes.DocumentView, Document(state: ContentState.Draft, author: Bob, version: draft), grants: grants)
+            .Reason.ShouldBe(DecisionReason.DeniedDraft);
+    }
+
+    [Fact]
+    public void A_share_does_not_release_a_file_the_scanner_has_not_cleared()
+    {
+        var version = Guid.Parse("00000000-0000-0000-0000-0000000000f6");
+        TemporaryGrant[] grants =
+        [
+            new(TemporaryGrantKind.Share, ResourceRef.Document(DocumentId), PermissionCodes.DocumentView,
+                VersionId: version, GrantedBy: Bob),
+        ];
+
+        Evaluate(User(), PermissionCodes.DocumentView, Document(scan: ContentScanState.Pending, version: version), grants: grants)
+            .Reason.ShouldBe(DecisionReason.DeniedScanIncomplete);
+    }
+
+    [Fact]
     public void A_draft_is_hidden_from_someone_who_only_has_view()
     {
         var decision = Evaluate(

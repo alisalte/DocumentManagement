@@ -97,7 +97,8 @@ public sealed class DocumentResourceHierarchy(DocumentsDbContext context, IStora
             document.IsDeleted,
             published ? ContentState.Published : ContentState.Draft,
             ToScanState(file),
-            version.CreatedBy);
+            version.CreatedBy,
+            versionId);
     }
 
     public async Task<IReadOnlyList<CategoryNode>> GetCategoriesAsync(CancellationToken cancellationToken)
@@ -168,5 +169,62 @@ public sealed class DocumentLocator(DocumentsDbContext context) : IDocumentLocat
             .FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
 
         return document?.ToRef();
+    }
+}
+
+public sealed class DocumentVersionReader(DocumentsDbContext context) : IDocumentVersionReader
+{
+    public async Task<Guid?> FindDocumentTypeIdAsync(Guid documentId, CancellationToken cancellationToken) =>
+        await context.Documents.IgnoreQueryFilters().AsNoTracking()
+            .Where(document => document.Id == new DocumentId(documentId))
+            .Select(document => (Guid?)document.DocumentTypeId.Value)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<VersionSummary?> FindAsync(Guid documentId, Guid versionId, CancellationToken cancellationToken)
+    {
+        var found = await FindManyAsync([versionId], cancellationToken);
+        return found.TryGetValue(versionId, out var version) && version.DocumentId == documentId ? version : null;
+    }
+
+    public async Task<IReadOnlyDictionary<Guid, VersionSummary>> FindManyAsync(
+        IReadOnlyCollection<Guid> versionIds,
+        CancellationToken cancellationToken)
+    {
+        if (versionIds.Count == 0)
+        {
+            return new Dictionary<Guid, VersionSummary>();
+        }
+
+        var ids = versionIds.Distinct().Select(id => new DocumentVersionId(id)).ToList();
+        var versions = await context.DocumentVersions.AsNoTracking()
+            .Where(version => ids.Contains(version.Id))
+            .ToListAsync(cancellationToken);
+
+        var documentIds = versions.Select(version => version.DocumentId).Distinct().ToList();
+        var documents = await context.Documents.IgnoreQueryFilters().AsNoTracking()
+            .Where(document => documentIds.Contains(document.Id))
+            .Select(document => new { document.Id, document.Title, document.DocumentTypeId, document.DeletedAt })
+            .ToDictionaryAsync(document => document.Id, cancellationToken);
+
+        return versions
+            .Where(version => documents.ContainsKey(version.DocumentId))
+            .ToDictionary(
+                version => version.Id.Value,
+                version =>
+                {
+                    var document = documents[version.DocumentId];
+                    return new VersionSummary(
+                        version.DocumentId.Value,
+                        document.Title,
+                        document.DocumentTypeId.Value,
+                        document.DeletedAt is not null,
+                        version.Id.Value,
+                        version.Label,
+                        version.StorageObjectId.Value,
+                        version.FileName,
+                        version.MimeType,
+                        version.FileSize,
+                        version.IsPublished);
+                });
     }
 }

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Dms.Sharing</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Application\Dms.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.SharedKernel\Dms.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Audit\Dms.Audit.Contracts\Dms.Audit.Contracts.csproj" />
+    <ProjectReference Include="..\..\Authorization\Dms.Authorization.Contracts\Dms.Authorization.Contracts.csproj" />
+    <ProjectReference Include="..\..\Documents\Dms.Documents.Contracts\Dms.Documents.Contracts.csproj" />
+    <ProjectReference Include="..\..\DocumentTypes\Dms.DocumentTypes.Contracts\Dms.DocumentTypes.Contracts.csproj" />
+    <ProjectReference Include="..\..\Identity\Dms.Identity.Contracts\Dms.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\Storage\Dms.Storage.Contracts\Dms.Storage.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -27,6 +27,7 @@ public static class ApiResults
             ErrorType.Forbidden => StatusCodes.Status403Forbidden,
             ErrorType.NotFound => StatusCodes.Status404NotFound,
             ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.TooManyRequests => StatusCodes.Status429TooManyRequests,
             _ => StatusCodes.Status500InternalServerError,
         };
 
@@ -51,6 +52,7 @@ public static class ApiResults
         ErrorType.Forbidden => "You do not have permission to do this.",
         ErrorType.NotFound => "The resource was not found.",
         ErrorType.Conflict => "The request conflicts with the current state.",
+        ErrorType.TooManyRequests => "Too many attempts.",
         _ => "The request could not be completed.",
     };
 }

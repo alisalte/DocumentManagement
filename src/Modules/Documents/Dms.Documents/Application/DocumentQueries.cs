@@ -18,6 +18,21 @@ public sealed record GetDocumentQuery(Guid Id) : IQuery<Result<DocumentDetailsDt
 
 public sealed record ListVersionsQuery(Guid DocumentId) : IQuery<Result<IReadOnlyList<DocumentVersionDto>>>;
 
+/// <summary>One version on its own, for callers who may see that version but not the whole document.</summary>
+public sealed record GetVersionQuery(Guid DocumentId, Guid VersionId) : IQuery<Result<VersionDetailsDto>>;
+
+/// <summary>
+/// A version with just enough of its document to make sense: no category, no history, no other
+/// versions. This is what a share recipient sees (decision D8).
+/// </summary>
+public sealed record VersionDetailsDto(
+    Guid DocumentId,
+    string Title,
+    string? Description,
+    Guid DocumentTypeId,
+    DocumentVersionDto Version,
+    IReadOnlyList<string> AllowedActions);
+
 public sealed record ListRecycleBinQuery(int? Page, int? PageSize) : IQuery<Result<PagedResult<DocumentListItemDto>>>;
 
 public sealed record ListTagsQuery(string? Search) : IQuery<Result<IReadOnlyList<TagDto>>>;
@@ -78,6 +93,8 @@ public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel
         PermissionCodes.DocumentCreateVersion,
         PermissionCodes.DocumentDelete,
         PermissionCodes.DocumentManagePermission,
+        PermissionCodes.DocumentShare,
+        PermissionCodes.DocumentShareExternal,
     ];
 
     public async Task<Result<DocumentDetailsDto>> HandleAsync(GetDocumentQuery query, CancellationToken cancellationToken)
@@ -176,6 +193,59 @@ public sealed class ListVersionsHandler(
             .ToList();
 
         return Result.Success(result);
+    }
+}
+
+public sealed class GetVersionHandler(
+    DocumentAccess access,
+    IDocumentReadModel readModel,
+    IStorageService storage,
+    IDocumentTypeCatalog documentTypes) : IQueryHandler<GetVersionQuery, Result<VersionDetailsDto>>
+{
+    public async Task<Result<VersionDetailsDto>> HandleAsync(GetVersionQuery query, CancellationToken cancellationToken)
+    {
+        // VIEW on this version is enough; the draft and scan gates of the version apply.
+        var visible = await access.RequireAsync(query.DocumentId, PermissionCodes.DocumentView, query.VersionId, cancellationToken);
+        if (visible.IsFailure)
+        {
+            return Result.Failure<VersionDetailsDto>(visible.Error);
+        }
+
+        var details = await readModel.GetAsync(new DocumentId(query.DocumentId), cancellationToken);
+        var version = details is null
+            ? null
+            : (await readModel.ListVersionsAsync(new DocumentId(details.Id), cancellationToken))
+                .FirstOrDefault(item => item.Id == query.VersionId);
+        if (details is null || version is null)
+        {
+            return Result.Failure<VersionDetailsDto>(DocumentErrors.VersionNotFound);
+        }
+
+        var file = await storage.FindAsync(new StorageObjectId(version.StorageObjectId), cancellationToken);
+        var schema = await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(version.SchemaVersionId), cancellationToken);
+
+        var actions = new List<string> { PermissionCodes.DocumentView };
+        foreach (var permission in new[] { PermissionCodes.DocumentDownload, PermissionCodes.DocumentPrint })
+        {
+            if (await access.IsVersionAllowedAsync(query.DocumentId, permission, query.VersionId, cancellationToken))
+            {
+                actions.Add(permission);
+            }
+        }
+
+        return Result.Success(new VersionDetailsDto(
+            details.Id,
+            details.Title,
+            details.Description,
+            details.DocumentTypeId,
+            version with
+            {
+                Metadata = MetadataPresenter.ForApi(schema, version.Metadata?.GetRawText()),
+                IsCurrent = version.Id == details.CurrentVersionId,
+                IsEffective = version.Id == details.EffectiveVersionId,
+                ScanStatus = file?.ScanStatus.ToString() ?? "Unknown",
+            },
+            actions));
     }
 }
 

@@ -12,7 +12,7 @@ namespace Dms.Authorization.Application;
 ///   3. soft deleted resources expose only restore, purge and audit
 ///   4. explicit DENY anywhere beats every ALLOW, share and task grant
 ///   5. ALLOW on the resource or an inherited ALLOW from an ancestor category
-///   6. otherwise share / workflow task grants
+///   6. otherwise share / workflow task grants (a share only for the version it is pinned to)
 ///   7. otherwise deny
 ///   8. dependent permissions additionally require VIEW
 ///   9. drafts require authorship, VIEW_DRAFT or a workflow task
@@ -229,6 +229,12 @@ public static class PermissionEvaluator
             }
 
             if (grant.Resource != resource.Resource || (grant.ExpiresAt is not null && grant.ExpiresAt <= now))
+            {
+                continue;
+            }
+
+            // A share on V3 says nothing about V4, nor about the document as a whole.
+            if (grant.VersionId is { } pinned && pinned != resource.VersionId)
             {
                 continue;
             }
