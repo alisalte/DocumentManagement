@@ -4,6 +4,7 @@ using Dms.Infrastructure.Persistence;
 using Dms.Storage.Application;
 using Dms.Storage.Contracts;
 using Dms.Storage.Infrastructure.Persistence;
+using Dms.Storage.Infrastructure.Processing;
 using Dms.Storage.Infrastructure.Providers;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -36,7 +37,27 @@ public static class StorageModule
             services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<S3FileStorage>());
         }
 
-        services.AddSingleton<IMalwareScanner, NullMalwareScanner>();
+        // ClamAV when scanning is switched on, otherwise files are marked "skipped" (decision D9).
+        var scanning = configuration.GetValue<bool>($"{StorageOptions.SectionName}:Scanning:Enabled");
+        if (scanning)
+        {
+            services.AddSingleton<IMalwareScanner, ClamAvScanner>();
+        }
+        else
+        {
+            services.AddSingleton<IMalwareScanner, NullMalwareScanner>();
+        }
+
+        // Renderers are asked in order; the first that recognises the type renders it.
+        services.AddSingleton<IPageRenderer, PdfPageRenderer>();
+        services.AddSingleton<IPageRenderer, ImagePageRenderer>();
+        services.AddHttpClient<OfficePageRenderer>(client => client.Timeout = TimeSpan.FromMinutes(5));
+        services.AddSingleton<IPageRenderer>(sp => sp.GetRequiredService<OfficePageRenderer>());
+        services.AddSingleton<IWatermarker, SkiaWatermarker>();
+
+        services.AddScoped<IRenditionRepository, RenditionRepository>();
+        services.AddScoped<IRenditionService, RenditionService>();
+        services.AddScoped<IJobHandler, ProcessObjectJob>();
 
         services.AddScoped<IJobHandler, ScanStorageObjectJob>();
         services.AddScoped<IJobHandler, PurgeStorageObjectsJob>();

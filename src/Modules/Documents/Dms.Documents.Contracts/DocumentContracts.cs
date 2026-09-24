@@ -112,3 +112,73 @@ public interface IDocumentLocator
 {
     Task<DocumentRef?> FindAsync(DocumentId id, CancellationToken cancellationToken);
 }
+
+/// <summary>
+/// Told after anything about a document changed (a version, metadata, title, tags, deletion,
+/// an approval), in the same transaction. Search implements it to reindex; Documents knows
+/// nothing about search.
+/// </summary>
+public interface IDocumentChangeListener
+{
+    Task OnDocumentChangedAsync(Guid documentId, CancellationToken cancellationToken);
+}
+
+public sealed record VersionIndexData(
+    Guid VersionId,
+    int VersionNumber,
+    int RevisionNumber,
+    Guid StorageObjectId,
+    string FileName,
+    string MimeType,
+    Guid SchemaVersionId,
+    string MetadataJson,
+    ApprovalStatus ApprovalStatus,
+    Guid CreatedBy,
+    DateTimeOffset CreatedAt)
+{
+    public string Label => $"V{VersionNumber}.{RevisionNumber}";
+
+    public bool IsPublished => ApprovalStatus is ApprovalStatus.NotRequired or ApprovalStatus.Approved;
+}
+
+/// <summary>Everything the search index holds about one document, read from the source of truth.</summary>
+public sealed record DocumentIndexData(
+    Guid DocumentId,
+    string Title,
+    string? Description,
+    Guid CategoryId,
+    IReadOnlyList<Guid> CategoryPath,
+    Guid DocumentTypeId,
+    Guid OwnerId,
+    Guid CreatedBy,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    bool IsDeleted,
+    Guid? CurrentVersionId,
+    Guid? EffectiveVersionId,
+    IReadOnlyList<string> Tags,
+    IReadOnlyList<VersionIndexData> Versions);
+
+/// <summary>Read access for building and rebuilding the search index (section 8.4).</summary>
+public interface IDocumentIndexSource
+{
+    /// <summary>Null once the document has been purged.</summary>
+    Task<DocumentIndexData?> GetAsync(Guid documentId, CancellationToken cancellationToken);
+
+    /// <summary>Documents with a version on this stored file (content versions and their revisions).</summary>
+    Task<IReadOnlyList<Guid>> DocumentsUsingObjectAsync(Guid storageObjectId, CancellationToken cancellationToken);
+
+    /// <summary>All document ids after the given one, in id order, for batched rebuilds.</summary>
+    Task<IReadOnlyList<Guid>> ListIdsAsync(Guid? after, int batchSize, CancellationToken cancellationToken);
+}
+
+public sealed record TitleHit(Guid DocumentId, string Title, string? VersionLabel, string? FileName, DateTimeOffset UpdatedAt);
+
+/// <summary>
+/// Degraded mode (section 8.4): when the search engine is down, titles are still searchable in
+/// Postgres, through the same access scope as the document browser.
+/// </summary>
+public interface IDocumentTitleSearch
+{
+    Task<(IReadOnlyList<TitleHit> Hits, int Total)> SearchAsync(string? text, int page, int pageSize, CancellationToken cancellationToken);
+}

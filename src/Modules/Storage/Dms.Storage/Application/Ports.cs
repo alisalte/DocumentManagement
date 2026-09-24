@@ -60,6 +60,35 @@ public interface IStorageObjectRepository
     void Add(StorageObject storageObject);
 }
 
+public interface IRenditionRepository
+{
+    Task<Rendition?> FindAsync(StorageObjectId source, RenditionKind kind, CancellationToken cancellationToken);
+
+    void Add(Rendition rendition);
+}
+
+/// <summary>One rendered page, already encoded, ready to store.</summary>
+public sealed record RenderedPage(int Number, byte[] Image);
+
+/// <summary>
+/// Turns a file into page images. Implementations live in Infrastructure (PDFium for PDF, Skia
+/// for images, Gotenberg for Office via PDF); the job only sees pages.
+/// </summary>
+public interface IPageRenderer
+{
+    /// <summary>Null when this renderer does not handle the type.</summary>
+    IAsyncEnumerable<RenderedPage>? Render(string mimeType, Stream content, RenderRequest request, CancellationToken cancellationToken);
+}
+
+/// <param name="FileName">The original name, for converters that pick a format by extension.</param>
+public sealed record RenderRequest(int Width, int MaxPages, string? FileName = null);
+
+/// <summary>Draws the viewer's name and the time across a page image when it is served.</summary>
+public interface IWatermarker
+{
+    byte[] Apply(byte[] image, string text);
+}
+
 public sealed class StorageOptions
 {
     public const string SectionName = "Dms:Storage";
@@ -80,6 +109,24 @@ public sealed class StorageOptions
     public FileSystemOptions FileSystem { get; set; } = new();
 
     public ScanningOptions Scanning { get; set; } = new();
+
+    public RenditionOptions Renditions { get; set; } = new();
+}
+
+public sealed class RenditionOptions
+{
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Page image width in pixels; about 150 DPI for A4.</summary>
+    public int PageWidth { get; set; } = 1240;
+
+    public int ThumbnailWidth { get; set; } = 320;
+
+    /// <summary>Long documents get a preview of their first pages; download has the rest.</summary>
+    public int MaxPages { get; set; } = 300;
+
+    /// <summary>Gotenberg for Office → PDF. Empty disables Office previews.</summary>
+    public string? GotenbergUrl { get; set; }
 }
 
 public sealed class S3Options
@@ -103,6 +150,11 @@ public sealed class FileSystemOptions
 
 public sealed class ScanningOptions
 {
+    /// <summary>Where clamd listens (INSTREAM over TCP).</summary>
+    public string ClamAvHost { get; set; } = "clamav";
+
+    public int ClamAvPort { get; set; } = 3310;
+
     /// <summary>
     /// When false, objects are marked "skipped" and content is served. When true, content stays
     /// unavailable until a scanner reports clean (decision D9).

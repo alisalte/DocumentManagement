@@ -14,6 +14,7 @@ namespace Dms.Documents.Infrastructure;
 public sealed class DocumentApprovalGateway(
     DocumentsDbContext context,
     IDocumentRepository documents,
+    DocumentChanges changes,
     TimeProvider timeProvider) : IDocumentApprovalGateway
 {
     public async Task<VersionForWorkflow?> FindVersionAsync(Guid versionId, CancellationToken cancellationToken)
@@ -60,5 +61,8 @@ public sealed class DocumentApprovalGateway(
         {
             throw new InvalidOperationException(recorded.Error.Message);
         }
+
+        // Approval moves the effective version, which search results depend on.
+        await changes.NotifyAsync(documentId, cancellationToken);
     }
 }

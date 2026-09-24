@@ -15,6 +15,8 @@ public sealed class StorageDbContext : DbContext
 
     public DbSet<StorageObject> StorageObjects => Set<StorageObject>();
 
+    public DbSet<Rendition> Renditions => Set<Rendition>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -65,6 +67,48 @@ public sealed class StorageDbContext : DbContext
                 table.HasCheckConstraint("ck_storage_objects_size", "size >= 0");
                 table.HasCheckConstraint("ck_storage_objects_sha256", "octet_length(sha256) = 32");
             });
+        });
+
+        modelBuilder.Entity<Rendition>(entity =>
+        {
+            entity.ToTable("renditions");
+            entity.HasKey(rendition => rendition.Id);
+            entity.Property(rendition => rendition.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(rendition => rendition.SourceObjectId).HasColumnName("source_object_id")
+                .HasConversion(id => id.Value, value => new StorageObjectId(value));
+            entity.Property(rendition => rendition.Kind).HasColumnName("kind").HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(rendition => rendition.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(rendition => rendition.Error).HasColumnName("error").HasMaxLength(1000);
+            entity.Property(rendition => rendition.CreatedAt).HasColumnName("created_at");
+            entity.Property(rendition => rendition.CompletedAt).HasColumnName("completed_at");
+            entity.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<StorageObject>().WithMany()
+                .HasForeignKey(rendition => rendition.SourceObjectId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_renditions_source");
+            entity.HasIndex(rendition => new { rendition.SourceObjectId, rendition.Kind })
+                .IsUnique().HasDatabaseName("ux_renditions_source_kind");
+
+            entity.HasMany(rendition => rendition.Pages).WithOne()
+                .HasForeignKey(page => page.RenditionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_rendition_pages_rendition");
+            entity.Navigation(rendition => rendition.Pages).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<RenditionPage>(entity =>
+        {
+            entity.ToTable("rendition_pages");
+            entity.HasKey(page => new { page.RenditionId, page.PageNumber });
+            entity.Property(page => page.RenditionId).HasColumnName("rendition_id");
+            entity.Property(page => page.PageNumber).HasColumnName("page_number");
+            entity.Property(page => page.ObjectId).HasColumnName("object_id")
+                .HasConversion(id => id.Value, value => new StorageObjectId(value));
+            entity.HasOne<StorageObject>().WithMany()
+                .HasForeignKey(page => page.ObjectId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_rendition_pages_object");
         });
     }
 }

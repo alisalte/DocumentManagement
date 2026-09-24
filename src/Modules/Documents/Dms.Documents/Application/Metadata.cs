@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Dms.Authorization.Contracts;
 using Dms.DocumentTypes.Contracts;
+using Dms.Documents.Contracts;
 using Dms.SharedKernel;
 
 namespace Dms.Documents.Application;
@@ -86,5 +87,17 @@ public static class MetadataPresenter
             .Where(key => !JsonNode.DeepEquals(left[key], right[key]))
             .Order(StringComparer.Ordinal)
             .ToList();
+    }
+}
+
+/// <summary>Tells every listener (search) that a document changed, in the caller's transaction.</summary>
+public sealed class DocumentChanges(IEnumerable<IDocumentChangeListener> listeners)
+{
+    public async Task NotifyAsync(Guid documentId, CancellationToken cancellationToken)
+    {
+        foreach (var listener in listeners)
+        {
+            await listener.OnDocumentChangedAsync(documentId, cancellationToken);
+        }
     }
 }

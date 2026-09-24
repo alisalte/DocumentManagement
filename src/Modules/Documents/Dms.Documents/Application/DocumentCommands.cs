@@ -291,6 +291,7 @@ public sealed class CreateDocumentHandler(
     IIdempotencyStore idempotency,
     IVersionCreatedHook versionCreated,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<CreateDocumentCommand, Result<CreatedVersionDto>>
 {
@@ -443,6 +444,7 @@ public sealed class CreateDocumentHandler(
         await audit.WriteAsync(VersionAudit.Created(version), cancellationToken);
         await versionCreated.OnVersionCreatedAsync(documentType.Value.Id.Value, document.Id.Value, version.Id.Value, cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         var result = new CreatedVersionDto(document.Id.Value, version.Id.Value, version.Label);
         if (command.IdempotencyKey is { } newKey)
         {
@@ -463,6 +465,7 @@ public sealed class AddVersionHandler(
     IIdempotencyStore idempotency,
     IVersionCreatedHook versionCreated,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<AddVersionCommand, Result<CreatedVersionDto>>
 {
@@ -583,6 +586,7 @@ public sealed class AddVersionHandler(
         await audit.WriteAsync(VersionAudit.Created(version), cancellationToken);
         await versionCreated.OnVersionCreatedAsync(documentType.Id.Value, document.Id.Value, version.Id.Value, cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         var result = new CreatedVersionDto(document.Id.Value, version.Id.Value, version.Label);
         if (command.IdempotencyKey is { } newKey)
         {
@@ -621,6 +625,7 @@ public sealed class UpdateDocumentHandler(
     IDocumentRepository documents,
     ICategoryRepository categories,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<UpdateDocumentCommand, Result>
 {
@@ -711,6 +716,7 @@ public sealed class UpdateDocumentHandler(
             },
             cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         return Result.Success();
     }
 }
@@ -720,6 +726,7 @@ public sealed class SetDocumentTagsHandler(
     IDocumentRepository documents,
     TagResolver tagResolver,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<SetDocumentTagsCommand, Result>
 {
@@ -761,6 +768,7 @@ public sealed class SetDocumentTagsHandler(
             },
             cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         return Result.Success();
     }
 }
@@ -769,6 +777,7 @@ public sealed class DeleteDocumentHandler(
     DocumentAccess access,
     IDocumentRepository documents,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<DeleteDocumentCommand, Result>
 {
@@ -805,6 +814,7 @@ public sealed class DeleteDocumentHandler(
             },
             cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         return Result.Success();
     }
 }
@@ -813,6 +823,7 @@ public sealed class RestoreDocumentHandler(
     DocumentAccess access,
     IDocumentRepository documents,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<RestoreDocumentCommand, Result>
 {
@@ -847,6 +858,7 @@ public sealed class RestoreDocumentHandler(
             },
             cancellationToken);
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         return Result.Success();
     }
 }
@@ -856,6 +868,7 @@ public sealed class PurgeDocumentHandler(
     IDocumentRepository documents,
     IStorageService storage,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser) : ICommandHandler<PurgeDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(PurgeDocumentCommand command, CancellationToken cancellationToken)
@@ -925,6 +938,7 @@ public sealed class PurgeDocumentHandler(
             cancellationToken);
 
         await documents.PurgeAsync(document, cancellationToken);
+        await changes.NotifyAsync(command.Id, cancellationToken);
         return Result.Success();
     }
 }
@@ -1013,6 +1027,7 @@ public sealed class UpdateMetadataHandler(
     IIdempotencyStore idempotency,
     IVersionCreatedHook versionCreated,
     IAuditWriter audit,
+    DocumentChanges changes,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>
 {
@@ -1171,6 +1186,7 @@ public sealed class UpdateMetadataHandler(
             result = new MetadataUpdateDto(document.Id.Value, revision.Value.Id.Value, revision.Value.Label, "revision");
         }
 
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
         if (command.IdempotencyKey is { } newKey)
         {
             idempotency.Record(actor, newKey, requestHash, JsonSerializer.Serialize(result));

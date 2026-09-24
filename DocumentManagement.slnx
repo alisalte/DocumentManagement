@@ -35,6 +35,10 @@
     <Project Path="src/Modules/Identity/Dms.Identity.Infrastructure/Dms.Identity.Infrastructure.csproj" />
     <Project Path="src/Modules/Identity/Dms.Identity/Dms.Identity.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Search/">
+    <Project Path="src/Modules/Search/Dms.Search.Infrastructure/Dms.Search.Infrastructure.csproj" />
+    <Project Path="src/Modules/Search/Dms.Search/Dms.Search.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Storage/">
     <Project Path="src/Modules/Storage/Dms.Storage.Contracts/Dms.Storage.Contracts.csproj" />
     <Project Path="src/Modules/Storage/Dms.Storage.Infrastructure/Dms.Storage.Infrastructure.csproj" />

@@ -113,8 +113,75 @@ public interface IStorageService
     /// <summary>Marks an object for deletion; the bytes are removed by a background job.</summary>
     Task<Result> MarkForDeletionAsync(StorageObjectId id, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Stores a file the system produced (a page image, extracted text). Committed at once, never
+    /// scanned (it came from a clean source), and never exposed except through its owner.
+    /// </summary>
+    Task<StorageObjectId> StoreDerivedAsync(
+        Stream content,
+        string fileName,
+        string mimeType,
+        DerivedPurpose purpose,
+        CancellationToken cancellationToken);
+
+    /// <summary>Opens the bytes of any object, clean or not, for internal processing only.</summary>
+    Task<Stream> OpenForProcessingAsync(StorageObjectId id, CancellationToken cancellationToken);
+
     /// <summary>Other objects with the same SHA-256. The caller filters by what the user may see.</summary>
     Task<IReadOnlyList<StorageObjectId>> FindByHashAsync(byte[] sha256, CancellationToken cancellationToken);
 }
 
 public readonly record struct ByteRange(long From, long? To);
+
+/// <summary>What a derived object holds. Derived objects are made by the system, never uploaded.</summary>
+public enum DerivedPurpose
+{
+    Rendition,
+    ExtractedText,
+}
+
+public enum RenditionStatus
+{
+    /// <summary>Not produced yet: the processing job has not reached this file.</summary>
+    Pending,
+    Ready,
+    Failed,
+
+    /// <summary>No preview for this kind of file (CAD, archives, …): metadata and download only.</summary>
+    NotSupported,
+}
+
+/// <summary>The preview of one stored file: page images rendered once, served through the API.</summary>
+public sealed record RenditionInfo(StorageObjectId SourceId, RenditionStatus Status, int PageCount, string? Error);
+
+/// <summary>
+/// Previews and print pages (section 7.4). They are images of the pages, never the original file,
+/// so VIEW and PRINT never quietly grant DOWNLOAD. Each page can be stamped with who is looking
+/// and when.
+/// </summary>
+public interface IRenditionService
+{
+    Task<RenditionInfo> GetPreviewAsync(StorageObjectId sourceId, CancellationToken cancellationToken);
+
+    /// <param name="page">1-based.</param>
+    /// <param name="watermark">Text drawn across the page, or null for none.</param>
+    Task<Result<StoredContent>> OpenPageAsync(
+        StorageObjectId sourceId,
+        int page,
+        string? watermark,
+        CancellationToken cancellationToken);
+
+    Task<Result<StoredContent>> OpenThumbnailAsync(StorageObjectId sourceId, CancellationToken cancellationToken);
+
+    /// <summary>Queues processing again (scan, previews, text) for a committed file, e.g. after a failure.</summary>
+    Task RequestProcessingAsync(StorageObjectId sourceId, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Told when a committed file has been scanned and rendered, in the processing job's transaction.
+/// Search implements it to extract text and index; Storage knows nothing about search.
+/// </summary>
+public interface IObjectProcessedListener
+{
+    Task OnProcessedAsync(StorageObjectInfo file, CancellationToken cancellationToken);
+}

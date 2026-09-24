@@ -43,6 +43,9 @@ public static class DocumentsModule
         services.AddScoped<UploadAttachment>();
         services.AddScoped<TagResolver>();
         services.AddScoped<MetadataGate>();
+        services.AddScoped<DocumentChanges>();
+        services.AddScoped<IDocumentIndexSource, DocumentIndexSource>();
+        services.AddScoped<IDocumentTitleSearch, DocumentTitleSearch>();
 
         services.AddScoped<ICommandHandler<CreateCategoryCommand, Result<Guid>>, CreateCategoryHandler>();
         services.AddScoped<ICommandHandler<UpdateCategoryCommand, Result>, UpdateCategoryHandler>();

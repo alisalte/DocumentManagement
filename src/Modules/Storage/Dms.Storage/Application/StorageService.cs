@@ -69,7 +69,7 @@ public sealed class StorageService(
             measured.Digest));
     }
 
-    public async Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken)
+    public Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken)
     {
         var scanStatus = scanner.IsEnabled ? ScanStatus.Pending : ScanStatus.Skipped;
 
@@ -88,22 +88,16 @@ public sealed class StorageService(
             currentUser.UserId,
             timeProvider.GetUtcNow());
 
+        // The scan runs once the file is attached (ProcessObjectJob); a staged file nobody attaches
+        // is never served and is collected instead.
         repository.Add(storageObject);
 
-        if (scanner.IsEnabled)
-        {
-            // Queued in the caller's transaction: a recorded object always gets its scan.
-            await jobs.EnqueueAsync(
-                new JobRequest(ScanStorageObjectJob.Type, new { storageObjectId = storageObject.Id.Value }),
-                cancellationToken);
-        }
-
-        return new StagedUpload(
+        return Task.FromResult(new StagedUpload(
             storageObject.Id,
             file.FileName,
             file.DetectedMimeType,
             file.Size,
-            Convert.ToHexStringLower(file.Sha256));
+            Convert.ToHexStringLower(file.Sha256)));
     }
 
     public Task DiscardAsync(WrittenFile file, CancellationToken cancellationToken) =>
@@ -117,7 +111,55 @@ public sealed class StorageService(
             return Result.Failure(Error.NotFound("storage.not_found", "The uploaded file no longer exists."));
         }
 
-        return storageObject.Commit(timeProvider.GetUtcNow());
+        var wasStaged = storageObject.Status == StorageObjectStatus.Staged;
+        var committed = storageObject.Commit(timeProvider.GetUtcNow());
+        if (committed.IsSuccess && wasStaged)
+        {
+            // Same transaction as the version that references it: a committed file always gets
+            // scanned, rendered and indexed (section 8.1).
+            await jobs.EnqueueAsync(ProcessObjectJob.For(id), cancellationToken);
+        }
+
+        return committed;
+    }
+
+    public async Task<StorageObjectId> StoreDerivedAsync(
+        Stream content,
+        string fileName,
+        string mimeType,
+        DerivedPurpose purpose,
+        CancellationToken cancellationToken)
+    {
+        var settings = options.Value;
+        var now = timeProvider.GetUtcNow();
+        var id = StorageObjectId.New();
+        var prefix = purpose == DerivedPurpose.ExtractedText ? "text" : "renditions";
+        var location = new ObjectLocation(settings.Bucket, FileNames.BuildObjectKey(prefix, id.Value, now));
+
+        await using var measured = new HashingReadStream(content, long.MaxValue);
+        await fileStorage.PutAsync(location, measured, mimeType, cancellationToken);
+
+        repository.Add(StorageObject.Derived(
+            id,
+            fileStorage.Provider,
+            location.Bucket,
+            location.Key,
+            purpose == DerivedPurpose.ExtractedText ? StorageObjectPurpose.ExtractedText : StorageObjectPurpose.Rendition,
+            FileNames.Sanitize(fileName),
+            mimeType,
+            measured.BytesRead,
+            measured.Digest,
+            now));
+
+        return id;
+    }
+
+    public async Task<Stream> OpenForProcessingAsync(StorageObjectId id, CancellationToken cancellationToken)
+    {
+        var storageObject = await repository.FindAsync(id, cancellationToken)
+            ?? throw new InvalidOperationException($"Storage object {id} does not exist.");
+
+        return await fileStorage.OpenAsync(new ObjectLocation(storageObject.Bucket, storageObject.ObjectKey), null, cancellationToken);
     }
 
     public async Task<StorageObjectInfo?> FindAsync(StorageObjectId id, CancellationToken cancellationToken) =>

@@ -22,43 +22,43 @@ public sealed class JobWorkerOptions
 /// <summary>Recurring work: enqueued by <see cref="RecurringJobScheduler"/> on the given interval.</summary>
 public sealed record RecurringJob(string Type, TimeSpan Interval);
 
-public sealed class JobWorker(
+/// <summary>
+/// Takes one due job and runs it in its own scope and transaction. Shared by the background
+/// worker and by tests, which run the queue on demand instead of racing a worker.
+/// </summary>
+public sealed class JobRunner(
     IServiceScopeFactory scopeFactory,
     JobStore store,
     IOptions<JobWorkerOptions> options,
-    ILogger<JobWorker> logger) : BackgroundService
+    ILogger<JobRunner> logger)
 {
     private readonly string _workerId = $"{Environment.MachineName}:{Environment.ProcessId}";
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    /// <summary>Runs at most one job; false when nothing was due.</summary>
+    public async Task<bool> RunNextAsync(CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        logger.LogInformation("Job worker {Worker} started on queue {Queue}.", _workerId, settings.Queue);
-
-        while (!stoppingToken.IsCancellationRequested)
+        await store.ReleaseExpiredLeasesAsync(cancellationToken);
+        var job = await store.DequeueAsync(_workerId, settings.Queue, settings.Lease, cancellationToken);
+        if (job is null)
         {
-            try
-            {
-                await store.ReleaseExpiredLeasesAsync(stoppingToken);
-                var job = await store.DequeueAsync(_workerId, settings.Queue, settings.Lease, stoppingToken);
-                if (job is null)
-                {
-                    await Task.Delay(settings.PollInterval, stoppingToken);
-                    continue;
-                }
-
-                await RunAsync(job, settings, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Job worker loop failed; backing off.");
-                await Task.Delay(settings.PollInterval, CancellationToken.None);
-            }
+            return false;
         }
+
+        await RunAsync(job, settings, cancellationToken);
+        return true;
+    }
+
+    /// <summary>Runs due jobs until none is left (or the limit is reached). Jobs may queue more jobs.</summary>
+    public async Task<int> RunUntilIdleAsync(int limit, CancellationToken cancellationToken)
+    {
+        var ran = 0;
+        while (ran < limit && await RunNextAsync(cancellationToken))
+        {
+            ran++;
+        }
+
+        return ran;
     }
 
     private async Task RunAsync(DequeuedJob job, JobWorkerOptions settings, CancellationToken cancellationToken)
@@ -92,6 +92,38 @@ public sealed class JobWorker(
             logger.LogError(exception, "Job {JobId} of type {JobType} failed (attempt {Attempt}).",
                 job.Id, job.Type, job.Attempts);
             await store.MarkFailedAsync(job.Id, exception.ToString(), delay, CancellationToken.None);
+        }
+    }
+}
+
+public sealed class JobWorker(
+    JobRunner runner,
+    IOptions<JobWorkerOptions> options,
+    ILogger<JobWorker> logger) : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var settings = options.Value;
+        logger.LogInformation("Job worker started on queue {Queue}.", settings.Queue);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                if (!await runner.RunNextAsync(stoppingToken))
+                {
+                    await Task.Delay(settings.PollInterval, stoppingToken);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "Job worker loop failed; backing off.");
+                await Task.Delay(settings.PollInterval, CancellationToken.None);
+            }
         }
     }
 }

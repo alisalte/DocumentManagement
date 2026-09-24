@@ -58,6 +58,7 @@ public static class PermissionCodes
     public const string AdminManageWorkflows = "ADMIN_MANAGE_WORKFLOWS";
     public const string AdminManageCategories = "ADMIN_MANAGE_CATEGORIES";
     public const string DocumentPurge = "DOCUMENT_PURGE";
+    public const string AdminManageSearch = "ADMIN_MANAGE_SEARCH";
 }
 
 public static class PermissionCatalog
@@ -98,6 +99,7 @@ public static class PermissionCatalog
             new(PermissionCodes.AdminManageWorkflows, PermissionScope.System, false, "Manage workflow definitions."),
             new(PermissionCodes.AdminManageCategories, PermissionScope.System, false, "Manage the category tree."),
             new(PermissionCodes.DocumentPurge, PermissionScope.System, false, "Permanently delete documents."),
+            new(PermissionCodes.AdminManageSearch, PermissionScope.System, false, "See indexing status and rebuild the search index."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

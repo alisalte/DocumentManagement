@@ -122,6 +122,25 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
             now);
     }
 
+    /// <summary>A system-made file (page image, extracted text): committed at birth, and clean by origin.</summary>
+    public static StorageObject Derived(
+        StorageObjectId id,
+        string provider,
+        string bucket,
+        string objectKey,
+        StorageObjectPurpose purpose,
+        string fileName,
+        string mimeType,
+        long size,
+        byte[] sha256,
+        DateTimeOffset now)
+    {
+        var derived = Stage(id, provider, bucket, objectKey, purpose, fileName, mimeType, null, size, sha256, ScanStatus.Skipped, null, now);
+        derived.Status = StorageObjectStatus.Committed;
+        derived.CommittedAt = now;
+        return derived;
+    }
+
     public Result Commit(DateTimeOffset now)
     {
         switch (Status)

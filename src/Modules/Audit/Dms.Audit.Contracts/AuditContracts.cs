@@ -102,6 +102,10 @@ public static class AuditActions
     public const string WorkflowNeedsAttention = "WORKFLOW_NEEDS_ATTENTION";
     public const string WorkflowTaskOverdue = "WORKFLOW_TASK_OVERDUE";
 
+    public const string DocumentPrinted = "DOCUMENT_PRINTED";
+    public const string FileInfected = "FILE_INFECTED";
+    public const string SearchReindexStarted = "SEARCH_REINDEX_STARTED";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

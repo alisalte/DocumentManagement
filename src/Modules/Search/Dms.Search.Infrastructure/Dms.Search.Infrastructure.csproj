@@ -1,9 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <RootNamespace>Dms.Storage.Infrastructure</RootNamespace>
-    <!-- PDFium and Skia mark their APIs per OS; the server runs on Linux containers only. -->
-    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <RootNamespace>Dms.Search.Infrastructure</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,14 +11,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Infrastructure\Dms.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Web\Dms.Web.csproj" />
-    <ProjectReference Include="..\Dms.Storage\Dms.Storage.csproj" />
+    <ProjectReference Include="..\Dms.Search\Dms.Search.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" />
-    <PackageReference Include="PDFtoImage" />
-    <PackageReference Include="SkiaSharp" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

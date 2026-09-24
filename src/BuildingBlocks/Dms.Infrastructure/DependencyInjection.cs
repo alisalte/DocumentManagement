@@ -33,6 +33,7 @@ public static class DependencyInjection
 
         services.AddDmsModuleDbContext<InfraDbContext>(order: 0, name: "infra");
         services.AddSingleton<JobStore>();
+        services.AddSingleton<JobRunner>();
         services.AddScoped<IJobQueue, JobQueue>();
         services.AddScoped<IIdempotencyStore, IdempotencyStore>();
         services.AddScoped<DatabaseInitializer>();

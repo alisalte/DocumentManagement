@@ -53,3 +53,12 @@ public sealed class StorageObjectRepository(StorageDbContext context) : IStorage
 
     public void Add(StorageObject storageObject) => context.StorageObjects.Add(storageObject);
 }
+
+public sealed class RenditionRepository(StorageDbContext context) : IRenditionRepository
+{
+    public Task<Rendition?> FindAsync(StorageObjectId source, RenditionKind kind, CancellationToken cancellationToken) =>
+        context.Renditions.Include(rendition => rendition.Pages)
+            .FirstOrDefaultAsync(rendition => rendition.SourceObjectId == source && rendition.Kind == kind, cancellationToken);
+
+    public void Add(Rendition rendition) => context.Renditions.Add(rendition);
+}
