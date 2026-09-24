@@ -118,6 +118,10 @@ public sealed class DocumentAccess(IDmsAuthorizer authorizer, IAuditWriter audit
     public async Task<bool> IsAllowedAsync(Guid documentId, string permissionCode, CancellationToken cancellationToken) =>
         (await authorizer.AuthorizeAsync(permissionCode, ResourceRef.Document(documentId), cancellationToken)).Allowed;
 
+    /// <summary>A content permission on one version, gates included, without auditing a refusal. For UI hints.</summary>
+    public async Task<bool> IsVersionAllowedAsync(Guid documentId, string permissionCode, Guid versionId, CancellationToken cancellationToken) =>
+        (await authorizer.AuthorizeVersionAsync(permissionCode, ResourceRef.Document(documentId), versionId, cancellationToken)).Allowed;
+
     public async Task<bool> IsSystemAllowedAsync(string permissionCode, CancellationToken cancellationToken) =>
         (await authorizer.AuthorizeSystemAsync(permissionCode, cancellationToken)).Allowed;
 

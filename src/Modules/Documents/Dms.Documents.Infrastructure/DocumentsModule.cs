@@ -62,6 +62,14 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<PurgeDocumentCommand, Result>, PurgeDocumentHandler>();
         services.AddScoped<ICommandHandler<OpenContentCommand, Result<StoredContent>>, OpenContentHandler>();
 
+        services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
+        services.AddScoped<PreviewService>();
+        services.AddScoped<ICommandHandler<OpenPreviewCommand, Result<PreviewDto>>, OpenPreviewHandler>();
+        services.AddScoped<ICommandHandler<StartPrintCommand, Result<PreviewDto>>, StartPrintHandler>();
+        services.AddScoped<ICommandHandler<RetryProcessingCommand, Result>, RetryProcessingHandler>();
+        services.AddScoped<IQueryHandler<GetPreviewPageQuery, Result<StoredContent>>, GetPreviewPageHandler>();
+        services.AddScoped<IQueryHandler<GetThumbnailQuery, Result<StoredContent>>, GetThumbnailHandler>();
+
         services.AddScoped<IQueryHandler<ListDocumentsQuery, Result<PagedResult<DocumentListItemDto>>>,
             ListDocumentsHandler>();
         services.AddScoped<IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>, GetDocumentHandler>();

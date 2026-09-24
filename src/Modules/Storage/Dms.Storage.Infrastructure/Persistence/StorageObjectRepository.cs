@@ -29,7 +29,9 @@ public sealed class StorageObjectRepository(StorageDbContext context) : IStorage
         byte[] sha256,
         CancellationToken cancellationToken) =>
         await context.StorageObjects.AsNoTracking()
-            .Where(item => item.Sha256 == sha256 && item.Status == StorageObjectStatus.Committed)
+            .Where(item => item.Sha256 == sha256
+                && item.Status == StorageObjectStatus.Committed
+                && item.Purpose == StorageObjectPurpose.Original)
             .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<StorageObject>> ListStagedBeforeAsync(
@@ -49,6 +51,13 @@ public sealed class StorageObjectRepository(StorageDbContext context) : IStorage
             .Where(item => item.Status == StorageObjectStatus.PendingDeletion)
             .OrderBy(item => item.CreatedAt)
             .Take(limit)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<StorageObject>> ListDerivedFromAsync(
+        StorageObjectId source,
+        CancellationToken cancellationToken) =>
+        await context.StorageObjects
+            .Where(item => item.DerivedFromId == source)
             .ToListAsync(cancellationToken);
 
     public void Add(StorageObject storageObject) => context.StorageObjects.Add(storageObject);

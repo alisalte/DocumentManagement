@@ -7,12 +7,20 @@
 #
 # Integration tests need PostgreSQL. Start it with scripts/dev-db.sh, or point DMS_TEST_POSTGRES
 # at another server. Each run creates and drops its own database.
+#
+# The search tests against real engines run only when these are set (otherwise they are skipped):
+#   DMS_TEST_OPENSEARCH=http://localhost:9200   DMS_TEST_TIKA=http://localhost:9998
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
-export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
-export PATH="$DOTNET_ROOT:$PATH"
+# A user-local SDK (see README) is used when it has .NET 10; otherwise whatever dotnet is on PATH.
+if [[ -z "${DOTNET_ROOT:-}" ]] && compgen -G "$HOME/.dotnet/sdk/10.*" >/dev/null; then
+    export DOTNET_ROOT="$HOME/.dotnet"
+fi
+if [[ -n "${DOTNET_ROOT:-}" ]]; then
+    export PATH="$DOTNET_ROOT:$PATH"
+fi
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export DOTNET_NOLOGO=1
 export DMS_TEST_POSTGRES="${DMS_TEST_POSTGRES:-Host=localhost;Port=5433;Username=dms;Password=dms;Database=postgres}"
@@ -29,6 +37,10 @@ failed=0
 for project in tests/*/; do
     name=$(basename "$project")
     executable="$project/bin/$configuration/net10.0/$name"
+    # Windows (Git Bash) builds name.exe instead of an extensionless apphost.
+    if [[ -f "$executable.exe" ]]; then
+        executable="$executable.exe"
+    fi
     if [[ ! -x "$executable" ]]; then
         continue
     fi

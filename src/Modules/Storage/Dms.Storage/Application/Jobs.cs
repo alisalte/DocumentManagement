@@ -7,12 +7,12 @@ using Microsoft.Extensions.Options;
 
 namespace Dms.Storage.Application;
 
-/// <summary>Runs the malware scan and records the verdict (decision D9).</summary>
-public sealed class ScanStorageObjectJob(
-    IStorageObjectRepository repository,
-    IMalwareScanner scanner,
-    TimeProvider timeProvider,
-    ILogger<ScanStorageObjectJob> logger) : IJobHandler
+/// <summary>
+/// The phase 2 scan job. Scanning is now the first step of <see cref="ProcessObjectJob"/>, queued
+/// when a file is attached; this handler only drains jobs queued by older versions, handing
+/// committed files to the processing job (staged files are scanned once attached).
+/// </summary>
+public sealed class ScanStorageObjectJob(IStorageObjectRepository repository, IJobQueue jobs) : IJobHandler
 {
     public const string Type = "storage.scan-object";
 
@@ -22,33 +22,10 @@ public sealed class ScanStorageObjectJob(
     {
         // Web defaults: the payload is written camelCase by the job queue.
         var id = JsonSerializer.Deserialize<ScanPayload>(payload, JsonSerializerOptions.Web)?.StorageObjectId;
-        if (id is null)
+        var storageObject = id is { } value ? await repository.FindAsync(new StorageObjectId(value), cancellationToken) : null;
+        if (storageObject is { Status: StorageObjectStatus.Committed })
         {
-            return;
-        }
-
-        var storageObject = await repository.FindAsync(new StorageObjectId(id.Value), cancellationToken);
-        if (storageObject is null)
-        {
-            return;
-        }
-
-        var verdict = await scanner.ScanAsync(
-            new ObjectLocation(storageObject.Bucket, storageObject.ObjectKey),
-            cancellationToken);
-
-        var status = verdict switch
-        {
-            ScanVerdict.Clean => ScanStatus.Clean,
-            ScanVerdict.Infected => ScanStatus.Infected,
-            _ => ScanStatus.Failed,
-        };
-
-        storageObject.RecordScanResult(status, timeProvider.GetUtcNow());
-
-        if (status == ScanStatus.Infected)
-        {
-            logger.LogWarning("Storage object {ObjectId} was quarantined by the malware scanner.", storageObject.Id);
+            await jobs.EnqueueAsync(ProcessObjectJob.For(storageObject.Id), cancellationToken);
         }
     }
 

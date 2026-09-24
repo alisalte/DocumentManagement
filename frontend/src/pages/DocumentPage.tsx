@@ -23,6 +23,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router';
+import { DocumentViewer } from '../components/DocumentViewer';
 import { FilePicker } from '../components/FilePicker';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { MetadataView } from '../components/metadata/MetadataView';
@@ -46,6 +47,8 @@ export function DocumentPage() {
   const [notice, setNotice] = useState<string | null>((location.state as { notice?: string } | null)?.notice ?? null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | null>(null);
+  // Null: the viewer shows what a plain reader gets; a version row can point it elsewhere.
+  const [previewVersion, setPreviewVersion] = useState<string | null>(null);
 
   const document = useQuery({ queryKey: ['document', id], queryFn: () => api.document(id) });
   const versions = useQuery({ queryKey: ['versions', id], queryFn: () => api.versions(id), enabled: document.isSuccess });
@@ -169,6 +172,8 @@ export function DocumentPage() {
         </Stack>
       </Paper>
 
+      <DocumentViewer documentId={doc.id} versionId={previewVersion} canReprocess={can(doc, 'DOCUMENT_EDIT')} />
+
       {workflowMode !== 'None' && (
         <WorkflowPanel
           documentId={doc.id}
@@ -191,6 +196,10 @@ export function DocumentPage() {
                 version={version}
                 canDownload={can(doc, 'DOCUMENT_DOWNLOAD')}
                 onDownload={() => download(version)}
+                onPreview={() => {
+                  setPreviewVersion(version.isEffective ? null : version.id);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             </Box>
           ))}
@@ -238,10 +247,12 @@ function VersionRow({
   version,
   canDownload,
   onDownload,
+  onPreview,
 }: {
   version: DocumentVersion;
   canDownload: boolean;
   onDownload: () => void;
+  onPreview: () => void;
 }) {
   const scan: Record<string, { label: string; color: 'warning' | 'error' }> = {
     Pending: { label: t.scanPending, color: 'warning' },
@@ -291,12 +302,17 @@ function VersionRow({
             SHA-256 {version.sha256}
           </Typography>
         </Box>
-        {canDownload && !blocked && (
-          <Box sx={{ flexShrink: 0 }}>
-            <Button size="small" onClick={onDownload}>
-              {t.downloadVersion}
+        {!blocked && (
+          <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+            <Button size="small" onClick={onPreview}>
+              {t.preview}
             </Button>
-          </Box>
+            {canDownload && (
+              <Button size="small" onClick={onDownload}>
+                {t.downloadVersion}
+              </Button>
+            )}
+          </Stack>
         )}
       </Stack>
     </ListItem>

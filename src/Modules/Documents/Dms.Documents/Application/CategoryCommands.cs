@@ -154,6 +154,7 @@ public sealed class MoveCategoryHandler(
     IDmsAuthorizer authorizer,
     ICategoryRepository categories,
     IAuditWriter audit,
+    DocumentChanges changes,
     TimeProvider timeProvider) : ICommandHandler<MoveCategoryCommand, Result>
 {
     public async Task<Result> HandleAsync(MoveCategoryCommand command, CancellationToken cancellationToken)
@@ -197,6 +198,10 @@ public sealed class MoveCategoryHandler(
         }
 
         var oldPath = category.Path;
+
+        // Read before any path is rewritten: the subtree is only consistent under one path.
+        var affected = await categories.ListDocumentIdsInSubtreeAsync(oldPath, cancellationToken);
+
         var moved = category.MoveTo(newParent, timeProvider.GetUtcNow());
         if (moved.IsFailure)
         {
@@ -204,6 +209,13 @@ public sealed class MoveCategoryHandler(
         }
 
         await categories.RepathDescendantsAsync(oldPath, category.Path, cancellationToken);
+
+        // Search filters "this folder and below" on each document's ancestor list, which just
+        // changed for everything in the subtree.
+        foreach (var documentId in affected)
+        {
+            await changes.NotifyAsync(documentId, cancellationToken);
+        }
 
         // Moving a folder changes inherited permissions for everything below it, so it is audited
         // with both paths.

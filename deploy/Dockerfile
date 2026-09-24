@@ -15,6 +15,13 @@ RUN dotnet publish src/Dms.Host/Dms.Host.csproj -c Release -o /app/api --no-rest
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
+# Skia (page images, watermarks) needs fontconfig and a font with Latin and Persian glyphs;
+# PDFium ships inside the PDFtoImage package. Npgsql probes for the Kerberos library at startup
+# and logs an error without it, although GSS is never used.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libfontconfig1 fonts-dejavu-core libgssapi-krb5-2 \
+ && rm -rf /var/lib/apt/lists/*
+
 # Never run as root. The object directory is created here, owned by dms, so a fresh named volume
 # mounted on it inherits that ownership.
 RUN useradd --uid 64198 --create-home --shell /usr/sbin/nologin dms \

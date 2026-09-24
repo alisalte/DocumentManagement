@@ -11,6 +11,10 @@ PORT=${PORT:-5433}
 USER=${POSTGRES_USER:-dms}
 PASSWORD=${POSTGRES_PASSWORD:-dms}
 DATABASE=${POSTGRES_DB:-dms}
+# PostgreSQL 18 images keep their data in a versioned directory under /var/lib/postgresql and
+# refuse to start on a volume mounted at .../data. Older images (PGDATA=.../data) work with this
+# mount too. A new volume name, so data left by an older major version is never picked up.
+VOLUME=${VOLUME:-dms-pgdata-v18}
 
 # Prefer the official image; fall back to any locally cached Postgres if it cannot be pulled.
 IMAGE=${POSTGRES_IMAGE:-postgres:18}
@@ -37,7 +41,7 @@ else
         -e POSTGRES_PASSWORD="$PASSWORD" \
         -e POSTGRES_DB="$DATABASE" \
         -p "$PORT:5432" \
-        -v dms-pgdata:/var/lib/postgresql/data \
+        -v "$VOLUME:/var/lib/postgresql" \
         "$IMAGE" >/dev/null
     echo "Created container $CONTAINER from $IMAGE."
 fi

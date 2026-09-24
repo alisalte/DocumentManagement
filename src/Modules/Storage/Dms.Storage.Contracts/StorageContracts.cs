@@ -116,8 +116,10 @@ public interface IStorageService
     /// <summary>
     /// Stores a file the system produced (a page image, extracted text). Committed at once, never
     /// scanned (it came from a clean source), and never exposed except through its owner.
+    /// Deleted together with <paramref name="source"/>.
     /// </summary>
     Task<StorageObjectId> StoreDerivedAsync(
+        StorageObjectId source,
         Stream content,
         string fileName,
         string mimeType,

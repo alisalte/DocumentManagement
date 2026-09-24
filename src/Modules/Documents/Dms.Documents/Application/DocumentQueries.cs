@@ -73,6 +73,7 @@ public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel
     private static readonly string[] ActionPermissions =
     [
         PermissionCodes.DocumentDownload,
+        PermissionCodes.DocumentPrint,
         PermissionCodes.DocumentEdit,
         PermissionCodes.DocumentCreateVersion,
         PermissionCodes.DocumentDelete,

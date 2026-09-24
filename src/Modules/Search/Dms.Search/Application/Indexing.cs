@@ -99,6 +99,13 @@ public static class SearchDocumentBuilder
                 case FieldType.Integer or FieldType.Decimal when value.ValueKind == JsonValueKind.Number:
                     meta[key] = value.GetDouble();
                     break;
+
+                // Decimals are stored as strings to keep their precision; the index compares doubles.
+                case FieldType.Integer or FieldType.Decimal
+                    when value.ValueKind == JsonValueKind.String
+                    && double.TryParse(value.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number):
+                    meta[key] = number;
+                    break;
                 case FieldType.Boolean:
                     meta[key] = value.ValueKind == JsonValueKind.True;
                     break;
@@ -206,7 +213,7 @@ public sealed class ExtractTextJob(
         var file = await storage.FindAsync(new StorageObjectId(objectId), cancellationToken);
 
         // Never read an unscanned or infected file (decision D9).
-        if (file is null || !file.IsContentAvailable)
+        if (file is null || file.Status != StorageObjectStatus.Committed || !file.IsContentAvailable)
         {
             return;
         }
@@ -259,7 +266,7 @@ public sealed class ExtractTextJob(
                 }
 
                 packed.Position = 0;
-                textObject = (await storage.StoreDerivedAsync(packed, $"{file.Id}.txt.gz", "application/gzip", DerivedPurpose.ExtractedText, cancellationToken)).Value;
+                textObject = (await storage.StoreDerivedAsync(file.Id, packed, $"{file.Id}.txt.gz", "application/gzip", DerivedPurpose.ExtractedText, cancellationToken)).Value;
             }
 
             extraction.Complete(extracted.Method, textObject, text.Length, extracted.Engine, timeProvider.GetUtcNow());
@@ -359,4 +366,25 @@ public sealed class SearchDocumentChangeListener(IJobQueue jobs) : IDocumentChan
 {
     public Task OnDocumentChangedAsync(Guid documentId, CancellationToken cancellationToken) =>
         jobs.EnqueueAsync(IndexDocumentJob.For(documentId), cancellationToken);
+}
+
+/// <summary>
+/// Gives failed extractions (Tika or OCR briefly down, a timeout) a few more tries on a schedule.
+/// After <see cref="MaxAttempts"/> they wait for an administrator's "retry failed".
+/// </summary>
+public sealed class RetryFailedExtractionsJob(IContentExtractionRepository extractions, IJobQueue jobs) : IJobHandler
+{
+    public const string Type = "search.retry-failed-extractions";
+
+    public const int MaxAttempts = 3;
+
+    public string JobType => Type;
+
+    public async Task HandleAsync(string payload, CancellationToken cancellationToken)
+    {
+        foreach (var failed in await extractions.ListFailedAsync(MaxAttempts, 500, cancellationToken))
+        {
+            await jobs.EnqueueAsync(ExtractTextJob.For(failed.StorageObjectId), cancellationToken);
+        }
+    }
 }

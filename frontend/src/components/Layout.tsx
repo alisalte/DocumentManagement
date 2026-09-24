@@ -1,6 +1,7 @@
 import {
   AppBar,
   Badge,
+  InputBase,
   Box,
   Button,
   Drawer,
@@ -11,7 +12,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 import { useSession } from '../session';
@@ -35,6 +36,14 @@ export function Layout({ children }: { children: ReactNode }) {
   const selectedCategory = params.get('category');
   const canManageTypes = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES'));
   const canManageWorkflows = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS'));
+  const canManageSearch = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH'));
+  const [searchText, setSearchText] = useState('');
+
+  const submitSearch = (event: FormEvent) => {
+    event.preventDefault();
+    setOpen(false);
+    navigate(searchText.trim() ? `/search?q=${encodeURIComponent(searchText.trim())}` : '/search');
+  };
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
   const pending = tasks.data?.length ?? 0;
 
@@ -76,6 +85,26 @@ export function Layout({ children }: { children: ReactNode }) {
           >
             {t.appTitle}
           </Typography>
+          {isDesktop ? (
+            <Box
+              component="form"
+              onSubmit={submitSearch}
+              role="search"
+              sx={{ bgcolor: 'rgba(255,255,255,0.15)', borderRadius: 1, px: 1.5, width: 280 }}
+            >
+              <InputBase
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder={t.searchEverything}
+                inputProps={{ 'aria-label': t.searchEverything, enterKeyHint: 'search' }}
+                sx={{ color: 'inherit', width: '100%' }}
+              />
+            </Box>
+          ) : (
+            <Button color="inherit" component={RouterLink} to="/search" aria-label={t.searchEverything}>
+              {t.searchButton}
+            </Button>
+          )}
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
             <Button color="inherit" component={RouterLink} to="/tasks">
               <Badge color="secondary" badgeContent={pending} max={99}>
@@ -98,6 +127,11 @@ export function Layout({ children }: { children: ReactNode }) {
             {isDesktop && canManageWorkflows && (
               <Button color="inherit" component={RouterLink} to="/admin/workflows">
                 {w.workflows}
+              </Button>
+            )}
+            {isDesktop && canManageSearch && (
+              <Button color="inherit" component={RouterLink} to="/admin/search">
+                {t.searchAdmin}
               </Button>
             )}
             {isDesktop && (
@@ -141,8 +175,13 @@ export function Layout({ children }: { children: ReactNode }) {
             </Button>
           )}
           {canManageWorkflows && (
-            <Button component={RouterLink} to="/admin/workflows" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+            <Button component={RouterLink} to="/admin/workflows" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
               {w.workflows}
+            </Button>
+          )}
+          {canManageSearch && (
+            <Button component={RouterLink} to="/admin/search" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+              {t.searchAdmin}
             </Button>
           )}
         </Drawer>

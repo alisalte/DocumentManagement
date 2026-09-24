@@ -127,6 +127,10 @@ namespace Dms.Storage.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
+                    b.Property<Guid?>("DerivedFromId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("derived_from_id");
+
                     b.Property<string>("DetectedMimeType")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -193,6 +197,10 @@ namespace Dms.Storage.Infrastructure.Persistence.Migrations
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_storage_objects_staged")
                         .HasFilter("status = 'Staged'");
+
+                    b.HasIndex("DerivedFromId")
+                        .HasDatabaseName("ix_storage_objects_derived_from")
+                        .HasFilter("derived_from_id IS NOT NULL");
 
                     b.HasIndex("Sha256")
                         .HasDatabaseName("ix_storage_objects_sha256");

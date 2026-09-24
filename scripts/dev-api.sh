@@ -4,8 +4,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
-export PATH="$DOTNET_ROOT:$PATH"
+# A user-local SDK (see README) is used when it has .NET 10; otherwise whatever dotnet is on PATH.
+if [[ -z "${DOTNET_ROOT:-}" ]] && compgen -G "$HOME/.dotnet/sdk/10.*" >/dev/null; then
+    export DOTNET_ROOT="$HOME/.dotnet"
+fi
+if [[ -n "${DOTNET_ROOT:-}" ]]; then
+    export PATH="$DOTNET_ROOT:$PATH"
+fi
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export DOTNET_NOLOGO=1
 

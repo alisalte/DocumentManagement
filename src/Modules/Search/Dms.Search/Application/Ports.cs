@@ -51,6 +51,9 @@ public interface IContentExtractionRepository
 
     Task<IReadOnlyDictionary<ExtractionStatus, int>> CountByStatusAsync(CancellationToken cancellationToken);
 
+    /// <summary>Failed extractions, oldest first; with <paramref name="belowAttempts"/>, only those tried fewer times.</summary>
+    Task<IReadOnlyList<ContentExtraction>> ListFailedAsync(int? belowAttempts, int limit, CancellationToken cancellationToken);
+
     void Add(ContentExtraction extraction);
 }
 

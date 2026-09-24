@@ -32,6 +32,9 @@ public interface ICategoryRepository
     /// by row would be slow and could leave the tree half rewritten.
     /// </summary>
     Task RepathDescendantsAsync(string oldPath, string newPath, CancellationToken cancellationToken);
+
+    /// <summary>Every document (deleted ones too) filed in the category or anywhere below it.</summary>
+    Task<IReadOnlyList<Guid>> ListDocumentIdsInSubtreeAsync(string path, CancellationToken cancellationToken);
 }
 
 public interface IDocumentRepository

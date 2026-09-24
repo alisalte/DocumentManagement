@@ -1,9 +1,16 @@
-# Development stack for phase 1: PostgreSQL, the migrator (one shot) and the API.
+# The whole stack: PostgreSQL, the migrator (one shot), the API, the background worker and the
+# web app. Processing services are opt-in through compose profiles, because their images are
+# large and not every machine can pull them:
+#
+#   search  OpenSearch and Tika (with Tesseract fas+eng): full-text search and OCR
+#   scan    ClamAV: malware scanning (decision D9)
+#   office  Gotenberg: previews of Word, Excel and PowerPoint files
+#
+# Enable them with COMPOSE_PROFILES=search,scan,office in .env. Without them documents still file,
+# download and preview (PDF and images); search falls back to titles.
 #
 # Ports deliberately avoid the ranges used by the unrelated fleetvision stack on this machine
 # (5432, 6379, 3000-3013, 8080-8082, 9092): PostgreSQL is published on 5433 and the API on 5080.
-#
-# MinIO, OpenSearch, Tika, OCR and the gateway arrive with the phases that need them.
 name: dms
 
 # Container names are left to compose (dms-postgres-1, dms-api-1, ...) so this stack can
@@ -21,7 +28,9 @@ services:
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # PostgreSQL 18 stores data under /var/lib/postgresql/18/docker; mounting the parent keeps
+      # it on the volume (older images use /var/lib/postgresql/data, also inside this mount).
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dms} -d ${POSTGRES_DB:-dms}"]
       interval: 5s
@@ -52,18 +61,25 @@ services:
       dockerfile: deploy/Dockerfile
     image: dms-backend:latest
     restart: unless-stopped
-    environment:
+    environment: &backend-environment
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__Dms: >-
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
       Dms__Jwt__SigningKey: ${DMS_JWT_SIGNING_KEY:?set DMS_JWT_SIGNING_KEY in .env}
-      # api | worker | all. Split these into two services when OCR arrives in phase 5.
-      Dms__Role: ${DMS_ROLE:-all}
+      # The API only answers requests; the worker service below runs scans, previews and OCR,
+      # so a long OCR job never slows the API down.
+      Dms__Role: api
       Dms__Cors__Origins__0: ${DMS_FRONTEND_ORIGIN:-http://localhost:5173}
       # Filesystem storage on a named volume. Switch to s3 (MinIO) with Dms__Storage__Provider=s3
       # and Dms__Storage__S3__* once an object store is part of the stack.
       Dms__Storage__Provider: ${DMS_STORAGE_PROVIDER:-filesystem}
       Dms__Storage__FileSystem__RootPath: /var/lib/dms/objects
+      # Processing. Empty values switch a service off; set them together with COMPOSE_PROFILES.
+      Dms__Storage__Scanning__Enabled: ${DMS_SCAN_ENABLED:-false}
+      Dms__Storage__Scanning__ClamAvHost: clamav
+      Dms__Storage__Renditions__GotenbergUrl: ${DMS_GOTENBERG_URL:-}
+      Dms__Search__OpenSearchUrl: ${DMS_OPENSEARCH_URL:-}
+      Dms__Search__TikaUrl: ${DMS_TIKA_URL:-}
     volumes:
       - object-data:/var/lib/dms/objects
     ports:
@@ -73,7 +89,7 @@ services:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
-    healthcheck:
+    healthcheck: &backend-healthcheck
       # The aspnet runtime image ships neither curl nor wget, so the check talks to the port
       # directly through bash's /dev/tcp and looks for the readiness payload.
       # bash explicitly: CMD-SHELL would run /bin/sh (dash), which has no /dev/tcp.
@@ -89,6 +105,64 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  # Background jobs: malware scan, page images, text extraction and OCR, indexing, SLA checks.
+  worker:
+    image: dms-backend:latest
+    restart: unless-stopped
+    environment:
+      <<: *backend-environment
+      Dms__Role: worker
+    volumes:
+      - object-data:/var/lib/dms/objects
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck: *backend-healthcheck
+
+  opensearch:
+    profiles: ["search"]
+    image: ${OPENSEARCH_IMAGE:-opensearchproject/opensearch:2.19.3}
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      # Development only: no TLS and no users. Production runs the security plugin (risk R4).
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - search-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  tika:
+    profiles: ["search"]
+    build:
+      context: ./tika
+      args:
+        TIKA_IMAGE: ${TIKA_IMAGE:-apache/tika:3.2.3.0-full}
+    image: dms-tika:latest
+    restart: unless-stopped
+
+  clamav:
+    profiles: ["scan"]
+    image: ${CLAMAV_IMAGE:-clamav/clamav:1.4}
+    restart: unless-stopped
+    volumes:
+      - clamav-data:/var/lib/clamav
+
+  gotenberg:
+    profiles: ["office"]
+    image: ${GOTENBERG_IMAGE:-gotenberg/gotenberg:8}
+    restart: unless-stopped
+    # Converts only what we send it; no outbound fetching of remote URLs.
+    command: ["gotenberg", "--chromium-deny-list=.*", "--api-timeout=120s"]
 
   # The web app on http://localhost:${WEB_PORT:-8090}. nginx serves the built frontend and proxies
   # /api to the API, so the browser sees one origin.
@@ -109,3 +183,5 @@ services:
 volumes:
   postgres-data:
   object-data:
+  search-data:
+  clamav-data:

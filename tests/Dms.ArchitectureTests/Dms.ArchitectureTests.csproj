@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\Modules\DocumentTypes\Dms.DocumentTypes\Dms.DocumentTypes.csproj" />
     <ProjectReference Include="..\..\src\Modules\Storage\Dms.Storage\Dms.Storage.csproj" />
     <ProjectReference Include="..\..\src\Modules\Workflow\Dms.Workflow\Dms.Workflow.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Search\Dms.Search\Dms.Search.csproj" />
   </ItemGroup>
 
   <ItemGroup>

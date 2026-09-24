@@ -337,6 +337,70 @@ export interface CreatedVersion {
   label: string;
 }
 
+export interface SearchHit {
+  documentId: string;
+  versionId: string;
+  label: string;
+  title: string;
+  fileName: string | null;
+  mimeType: string | null;
+  categoryId: string | null;
+  documentTypeId: string | null;
+  isCurrent: boolean;
+  isEffective: boolean;
+  approvalStatus: string | null;
+  updatedAt: string | null;
+  /** Engine fragments: HTML-escaped text with <mark> around the matches. */
+  highlights: string[];
+}
+
+export interface FacetBucket {
+  key: string;
+  count: number;
+}
+
+export interface SearchResult {
+  hits: SearchHit[];
+  total: number;
+  page: number;
+  pageSize: number;
+  facets: Record<string, FacetBucket[]>;
+  /** The search engine is unavailable; only titles were searched. */
+  degraded: boolean;
+}
+
+export interface SearchParams {
+  q?: string;
+  categoryId?: string | null;
+  documentTypeId?: string | null;
+  mimeType?: string | null;
+  tag?: string | null;
+  allVersions?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export type RenditionStatus = 'Pending' | 'Ready' | 'Failed' | 'NotSupported';
+
+export interface PreviewInfo {
+  versionId: string;
+  label: string;
+  status: RenditionStatus;
+  pageCount: number;
+  error: string | null;
+  canPrint: boolean;
+  canDownload: boolean;
+}
+
+export interface SearchStatus {
+  engineEnabled: boolean;
+  extractorEnabled: boolean;
+  index: string | null;
+  /** -1 when the engine did not answer. */
+  indexedVersions: number;
+  extractions: Record<string, number>;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -691,6 +755,46 @@ export const api = {
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
+
+  search: (params: SearchParams) => request<SearchResult>(`/api/v1/search${query({ ...params })}`),
+
+  preview: {
+    /** Opens the viewer (audited once as DOCUMENT_VIEWED); the effective version by default. */
+    open: (documentId: string, versionId?: string | null) =>
+      request<PreviewInfo>(`/api/v1/documents/${documentId}/preview${query({ versionId })}`, { method: 'POST' }),
+
+    /** Records DOCUMENT_PRINTED; call before fetching print pages. */
+    startPrint: (documentId: string, versionId: string) =>
+      request<PreviewInfo>(`/api/v1/documents/${documentId}/versions/${versionId}/print`, { method: 'POST' }),
+
+    /**
+     * A page image as an object URL. Fetched with the bearer token, so an <img src> pointing at
+     * the API would not work; the caller revokes the URL when the page leaves the screen.
+     */
+    async page(documentId: string, versionId: string, page: number, purpose: 'view' | 'print' = 'view'): Promise<string> {
+      const segment = purpose === 'print' ? 'print' : 'pages';
+      const response = await send(`/api/v1/documents/${documentId}/versions/${versionId}/${segment}/${page}`);
+      if (!response.ok) {
+        throw await toError(response);
+      }
+
+      return URL.createObjectURL(await response.blob());
+    },
+
+    async thumbnail(documentId: string): Promise<string | null> {
+      const response = await send(`/api/v1/documents/${documentId}/thumbnail`);
+      return response.ok ? URL.createObjectURL(await response.blob()) : null;
+    },
+
+    reprocess: (documentId: string, versionId: string) =>
+      request<void>(`/api/v1/documents/${documentId}/versions/${versionId}/reprocess`, { method: 'POST' }),
+  },
+
+  searchAdmin: {
+    status: () => request<SearchStatus>('/api/v1/admin/search/status'),
+    reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
+    retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
   },
 
   isSignedIn: () => accessToken !== null,

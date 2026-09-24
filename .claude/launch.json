@@ -13,8 +13,29 @@
     {
       "name": "dms-frontend-preview",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "cd frontend && VITE_API_BASE_URL=http://localhost:5090 exec npx vite --port 5173 --strictPort"],
+      "runtimeArgs": [
+        "-c",
+        "cd frontend && VITE_API_BASE_URL=http://localhost:5090 exec npx vite --port 5173 --strictPort"
+      ],
       "port": 5173
+    },
+    {
+      "name": "dms-api-windows",
+      "runtimeExecutable": "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+      "runtimeArgs": [
+        "-c",
+        "export ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5090 ConnectionStrings__Dms='Host=localhost;Port=5433;Database=dms_phase5_preview;Username=dms;Password=dms' Dms__Jwt__SigningKey=preview-signing-key-preview-signing-key-preview-signing-key-0123 Dms__Storage__FileSystem__RootPath=C:/Users/ali/AppData/Local/Temp/claude/D--documentManagment-DocumentManagement/03eec575-25fc-4b5b-b985-68af88de8b5e/scratchpad/objects Dms__Search__OpenSearchUrl=http://localhost:9200 Dms__Search__TikaUrl=http://localhost:9998 Dms__Cors__Origins__0=http://localhost:5174 && cd src/Dms.Host && exec dotnet bin/Debug/net10.0/Dms.Host.dll"
+      ],
+      "port": 5090
+    },
+    {
+      "name": "dms-frontend-windows",
+      "runtimeExecutable": "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+      "runtimeArgs": [
+        "-c",
+        "cd frontend && VITE_API_BASE_URL=http://localhost:5090 exec node node_modules/vite/bin/vite.js --port 5174 --strictPort"
+      ],
+      "port": 5174
     }
   ]
 }

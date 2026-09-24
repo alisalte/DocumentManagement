@@ -6,13 +6,13 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phase 4 (workflow) is implemented and awaiting review.** Phases 1–3 are done:
-identity, authorization, audit, the job queue, documents and storage, and dynamic document types
-with a rule language shared by the server and the browser. Phase 4 adds versioned approval
-workflows (sequential and parallel steps, conditions, group and role assignees, return, forward,
-request changes), approval recorded per version with a forward-only effective pointer, a task
-inbox, and a workflow editor. Search and sharing are the later phases listed in the architecture
-document.
+**Status: phase 5 (processing and search) is implemented and awaiting review.** Phases 1–4 are
+done: identity, authorization, audit, the job queue, documents and storage, dynamic document types
+with a rule language shared by the server and the browser, and versioned approval workflows with a
+task inbox. Phase 5 adds malware scanning (ClamAV), page-image previews and printing with a
+watermark, text extraction and Persian OCR (Tika + Tesseract), and version-aware full-text search
+(OpenSearch) that never shows what the caller may not see. Sharing is the next phase in the
+architecture document.
 
 ## Stack
 
@@ -74,6 +74,23 @@ for P in DOCUMENT_VIEW DOCUMENT_CREATE DOCUMENT_DOWNLOAD DOCUMENT_EDIT DOCUMENT_
 done
 ```
 
+### Previews, OCR and search (optional services)
+
+Everything works without them: PDFs and images still get previews, and search falls back to
+titles. To switch them on locally:
+
+```bash
+docker run -d --name dms-opensearch -p 9200:9200 -e discovery.type=single-node \
+  -e DISABLE_SECURITY_PLUGIN=true -e DISABLE_INSTALL_DEMO_CONFIG=true opensearchproject/opensearch:2.19.3
+docker build -t dms-tika deploy/tika && docker run -d --name dms-tika -p 9998:9998 dms-tika
+
+Dms__Search__OpenSearchUrl=http://localhost:9200 Dms__Search__TikaUrl=http://localhost:9998 ./scripts/dev-api.sh
+```
+
+ClamAV (`Dms__Storage__Scanning__Enabled=true`) and Gotenberg for Office previews
+(`Dms__Storage__Renditions__GotenbergUrl`) work the same way. Administrators see the index and
+extraction status, rebuild the index and retry failed extractions under **جستجو و نمایه**.
+
 Files are stored on the local filesystem by default (`Dms:Storage:Provider = filesystem`, under
 `.data/objects` in development). For S3 or MinIO set `Dms__Storage__Provider=s3` and the
 `Dms__Storage__S3__*` values; the bucket must exist.
@@ -86,8 +103,11 @@ API reference while the API is running in development: <http://localhost:5080/sc
 ```bash
 ./scripts/dev-db.sh     # integration tests need PostgreSQL
 ./scripts/test.sh
-cd frontend && npx vitest run   # rule language (shared vectors), Jalali dates, form logic
+cd frontend && npx vitest run   # rule language (shared vectors), Jalali dates, form logic, highlights
 ```
+
+The search tests against real engines are skipped unless `DMS_TEST_OPENSEARCH` and
+`DMS_TEST_TIKA` point at running services (see above); the rest of the suite fakes the engine.
 
 The test projects are xunit v3 / Microsoft.Testing.Platform executables. `scripts/test.sh` runs
 each one directly, because `dotnet test` on this SDK reports "Zero tests ran" for MTP projects.
@@ -104,14 +124,22 @@ cd deploy && docker compose up -d --build
 `.env` must have **`POSTGRES_PASSWORD`, `DMS_ADMIN_PASSWORD` and `DMS_JWT_SIGNING_KEY`** set;
 compose refuses to start otherwise. Generate the key with `openssl rand -base64 64`.
 
-This builds two images and starts four containers:
+This builds the images and starts five containers, plus the optional processing services:
 
 | Container | What | Where |
 |---|---|---|
 | `dms-postgres-1` | PostgreSQL | `localhost:5433` |
 | `dms-migrator-1` | applies migrations and seeds, then exits | — |
-| `dms-api-1` | API and background worker | `localhost:5080` |
+| `dms-api-1` | API | `localhost:5080` |
+| `dms-worker-1` | background jobs: scan, previews, OCR, indexing | — |
 | `dms-web-1` | nginx: the web app, proxying `/api` to the API | **http://localhost:8090** |
+| `opensearch`, `tika` | profile `search`: full-text search and OCR | — |
+| `clamav` | profile `scan`: malware scanning | — |
+| `gotenberg` | profile `office`: previews of Office files | — |
+
+Enable the profiles with `COMPOSE_PROFILES=search,scan,office` in `.env` and set the matching
+`DMS_OPENSEARCH_URL`, `DMS_TIKA_URL`, `DMS_GOTENBERG_URL` and `DMS_SCAN_ENABLED` (see
+`.env.example`).
 
 Open **http://localhost:8090** and sign in as `DMS_ADMIN_USERNAME` / `DMS_ADMIN_PASSWORD`. The
 browser talks to one origin, so no CORS setup is needed; nginx streams uploads to the API without
@@ -128,13 +156,13 @@ Two things specific to this machine:
 
 ```
 src/BuildingBlocks/    SharedKernel, Application (dispatcher), Infrastructure (unit of work, jobs), Web
-src/Modules/           Identity, Authorization, Audit, Storage, DocumentTypes, Documents
+src/Modules/           Identity, Authorization, Audit, Storage, DocumentTypes, Documents, Workflow, Search
                        (Domain+Application / Infrastructure / Contracts)
 src/Dms.Host/          API composition root, also hosts the background worker
 src/Dms.Migrator/      applies migrations and seeds, runs as a one-shot container
 tests/                 architecture, unit and integration tests
 frontend/              React + TypeScript + MUI shell (Persian, RTL)
-deploy/                Dockerfile, compose, .env.example
+deploy/                Dockerfile, compose, .env.example, the Tika image with Persian OCR
 docs/                  architecture and decision records
 ```
 

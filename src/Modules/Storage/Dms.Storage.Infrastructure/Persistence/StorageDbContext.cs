@@ -49,7 +49,12 @@ public sealed class StorageDbContext : DbContext
             entity.Property(item => item.CreatedAt).HasColumnName("created_at");
             entity.Property(item => item.CommittedAt).HasColumnName("committed_at");
             entity.Property(item => item.DeletedAt).HasColumnName("deleted_at");
+            entity.Property(item => item.DerivedFromId).HasColumnName("derived_from_id")
+                .HasConversion(id => id!.Value.Value, value => new StorageObjectId(value));
             entity.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
+
+            entity.HasIndex(item => item.DerivedFromId)
+                .HasFilter("derived_from_id IS NOT NULL").HasDatabaseName("ix_storage_objects_derived_from");
 
             entity.HasIndex(item => new { item.Provider, item.Bucket, item.ObjectKey })
                 .IsUnique().HasDatabaseName("ux_storage_objects_key");

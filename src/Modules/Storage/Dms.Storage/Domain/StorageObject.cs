@@ -85,6 +85,12 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
 
     public DateTimeOffset? DeletedAt { get; private set; }
 
+    /// <summary>
+    /// The file a derived object was made from (page images, extracted text). Deleting the source
+    /// deletes these with it, so nothing of a purged document survives in derived form.
+    /// </summary>
+    public StorageObjectId? DerivedFromId { get; private set; }
+
     public static StorageObject Stage(
         StorageObjectId id,
         string provider,
@@ -129,6 +135,7 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
         string bucket,
         string objectKey,
         StorageObjectPurpose purpose,
+        StorageObjectId derivedFrom,
         string fileName,
         string mimeType,
         long size,
@@ -138,6 +145,7 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
         var derived = Stage(id, provider, bucket, objectKey, purpose, fileName, mimeType, null, size, sha256, ScanStatus.Skipped, null, now);
         derived.Status = StorageObjectStatus.Committed;
         derived.CommittedAt = now;
+        derived.DerivedFromId = derivedFrom;
         return derived;
     }
 
@@ -168,7 +176,13 @@ public sealed class StorageObject : AggregateRoot<StorageObjectId>
         }
     }
 
-    public void MarkForDeletion() => Status = StorageObjectStatus.PendingDeletion;
+    public void MarkForDeletion()
+    {
+        if (Status != StorageObjectStatus.Deleted)
+        {
+            Status = StorageObjectStatus.PendingDeletion;
+        }
+    }
 
     /// <summary>The row survives deletion as a tombstone: the hash stays available for audit.</summary>
     public void MarkDeleted(DateTimeOffset now)

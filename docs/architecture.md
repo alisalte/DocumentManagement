@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phase 1 implemented** (foundation, identity, authorization, audit, job queue). Phases 2+ not started. |
+| **Status** | Approved. **Phases 1–4 done; phase 5 (processing and search) implemented and awaiting approval.** Phases 6–9 not started. |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -856,8 +856,8 @@ Every phase needs explicit approval before it starts.
 | **1 Foundation** ✱ **(done)** | Solution, building blocks, compose (Postgres), Migrator, Identity (local login, sessions), Authorization core (catalog, roles, ACL, evaluator, access scope), Audit writer, job queue, architecture tests | Evaluator unit tests for every §5 rule: deny precedence, inheritance, override, view/download/print separation, default deny |
 | **2 Documents + Storage** ✱ **(done)** | Categories, minimal DocumentType (no fields yet), upload/stage/commit, versions, current vs effective version, download, soft delete/restore/purge, tags, SHA-256, idempotency, **frontend shell** (RTL, responsive, document browser, upload, details, version history) | Integration: upload; create V1/V2; get current/previous version; **concurrent version creation**; immutability trigger; soft delete/restore; audit events; unauthorized → 404/403 |
 | **3 Dynamic document types** **(done)** | Type versioning, fields, options, rules language (shared C#/TS evaluator), validation, per-version metadata, admin UI | Validation matrix; conditional fields; old documents still read with their original schema version |
-| **4 Workflow** **(implemented, awaiting approval)** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
-| **5 Processing + Search** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
+| **4 Workflow** **(done)** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
+| **5 Processing + Search** **(implemented, awaiting approval)** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
 | **6 Sharing** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
 | **7 Audit hardening + notifications** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
@@ -949,11 +949,52 @@ Every phase needs explicit approval before it starts.
   second gets 409. A closed task answers its assignee with 409 before any permission check.
 - **Task grants** give exactly what section 5.4 lists: VIEW, VIEW_DRAFT, WORKFLOW_VIEW and the
   step's actions, on the document. **Not DOWNLOAD**: a reviewer without an ACL entry can see the
-  metadata but not the bytes until previews exist (phase 5). This is a product decision to revisit.
+  metadata but not the bytes. Since phase 5 they see the watermarked preview (VIEW is enough),
+  which covers review without handing out the original. This is a product decision to revisit.
 - **SLA.** A job every 15 minutes records each overdue task once (WORKFLOW_TASK_OVERDUE);
   notifications arrive in phase 7, escalation later.
 - **Also added:** `PUT /admin/users/{id}/manager` (with cycle detection) for MANAGER steps,
   `IRoleMembershipReader`, active group members in `IGroupMembershipReader`.
+
+**Phase 5 as built.**
+
+- **One processing job per file.** Attaching a file (the commit) queues `storage.process-object`
+  in the same transaction: the ClamAV scan (INSTREAM over TCP; a failed scan throws and retries,
+  so the file stays blocked, decision D9; a positive one quarantines it with `FILE_INFECTED`),
+  then page images and a thumbnail, then the listeners. Search is a listener: it queues text
+  extraction, which queues indexing. Staged uploads are no longer scanned; nobody can read them,
+  and the collector removes abandoned ones.
+- **Renditions are page images (WebP)**, not a preview PDF: PDFium for PDF, Skia for images
+  (which also strips EXIF), Gotenberg (LibreOffice) for Office files when `GotenbergUrl` is set;
+  anything else is download-only (`NotSupported`). Preview and print serve these images through
+  the API with the full version gates (VIEW or PRINT, drafts, scan), stamped with the viewer's
+  username and the time. `DOCUMENT_VIEWED` is written once when the viewer opens
+  (`POST …/preview`), `DOCUMENT_PRINTED` when printing starts; single pages are not audited.
+- **Derived objects** (page images, extracted text) record the file they came from
+  (`derived_from_id`), and purging a document deletes them with the original.
+- **Text** comes from Tika Server with Tesseract `fas+eng` (the image is `deploy/tika`; the stock
+  one has no Persian). A PDF is read for its text layer first and only OCR'd when that is thin.
+  The text is stored gzip'd as a derived object, keyed by file (`search.content_extractions`), so
+  a metadata revision reuses it and a rebuild never OCRs again. Failed extractions are retried
+  hourly, three times, then wait for an administrator.
+- **Index**: one search document per version-revision, with `is_current`, `is_effective`,
+  `is_published`, `created_by`, the category ancestor list, typed metadata under
+  `meta.{TYPE}.{field}__{num|date|bool|txt|kw}` (numbers are indexed as doubles, so decimals
+  beyond 2^53 lose precision in range filters only) and the text. Persian is normalised (Arabic
+  yeh and kaf, digits); text fields are analysed with the zero-width non-joiner both as a space
+  and removed, so "می‌شود", "می شود" and "میشود" all match. Mappings are strict; the alias points
+  at a generation, and a reindex builds a new one and swaps atomically.
+- **Search** ANDs the section 5.7 access scope into the query (so hits, totals and facet counts
+  are scope-limited), finds unpublished versions only for their author (reviewers and VIEW_DRAFT
+  holders do not find drafts through search yet), and re-checks every returned hit against
+  Postgres. Permissions are not in the index, so a revoked grant needs no reindex. Without
+  OpenSearch, or when it fails, search falls back to titles in Postgres (`degraded: true`).
+  Moving a category reindexes every document below it.
+- **Deployment.** The worker is its own container (`Dms__Role=worker`); OpenSearch, Tika, ClamAV
+  and Gotenberg are compose profiles (`search`, `scan`, `office`), each optional.
+- **OCR quality (R2)** was checked on a rendered Persian page only; real scans still need a look.
+- **Not in phase 5:** HTTP Range on S3, signed URLs, metadata facets, number-phrase parsing, the
+  integrity scrub, video thumbnails, per-type OCR settings, and a searchable PDF as the preview.
 
 **Test stack:**
 

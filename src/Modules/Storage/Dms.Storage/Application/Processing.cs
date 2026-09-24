@@ -190,6 +190,7 @@ public sealed class ProcessObjectJob(
             location.Bucket,
             location.Key,
             StorageObjectPurpose.Rendition,
+            source.Id,
             $"{source.Id}-{kind.ToString().ToLowerInvariant()}-{page.Number}.webp",
             "image/webp",
             page.Image.LongLength,

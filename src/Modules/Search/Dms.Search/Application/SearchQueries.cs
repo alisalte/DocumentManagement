@@ -59,6 +59,8 @@ public sealed record SearchStatusQuery : IQuery<Result<SearchStatusDto>>;
 
 public sealed record StartReindexCommand : ICommand<Result>;
 
+public sealed record RetryFailedExtractionsCommand : ICommand<Result<int>>;
+
 /// <summary>
 /// Secured search (section 8.3). Access is enforced three times over, and the engine is never
 /// the authority:
@@ -207,7 +209,7 @@ public sealed class SearchDocumentsHandler(
                 ["multi_match"] = new JsonObject
                 {
                     ["query"] = text.Trim(),
-                    ["fields"] = new JsonArray("title^4", "title.en^2", "tags.text^3", "file_name^2", "meta_text^2", "description", "content", "content.en"),
+                    ["fields"] = new JsonArray("title^4", "title.joined^4", "title.en^2", "tags.text^3", "file_name^2", "meta_text^2", "meta_text.joined^2", "description", "content", "content.joined", "content.en"),
                     ["type"] = "best_fields",
                     ["operator"] = "and",
                 },
@@ -472,5 +474,28 @@ public sealed class StartReindexHandler(IDmsAuthorizer authorizer, IJobQueue job
         await jobs.EnqueueAsync(new JobRequest(ReindexJob.Type, IdempotencyKey: ReindexJob.Type), cancellationToken);
         await audit.WriteAsync(new AuditRecord { Action = AuditActions.SearchReindexStarted, EntityType = "SearchIndex" }, cancellationToken);
         return Result.Success();
+    }
+}
+
+public sealed class RetryFailedExtractionsHandler(
+    IDmsAuthorizer authorizer,
+    IContentExtractionRepository extractions,
+    IJobQueue jobs) : ICommandHandler<RetryFailedExtractionsCommand, Result<int>>
+{
+    public async Task<Result<int>> HandleAsync(RetryFailedExtractionsCommand command, CancellationToken cancellationToken)
+    {
+        var decision = await authorizer.AuthorizeSystemAsync(PermissionCodes.AdminManageSearch, cancellationToken);
+        if (!decision.Allowed)
+        {
+            return Result.Failure<int>(Error.Forbidden("auth.forbidden", decision.Explanation));
+        }
+
+        var failed = await extractions.ListFailedAsync(belowAttempts: null, 5000, cancellationToken);
+        foreach (var extraction in failed)
+        {
+            await jobs.EnqueueAsync(ExtractTextJob.For(extraction.StorageObjectId), cancellationToken);
+        }
+
+        return Result.Success(failed.Count);
     }
 }

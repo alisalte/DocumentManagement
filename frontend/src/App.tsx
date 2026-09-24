@@ -10,8 +10,10 @@ import { DocumentPage } from './pages/DocumentPage';
 import { LoginPage } from './pages/LoginPage';
 import { NewDocumentPage } from './pages/NewDocumentPage';
 import { RecycleBinPage } from './pages/RecycleBinPage';
+import { SearchPage } from './pages/SearchPage';
 import { DocumentTypeEditorPage } from './pages/admin/DocumentTypeEditorPage';
 import { DocumentTypesPage } from './pages/admin/DocumentTypesPage';
+import { SearchAdminPage } from './pages/admin/SearchAdminPage';
 import { WorkflowEditorPage } from './pages/admin/WorkflowEditorPage';
 import { WorkflowsPage } from './pages/admin/WorkflowsPage';
 import { TasksPage } from './pages/TasksPage';
@@ -32,8 +34,9 @@ const queryClient = new QueryClient({
 });
 
 /**
- * Phase 2 shell: sign-in, the document browser, filing a new document, details with version
- * history, and the recycle bin. Persian, right to left, phone first.
+ * The app shell: sign-in, the document browser, search, filing a new document, details with the
+ * viewer and version history, the task inbox, the recycle bin and the administration screens.
+ * Persian, right to left, phone first.
  */
 export default function App() {
   useEffect(() => {
@@ -75,6 +78,7 @@ function Shell() {
   // Only hides screens that would be refused anyway; the server checks every call.
   const canManageTypes = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES');
   const canManageWorkflows = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS');
+  const canManageSearch = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH');
 
   return (
     <Layout>
@@ -84,6 +88,8 @@ function Shell() {
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/recycle-bin" element={<RecycleBinPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
         {canManageWorkflows && <Route path="/admin/workflows" element={<WorkflowsPage />} />}
         {canManageWorkflows && <Route path="/admin/workflows/:id" element={<WorkflowEditorPage />} />}
         {canManageTypes && <Route path="/admin/document-types" element={<DocumentTypesPage />} />}

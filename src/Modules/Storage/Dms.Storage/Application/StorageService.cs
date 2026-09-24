@@ -124,6 +124,7 @@ public sealed class StorageService(
     }
 
     public async Task<StorageObjectId> StoreDerivedAsync(
+        StorageObjectId source,
         Stream content,
         string fileName,
         string mimeType,
@@ -145,6 +146,7 @@ public sealed class StorageService(
             location.Bucket,
             location.Key,
             purpose == DerivedPurpose.ExtractedText ? StorageObjectPurpose.ExtractedText : StorageObjectPurpose.Rendition,
+            source,
             FileNames.Sanitize(fileName),
             mimeType,
             measured.BytesRead,
@@ -216,6 +218,13 @@ public sealed class StorageService(
         }
 
         storageObject.MarkForDeletion();
+
+        // Page images and extracted text carry the same content, so they go with the original.
+        foreach (var derived in await repository.ListDerivedFromAsync(id, cancellationToken))
+        {
+            derived.MarkForDeletion();
+        }
+
         await jobs.EnqueueAsync(
             new JobRequest(PurgeStorageObjectsJob.Type),
             cancellationToken);

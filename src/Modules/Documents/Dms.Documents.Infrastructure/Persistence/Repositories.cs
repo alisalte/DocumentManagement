@@ -67,6 +67,16 @@ public sealed class CategoryRepository(DocumentsDbContext context) : ICategoryRe
             """,
             cancellationToken);
     }
+
+    public async Task<IReadOnlyList<Guid>> ListDocumentIdsInSubtreeAsync(string path, CancellationToken cancellationToken) =>
+        await context.Database
+            .SqlQuery<Guid>($"""
+                SELECT d.id AS "Value"
+                  FROM documents.documents d
+                  JOIN documents.categories c ON c.id = d.category_id
+                 WHERE c.path <@ {path}::ltree
+                """)
+            .ToListAsync(cancellationToken);
 }
 
 public sealed class DocumentRepository(DocumentsDbContext context) : IDocumentRepository

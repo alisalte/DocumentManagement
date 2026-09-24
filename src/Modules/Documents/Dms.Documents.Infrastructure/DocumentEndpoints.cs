@@ -295,6 +295,42 @@ public static class DocumentEndpoints
                 DownloadAsync(new OpenContentCommand(id, versionId), dispatcher, http, ct))
             .WithSummary("Download one specific version.");
 
+        documents.MapPost("/{id:guid}/preview", async (Guid id, Guid? versionId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new OpenPreviewCommand(id, versionId), ct)).ToHttpResult())
+            .WithSummary("Open the viewer on a version (the effective one by default): page count and status. Audited as DOCUMENT_VIEWED.");
+
+        documents.MapGet("/{id:guid}/versions/{versionId:guid}/pages/{page:int}", (
+                Guid id,
+                Guid versionId,
+                int page,
+                IDispatcher dispatcher,
+                HttpContext http,
+                CancellationToken ct) =>
+                PageAsync(new GetPreviewPageQuery(id, versionId, page, PagePurpose.View), dispatcher, http, ct))
+            .WithSummary("One page of the preview as an image, watermarked. Never the original file.");
+
+        documents.MapPost("/{id:guid}/versions/{versionId:guid}/print", async (Guid id, Guid versionId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new StartPrintCommand(id, versionId), ct)).ToHttpResult())
+            .WithSummary("Start printing a version (DOCUMENT_PRINT). Audited as DOCUMENT_PRINTED.");
+
+        documents.MapGet("/{id:guid}/versions/{versionId:guid}/print/{page:int}", (
+                Guid id,
+                Guid versionId,
+                int page,
+                IDispatcher dispatcher,
+                HttpContext http,
+                CancellationToken ct) =>
+                PageAsync(new GetPreviewPageQuery(id, versionId, page, PagePurpose.Print), dispatcher, http, ct))
+            .WithSummary("One print page (DOCUMENT_PRINT), watermarked.");
+
+        documents.MapGet("/{id:guid}/thumbnail", (Guid id, IDispatcher dispatcher, HttpContext http, CancellationToken ct) =>
+                ImageAsync(dispatcher.QueryAsync(new GetThumbnailQuery(id), ct), http))
+            .WithSummary("A small image of the first page of the effective version.");
+
+        documents.MapPost("/{id:guid}/versions/{versionId:guid}/reprocess", async (Guid id, Guid versionId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new RetryProcessingCommand(id, versionId), ct)).ToHttpResult(StatusCodes.Status202Accepted))
+            .WithSummary("Run the scan, previews and text extraction of a version again (DOCUMENT_EDIT).");
+
         endpoints.MapGet("/api/v1/recycle-bin", async (int? page, int? pageSize, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.QueryAsync(new ListRecycleBinQuery(page, pageSize), ct)).ToHttpResult())
             .WithTags("Documents")
@@ -331,6 +367,23 @@ public static class DocumentEndpoints
             content.MimeType,
             content.FileName,
             enableRangeProcessing: content.Content.CanSeek);
+    }
+
+    private static Task<IResult> PageAsync(GetPreviewPageQuery query, IDispatcher dispatcher, HttpContext http, CancellationToken ct) =>
+        ImageAsync(dispatcher.QueryAsync(query, ct), http);
+
+    private static async Task<IResult> ImageAsync(Task<Result<StoredContent>> pending, HttpContext http)
+    {
+        var result = await pending;
+        if (result.IsFailure)
+        {
+            return ApiResults.Problem(result.Error);
+        }
+
+        // Inline, but still never cached by shared caches: the watermark names the viewer.
+        http.Response.Headers.XContentTypeOptions = "nosniff";
+        http.Response.Headers.CacheControl = "private, no-store";
+        return Results.Stream(result.Value.Content, result.Value.MimeType);
     }
 
     private static void MapCategories(IEndpointRouteBuilder endpoints)

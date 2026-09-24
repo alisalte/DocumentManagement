@@ -57,6 +57,9 @@ public interface IStorageObjectRepository
 
     Task<IReadOnlyList<StorageObject>> ListPendingDeletionAsync(int limit, CancellationToken cancellationToken);
 
+    /// <summary>Page images and extracted text made from this file.</summary>
+    Task<IReadOnlyList<StorageObject>> ListDerivedFromAsync(StorageObjectId source, CancellationToken cancellationToken);
+
     void Add(StorageObject storageObject);
 }
 

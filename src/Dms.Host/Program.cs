@@ -13,6 +13,7 @@ using Dms.Identity.Application;
 using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Jobs;
+using Dms.Search.Infrastructure;
 using Dms.Storage.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -38,6 +39,7 @@ builder.Services.AddStorageModule(builder.Configuration);
 builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
 builder.Services.AddWorkflowModule();
+builder.Services.AddSearchModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
@@ -193,6 +195,7 @@ if (role is "api" or "all")
     app.MapDocumentTypeEndpoints();
     app.MapDocumentEndpoints();
     app.MapWorkflowEndpoints();
+    app.MapSearchEndpoints();
 }
 
 app.Run();
