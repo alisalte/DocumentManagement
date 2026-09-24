@@ -49,6 +49,11 @@
     <Project Path="src/Modules/Workflow/Dms.Workflow.Infrastructure/Dms.Workflow.Infrastructure.csproj" />
     <Project Path="src/Modules/Workflow/Dms.Workflow/Dms.Workflow.csproj" />
   </Folder>
+  <Folder Name="/src/Modules/Notifications/">
+    <Project Path="src/Modules/Notifications/Dms.Notifications.Contracts/Dms.Notifications.Contracts.csproj" />
+    <Project Path="src/Modules/Notifications/Dms.Notifications.Infrastructure/Dms.Notifications.Infrastructure.csproj" />
+    <Project Path="src/Modules/Notifications/Dms.Notifications/Dms.Notifications.csproj" />
+  </Folder>
   <Folder Name="/src/Modules/Sharing/">
     <Project Path="src/Modules/Sharing/Dms.Sharing.Infrastructure/Dms.Sharing.Infrastructure.csproj" />
     <Project Path="src/Modules/Sharing/Dms.Sharing/Dms.Sharing.csproj" />

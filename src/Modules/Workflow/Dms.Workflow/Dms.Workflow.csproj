@@ -12,6 +12,7 @@
     <ProjectReference Include="..\..\Documents\Dms.Documents.Contracts\Dms.Documents.Contracts.csproj" />
     <ProjectReference Include="..\..\DocumentTypes\Dms.DocumentTypes.Contracts\Dms.DocumentTypes.Contracts.csproj" />
     <ProjectReference Include="..\..\Identity\Dms.Identity.Contracts\Dms.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\Notifications\Dms.Notifications.Contracts\Dms.Notifications.Contracts.csproj" />
     <ProjectReference Include="..\Dms.Workflow.Contracts\Dms.Workflow.Contracts.csproj" />
   </ItemGroup>
 

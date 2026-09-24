@@ -17,7 +17,9 @@ import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 import { useSession } from '../session';
 import { t } from '../strings';
+import { a as audit } from '../pages/admin/auditStrings';
 import { CategoryTree } from './CategoryTree';
+import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
 
@@ -38,6 +40,7 @@ export function Layout({ children }: { children: ReactNode }) {
   const canManageTypes = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES'));
   const canManageWorkflows = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS'));
   const canManageSearch = !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH'));
+  const canViewAudit = !!user && (user.isSystemAdmin || user.systemPermissions.includes('AUDIT_VIEW'));
   const [searchText, setSearchText] = useState('');
 
   const submitSearch = (event: FormEvent) => {
@@ -107,6 +110,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </Button>
           )}
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <NotificationBell />
             <Button color="inherit" component={RouterLink} to="/tasks">
               <Badge color="secondary" badgeContent={pending} max={99}>
                 {w.inbox}
@@ -117,9 +121,11 @@ export function Layout({ children }: { children: ReactNode }) {
                 {sharing.sharedWithMe}
               </Button>
             )}
-            <Button color="inherit" component={RouterLink} to="/new">
-              {t.newDocument}
-            </Button>
+            {isDesktop && (
+              <Button color="inherit" component={RouterLink} to="/new">
+                {t.newDocument}
+              </Button>
+            )}
             {isDesktop && (
               <Button color="inherit" component={RouterLink} to="/recycle-bin">
                 {t.recycleBin}
@@ -140,14 +146,21 @@ export function Layout({ children }: { children: ReactNode }) {
                 {t.searchAdmin}
               </Button>
             )}
+            {isDesktop && canViewAudit && (
+              <Button color="inherit" component={RouterLink} to="/admin/audit">
+                {audit.menu}
+              </Button>
+            )}
             {isDesktop && (
               <Typography variant="body2" sx={{ opacity: 0.85 }}>
                 {user?.displayName}
               </Typography>
             )}
-            <Button color="inherit" onClick={signOut}>
-              {t.signOut}
-            </Button>
+            {isDesktop && (
+              <Button color="inherit" onClick={signOut}>
+                {t.signOut}
+              </Button>
+            )}
           </Stack>
         </Toolbar>
       </AppBar>
@@ -171,6 +184,10 @@ export function Layout({ children }: { children: ReactNode }) {
           sx={{ '& .MuiDrawer-paper': { width: '85vw', maxWidth: drawerWidth } }}
         >
           <Toolbar />
+          {/* On a phone the bar keeps only notifications and tasks; the rest lives here. */}
+          <Button variant="contained" component={RouterLink} to="/new" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
+            {t.newDocument}
+          </Button>
           {tree}
           <Button component={RouterLink} to="/shared" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
             {sharing.sharedWithMe}
@@ -189,10 +206,21 @@ export function Layout({ children }: { children: ReactNode }) {
             </Button>
           )}
           {canManageSearch && (
-            <Button component={RouterLink} to="/admin/search" onClick={() => setOpen(false)} sx={{ m: 2 }}>
+            <Button component={RouterLink} to="/admin/search" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
               {t.searchAdmin}
             </Button>
           )}
+          {canViewAudit && (
+            <Button component={RouterLink} to="/admin/audit" onClick={() => setOpen(false)} sx={{ m: 2, mb: 0 }}>
+              {audit.menu}
+            </Button>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ px: 2, pt: 3 }}>
+            {user?.displayName}
+          </Typography>
+          <Button color="error" onClick={signOut} sx={{ m: 2 }}>
+            {t.signOut}
+          </Button>
         </Drawer>
       )}
 

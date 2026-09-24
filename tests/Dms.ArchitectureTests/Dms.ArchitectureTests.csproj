@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Modules\Workflow\Dms.Workflow\Dms.Workflow.csproj" />
     <ProjectReference Include="..\..\src\Modules\Search\Dms.Search\Dms.Search.csproj" />
     <ProjectReference Include="..\..\src\Modules\Sharing\Dms.Sharing\Dms.Sharing.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Notifications\Dms.Notifications\Dms.Notifications.csproj" />
   </ItemGroup>
 
   <ItemGroup>

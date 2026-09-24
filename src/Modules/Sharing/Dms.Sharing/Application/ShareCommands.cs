@@ -2,6 +2,7 @@ using Dms.Application;
 using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.Identity.Contracts;
+using Dms.Notifications.Contracts;
 using Dms.SharedKernel;
 using Dms.Sharing.Domain;
 using Microsoft.Extensions.Options;
@@ -41,6 +42,7 @@ public sealed class CreateShareHandler(
     IShareRepository shares,
     IUserDirectory users,
     SharingAudit audit,
+    INotificationSender notifications,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : ICommandHandler<CreateShareCommand, Result<Guid>>
 {
@@ -115,6 +117,24 @@ public sealed class CreateShareHandler(
                     ["expiresAt"] = share.ExpiresAt,
                 },
             },
+            cancellationToken);
+
+        var version = check.Version!;
+        await notifications.SendAsync(
+            new NotificationMessage(
+                NotificationTypes.DocumentShared,
+                [recipientId],
+                command.DocumentId,
+                command.VersionId,
+                new Dictionary<string, object?>
+                {
+                    ["documentTitle"] = version.DocumentTitle,
+                    ["versionLabel"] = version.Label,
+                    ["shareId"] = share.Id.Value,
+                    ["permissions"] = SharePermissionCodes.Split(share.Permissions).Select(flag => flag.ToString()).ToList(),
+                    ["message"] = share.Message,
+                    ["expiresAt"] = share.ExpiresAt,
+                }),
             cancellationToken);
 
         return Result.Success(share.Id.Value);

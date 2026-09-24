@@ -39,8 +39,9 @@ services:
       timeout: 5s
       retries: 20
 
-  # Runs to completion before the API starts. The API image has no DDL rights of its own in a
-  # production deployment; here both use the same role for simplicity.
+  # Runs to completion before the API starts, as the owner role: it applies the schema and then
+  # creates the runtime role dms_app and grants it DML only (INSERT and SELECT on audit), section
+  # 4.10. The API and the worker connect as dms_app, so they cannot alter or empty the audit log.
   migrator:
     build:
       context: ..
@@ -52,6 +53,8 @@ services:
         Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
       Dms__Bootstrap__AdminUsername: ${DMS_ADMIN_USERNAME:-admin}
       Dms__Bootstrap__AdminPassword: ${DMS_ADMIN_PASSWORD:?set DMS_ADMIN_PASSWORD in .env}
+      Dms__Database__AppRole: dms_app
+      Dms__Database__AppRolePassword: ${DMS_DB_APP_PASSWORD:?set DMS_DB_APP_PASSWORD in .env}
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,7 +69,9 @@ services:
     environment: &backend-environment
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__Dms: >-
-        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
+        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=dms_app;Password=${DMS_DB_APP_PASSWORD}
+      # Seals the audit log with HMAC; without it the seals are plain SHA-256 (see .env.example).
+      Dms__Audit__SealKey: ${DMS_AUDIT_SEAL_KEY:-}
       Dms__Jwt__SigningKey: ${DMS_JWT_SIGNING_KEY:?set DMS_JWT_SIGNING_KEY in .env}
       # The API only answers requests; the worker service below runs scans, previews and OCR,
       # so a long OCR job never slows the API down.

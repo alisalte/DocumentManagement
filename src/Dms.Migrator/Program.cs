@@ -8,6 +8,7 @@ using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Persistence;
 using Dms.Migrator;
+using Dms.Notifications.Infrastructure;
 using Dms.Search.Infrastructure;
 using Dms.Sharing.Infrastructure;
 using Dms.Storage.Infrastructure;
@@ -33,6 +34,7 @@ builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
 builder.Services.AddWorkflowModule();
 builder.Services.AddSharingModule(builder.Configuration);
+builder.Services.AddNotificationsModule();
 builder.Services.AddSearchModule(builder.Configuration);
 builder.Services.AddScoped<ICurrentUser, SystemCurrentUser>();
 
@@ -46,6 +48,7 @@ try
 {
     await initializer.MigrateAsync(CancellationToken.None);
     await initializer.SeedAsync(CancellationToken.None);
+    await initializer.GrantRuntimeAccessAsync(CancellationToken.None);
     logger.LogInformation("Database is up to date.");
     return 0;
 }

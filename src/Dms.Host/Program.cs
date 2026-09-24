@@ -13,6 +13,7 @@ using Dms.Identity.Application;
 using Dms.Identity.Infrastructure;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Jobs;
+using Dms.Notifications.Infrastructure;
 using Dms.Search.Infrastructure;
 using Dms.Sharing.Infrastructure;
 using Dms.Storage.Infrastructure;
@@ -41,6 +42,7 @@ builder.Services.AddDocumentTypesModule();
 builder.Services.AddDocumentsModule();
 builder.Services.AddWorkflowModule();
 builder.Services.AddSharingModule(builder.Configuration);
+builder.Services.AddNotificationsModule();
 builder.Services.AddSearchModule(builder.Configuration);
 
 builder.Services.AddHttpContextAccessor();
@@ -221,6 +223,7 @@ if (role is "api" or "all")
     app.MapDocumentEndpoints();
     app.MapWorkflowEndpoints();
     app.MapSharingEndpoints();
+    app.MapNotificationEndpoints();
     app.MapSearchEndpoints();
 }
 

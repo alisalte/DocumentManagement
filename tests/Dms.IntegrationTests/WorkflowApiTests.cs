@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace Dms.IntegrationTests;
@@ -523,5 +524,91 @@ public sealed class WorkflowApiTests(DmsApiFactory factory)
         var errors = (await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors");
         errors.EnumerateObject().Select(property => property.Name).Order()
             .ShouldBe(["steps[0].actions", "steps[0].assigneeId", "steps[1].actions", "steps[1].condition"]);
+    }
+
+    [Fact]
+    public async Task Reviewers_hear_of_their_task_and_the_author_of_the_outcome()
+    {
+        var (reviewer, reviewerId) = await factory.CreateUserAsync("wf.notified");
+        var setup = await ArrangeAsync("Manual", Step("legal", 1, reviewerId));
+        var (documentId, v1) = await FileAsync(setup);
+        await StartAsync(setup.Author, documentId, v1);
+
+        var inbox = await reviewer.GetFromJsonAsync<JsonElement>("/api/v1/notifications");
+        var assigned = inbox.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("documentId").GetGuid() == documentId);
+        assigned.GetProperty("type").GetString().ShouldBe("TASK_ASSIGNED");
+        assigned.GetProperty("versionId").GetGuid().ShouldBe(v1);
+        assigned.GetProperty("actorId").GetGuid().ShouldBe(setup.AuthorId);
+        assigned.GetProperty("payload").GetProperty("documentTitle").GetString().ShouldBe("نامه‌ی اداری");
+        assigned.GetProperty("payload").GetProperty("stepName").GetString().ShouldBe("مرحله legal");
+
+        // Starting it themselves, the author is not told about it.
+        (await setup.Author.GetFromJsonAsync<JsonElement>("/api/v1/notifications")).GetProperty("items").EnumerateArray()
+            .ShouldNotContain(item => item.GetProperty("documentId").GetGuid() == documentId);
+
+        var task = await TaskForAsync(reviewer, documentId);
+        (await ActAsync(reviewer, task.GetProperty("id").GetGuid(), "reject", new { comment = "مبلغ اشتباه است" }))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        var finished = (await setup.Author.GetFromJsonAsync<JsonElement>("/api/v1/notifications")).GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("documentId").GetGuid() == documentId);
+        finished.GetProperty("type").GetString().ShouldBe("WORKFLOW_FINISHED");
+        finished.GetProperty("payload").GetProperty("outcome").GetString().ShouldBe("Rejected");
+        finished.GetProperty("actorName").GetString().ShouldNotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task An_overdue_task_is_announced_once_to_the_whole_group()
+    {
+        var (first, firstId) = await factory.CreateUserAsync("wf.group.one");
+        var (second, secondId) = await factory.CreateUserAsync("wf.group.two");
+        var admin = await factory.AdminAsync();
+        var code = $"G{Guid.NewGuid():N}"[..12].ToUpperInvariant();
+        var group = await admin.PostAsJsonAsync("/api/v1/admin/groups", new { code, name = "بازبینان", description = (string?)null });
+        group.StatusCode.ShouldBe(HttpStatusCode.Created, await group.Content.ReadAsStringAsync());
+        var groupId = (await group.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        foreach (var member in new[] { firstId, secondId })
+        {
+            (await admin.PutAsync($"/api/v1/admin/groups/{groupId}/members/{member}", null)).IsSuccessStatusCode.ShouldBeTrue();
+        }
+
+        var setup = await ArrangeAsync("Manual", Step("finance", 1, assigneeType: "Group", assigneeId: groupId));
+
+        // The author is in the group too, but may not review their own version: never told.
+        (await admin.PutAsync($"/api/v1/admin/groups/{groupId}/members/{setup.AuthorId}", null)).IsSuccessStatusCode.ShouldBeTrue();
+        var (documentId, v1) = await FileAsync(setup);
+        await StartAsync(setup.Author, documentId, v1);
+
+        async Task<string[]> TypesAsync(HttpClient client) =>
+            [.. (await client.GetFromJsonAsync<JsonElement>("/api/v1/notifications")).GetProperty("items").EnumerateArray()
+                .Where(item => item.GetProperty("documentId").GetGuid() == documentId)
+                .Select(item => item.GetProperty("type").GetString()!)];
+
+        (await TypesAsync(first)).ShouldBe(["TASK_ASSIGNED"]);
+        (await TypesAsync(second)).ShouldBe(["TASK_ASSIGNED"]);
+
+        await using (var connection = await factory.OpenConnectionAsync())
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "UPDATE workflow.workflow_tasks SET due_at = now() - interval '1 hour' WHERE instance_id IN (SELECT id FROM workflow.workflow_instances WHERE document_id = @document)";
+            command.Parameters.AddWithValue("document", documentId);
+            (await command.ExecuteNonQueryAsync()).ShouldBe(1);
+        }
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<Dms.Application.IUnitOfWork>();
+            var sla = scope.ServiceProvider.GetServices<Dms.Application.IJobHandler>().Single(job => job.JobType == "workflow.sla-check");
+            for (var run = 0; run < 2; run++)
+            {
+                await unitOfWork.BeginAsync(CancellationToken.None);
+                await sla.HandleAsync("{}", CancellationToken.None);
+                await unitOfWork.CommitAsync(CancellationToken.None);
+            }
+        }
+
+        (await TypesAsync(first)).ShouldBe(["TASK_OVERDUE", "TASK_ASSIGNED"]);
+        (await TypesAsync(second)).ShouldBe(["TASK_OVERDUE", "TASK_ASSIGNED"]);
+        (await TypesAsync(setup.Author)).ShouldBeEmpty();
     }
 }

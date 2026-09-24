@@ -540,4 +540,66 @@ public sealed class ShareApiTests(DmsApiFactory factory)
         var (stranger, _) = await factory.CreateUserAsync("link.admin.stranger");
         (await stranger.GetAsync($"/api/v1/documents/{arranged.DocumentId}/shares")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
+
+    [Fact]
+    public async Task The_recipient_is_notified_and_only_they_can_read_it()
+    {
+        var arranged = await ArrangeAsync("share.notify.owner");
+        var (recipient, recipientId) = await factory.CreateUserAsync("share.notify.recipient");
+        var (other, _) = await factory.CreateUserAsync("share.notify.other");
+        await ShareAsync(arranged.Owner, arranged.DocumentId, arranged.VersionId, recipientId, "View", "Download");
+
+        (await recipient.GetFromJsonAsync<JsonElement>("/api/v1/notifications/unread-count")).GetProperty("count").GetInt32().ShouldBe(1);
+        var page = await recipient.GetFromJsonAsync<JsonElement>("/api/v1/notifications?unreadOnly=true");
+        var item = page.GetProperty("items").EnumerateArray().ShouldHaveSingleItem();
+        item.GetProperty("type").GetString().ShouldBe("DOCUMENT_SHARED");
+        item.GetProperty("payload").GetProperty("versionLabel").GetString().ShouldBe("V1.1");
+        item.GetProperty("payload").GetProperty("permissions").EnumerateArray().Select(value => value.GetString()).ShouldBe(["View", "Download"]);
+        var id = item.GetProperty("id").GetGuid();
+
+        // Someone else's notification: nothing to see, and marking it changes nothing.
+        (await other.GetFromJsonAsync<JsonElement>("/api/v1/notifications")).GetProperty("items").GetArrayLength().ShouldBe(0);
+        var foreign = await other.PostAsJsonAsync("/api/v1/notifications/read", new { ids = new[] { id } });
+        (await foreign.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("count").GetInt32().ShouldBe(0);
+        (await recipient.GetFromJsonAsync<JsonElement>("/api/v1/notifications/unread-count")).GetProperty("count").GetInt32().ShouldBe(1);
+
+        var read = await recipient.PostAsJsonAsync("/api/v1/notifications/read", new { ids = new[] { id } });
+        (await read.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("count").GetInt32().ShouldBe(1);
+        (await recipient.GetFromJsonAsync<JsonElement>("/api/v1/notifications/unread-count")).GetProperty("count").GetInt32().ShouldBe(0);
+        (await recipient.GetFromJsonAsync<JsonElement>("/api/v1/notifications")).GetProperty("items")[0].GetProperty("readAt").ValueKind
+            .ShouldBe(JsonValueKind.String);
+
+        // The sharer caused it and is not told.
+        (await arranged.Owner.GetFromJsonAsync<JsonElement>("/api/v1/notifications/unread-count")).GetProperty("count").GetInt32().ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Notification_pages_do_not_lose_rows_that_share_a_timestamp()
+    {
+        var (reader, readerId) = await factory.CreateUserAsync("notify.pages");
+        await ExecuteAsync(
+            """
+            INSERT INTO notify.notifications (id, user_id, type, payload, created_at)
+            SELECT gen_random_uuid(), @user, 'DOCUMENT_SHARED', '{}', '2026-01-01T00:00:00Z'
+              FROM generate_series(1, 5)
+            """,
+            ("user", readerId));
+
+        var seen = new HashSet<Guid>();
+        string? cursor = null;
+        do
+        {
+            var page = await reader.GetFromJsonAsync<JsonElement>($"/api/v1/notifications?take=2{(cursor is null ? "" : $"&cursor={cursor}")}");
+            foreach (var item in page.GetProperty("items").EnumerateArray())
+            {
+                seen.Add(item.GetProperty("id").GetGuid()).ShouldBeTrue("a row came twice");
+            }
+
+            cursor = page.GetProperty("nextCursor").GetString();
+        }
+        while (cursor is not null);
+
+        seen.Count.ShouldBe(5);
+        (await reader.GetAsync("/api/v1/notifications?cursor=nonsense")).StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
 }

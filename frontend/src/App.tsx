@@ -14,6 +14,7 @@ import { RecycleBinPage } from './pages/RecycleBinPage';
 import { SearchPage } from './pages/SearchPage';
 import { SharedVersionPage } from './pages/SharedVersionPage';
 import { SharedWithMePage } from './pages/SharedWithMePage';
+import { AuditPage } from './pages/admin/AuditPage';
 import { DocumentTypeEditorPage } from './pages/admin/DocumentTypeEditorPage';
 import { DocumentTypesPage } from './pages/admin/DocumentTypesPage';
 import { SearchAdminPage } from './pages/admin/SearchAdminPage';
@@ -93,6 +94,7 @@ function Shell() {
   const canManageTypes = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES');
   const canManageWorkflows = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS');
   const canManageSearch = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH');
+  const canViewAudit = user.isSystemAdmin || user.systemPermissions.includes('AUDIT_VIEW');
 
   return (
     <Layout>
@@ -106,6 +108,7 @@ function Shell() {
         <Route path="/shared/:documentId/:versionId" element={<SharedVersionPage />} />
         <Route path="/search" element={<SearchPage />} />
         {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
+        {canViewAudit && <Route path="/admin/audit" element={<AuditPage />} />}
         {canManageWorkflows && <Route path="/admin/workflows" element={<WorkflowsPage />} />}
         {canManageWorkflows && <Route path="/admin/workflows/:id" element={<WorkflowEditorPage />} />}
         {canManageTypes && <Route path="/admin/document-types" element={<DocumentTypesPage />} />}

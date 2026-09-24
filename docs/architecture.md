@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phases 1–6 done.** Phases 7–9 not started. |
+| **Status** | Approved. **Phases 1–7 done.** Phases 8–9 not started. |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -859,7 +859,7 @@ Every phase needs explicit approval before it starts.
 | **4 Workflow** **(done)** | Definitions, versioning, instances, tasks, conditions, assignees, SLA job, task inbox UI | Transitions; workflow version isolation; approval tied to a version; new version after approval; auto-cancel on supersede; self-approval block |
 | **5 Processing + Search** **(done)** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
 | **6 Sharing** **(done)** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
-| **7 Audit hardening + notifications** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
+| **7 Audit hardening + notifications** **(done)** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
 | **9 Hardening** | Security test suite, load tests (k6), pen-test checklist, backup/restore drill | Performance targets based on the sizing answers (D11) |
 
@@ -1048,6 +1048,65 @@ Every phase needs explicit approval before it starts.
   and notifications to recipients (phase 7). Link sessions live in the database, so several API
   instances work, but the rate limiter counts per instance.
 
+**Phase 7 as built.**
+
+- **The runtime role (section 4.10).** The migrator, as the owner, applies the schema and then
+  runs `DatabaseInitializer.GrantRuntimeAccessAsync`: it creates `dms_app` if missing
+  (`Dms:Database:AppRole`, `AppRolePassword`, `CreateAppRole`) and resets its grants from the
+  module list. Each module declares its `RuntimeAccess` when it registers its DbContext:
+  read-write schemas get SELECT/INSERT/UPDATE/DELETE, the audit schema gets SELECT and INSERT
+  only; nothing gets TRUNCATE or DDL, and the EF history tables are read-only. The API and the
+  worker connect as `dms_app` in compose, and **the whole integration suite runs its host as a
+  runtime role** (the owner only migrates), so a missing grant fails the tests.
+  `audit.ensure_partition` is `SECURITY DEFINER`, so the partition job works without DDL rights.
+  `dms_readonly` is still left to the DBA.
+- **Append-only, also for the owner.** Row triggers refuse UPDATE and DELETE on the log and on
+  the seals; statement triggers refuse TRUNCATE on the log, on every partition (a partitioned
+  table's TRUNCATE trigger does not fire for its partitions, so `ensure_partition` adds one to
+  each new partition) and on the seals. Retention stays a DBA operation: detaching a partition.
+- **Seals (tamper evidence).** `audit.audit_seals` holds one seal per period (`SealPeriod`,
+  default one hour), made `SealGrace` (10 minutes) after the period ends so late commits are in.
+  A seal records the period's row count and a SHA-256 digest of its rows in `(occurred_at, id)`
+  order, each field length-prefixed, and is chained: its hash covers the previous seal's hash.
+  With `Dms:Audit:SealKey` the hash is an HMAC, so write access to the database is not enough to
+  forge a matching chain; old keys go in `PreviousSealKeys`. The first seal starts at the hour of
+  the oldest row, and seals continue without gaps (empty hours included). The worker seals every
+  15 minutes and verifies the last `VerifyDays` (7) daily; `POST /audit/seals/verify` checks any
+  range. Verification reports rows changed (edited, deleted or back-dated into a sealed period),
+  a broken chain, a rewritten seal, an unknown key, an unkeyed seal after keyed ones, and rows
+  dated before the first seal. Each verification is audited (AUDIT_SEALS_VERIFIED, FAILED when
+  something was found) and logged as critical on failure. With a key, that record carries an
+  HMAC proof over its outcome and time, and the status only believes proven records (the
+  runtime role can insert audit rows, so an unproven "intact" row is ignored). A malformed key
+  stops the host at start-up. **Limit:** rows of the current,
+  unsealed period are not protected yet, and deleting the newest seals together with their rows
+  shows only as a seal chain that ends early (the status shows how far it reaches).
+- **Export.** `GET /audit/export?format=csv|jsonl` with the viewer's filters, a required range of
+  at most `MaxExportDays` (366), and AUDIT_EXPORT. The AUDIT_EXPORTED row is written in the
+  command's transaction before a byte is streamed; rows are streamed oldest first. CSV has a BOM
+  (Excel and Persian), RFC 4180 quoting, and a quote prefix on cells starting with = + - @.
+- **Viewer.** `GET /audit` gained outcome, actor type and entity type filters, user names, and the
+  version, link, user agent and correlation id of each row; `to` is now exclusive. Filtering by
+  user was broken (untranslatable LINQ) and is fixed. `GET /audit/actions` lists the codes. The
+  **رویدادنگاری** page shows the seal state with a verify button, Jalali date filters, entry
+  details and the export buttons; its verify button checks the last 30 days, the whole chain is
+  for the API or the job.
+- **Notifications.** Module `Dms.Notifications`, schema `notify`, one row per recipient with a
+  type and a display-only JSON payload (the wording lives in the browser). `INotificationSender`
+  writes in the caller's transaction, skips the current user and inactive users. Sent for:
+  TASK_ASSIGNED (every task opened or forwarded; group and role tasks reach their active
+  members, never the version's author unless the step allows self-approval), TASK_OVERDUE (once,
+  from the SLA job), WORKFLOW_FINISHED (to the version's author and
+  whoever started the review, with the outcome), DOCUMENT_SHARED (to the recipient). API: list
+  (keyset paging on `(created_at, id)` through an opaque `cursor`), unread count, mark read (some
+  or all). Read notifications go
+  after `KeepReadDays` (90), all after `KeepUnreadDays` (365). The app bar has a bell; on a phone the
+  new-document and sign-out buttons moved into the drawer to make room.
+- **Not in phase 7:** email and other channels (the sender is the seam), notification
+  preferences, notifying about external link openings, escalation of overdue tasks, and an
+  external anchor for the seal chain (for example sending the latest seal hash to a timestamping
+  service or a write-once store), which would also cover the newest-seals limit above.
+
 **Test stack:**
 
 - xUnit v3, Shouldly, NSubstitute;
@@ -1065,6 +1124,7 @@ Every phase needs explicit approval before it starts.
 | Workflow transitions, workflow version isolation, approval per version | 4 |
 | Search authorization | 5 |
 | Share expiration and revocation | 6 |
+| Append-only at the role level, seal verification, export, audit completeness, notifications | 7 |
 
 ---
 

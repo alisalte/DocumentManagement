@@ -559,6 +559,101 @@ async function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
+export type NotificationType = 'TASK_ASSIGNED' | 'TASK_OVERDUE' | 'WORKFLOW_FINISHED' | 'DOCUMENT_SHARED';
+
+/** Display-only facts captured when the event happened; following it goes through the usual checks. */
+export interface NotificationPayload {
+  documentTitle?: string;
+  versionLabel?: string;
+  taskId?: string;
+  step?: string;
+  stepName?: string | null;
+  dueAt?: string | null;
+  outcome?: 'Approved' | 'Rejected' | 'ChangesRequested' | 'Cancelled';
+  comment?: string | null;
+  shareId?: string;
+  permissions?: SharePermission[];
+  message?: string | null;
+}
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType | string;
+  actorId: string | null;
+  actorName: string | null;
+  documentId: string | null;
+  versionId: string | null;
+  payload: NotificationPayload;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  unreadCount: number;
+  /** Pass back as cursor for the next page; null on the last one. */
+  nextCursor: string | null;
+}
+
+export interface AuditEntry {
+  id: string;
+  occurredAt: string;
+  action: string;
+  outcome: 'SUCCESS' | 'DENIED' | 'FAILED';
+  actorType: 'USER' | 'SHARELINK' | 'SYSTEM' | 'ANONYMOUS';
+  userId: string | null;
+  userName: string | null;
+  shareLinkId: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  documentId: string | null;
+  versionId: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  correlationId: string | null;
+  /** JSON text. */
+  metadata: string;
+}
+
+export interface AuditFilter {
+  from?: string | null;
+  to?: string | null;
+  action?: string | null;
+  outcome?: string | null;
+  actorType?: string | null;
+  userId?: string | null;
+  documentId?: string | null;
+  entityId?: string | null;
+}
+
+export interface SealStatus {
+  sealCount: number;
+  firstSealedFrom: string | null;
+  sealedUntil: string | null;
+  algorithm: string | null;
+  keyed: boolean;
+  keyId: string | null;
+  lastVerifiedAt: string | null;
+  lastVerificationIntact: boolean | null;
+}
+
+export interface SealProblem {
+  sequence: number | null;
+  periodStart: string;
+  periodEnd: string;
+  kind: 'RowsChanged' | 'ChainBroken' | 'SealInvalid' | 'UnknownKey' | 'RowsBeforeFirstSeal';
+  detail: string;
+}
+
+export interface SealVerification {
+  intact: boolean;
+  sealsChecked: number;
+  rowsChecked: number;
+  from: string | null;
+  to: string | null;
+  problems: SealProblem[];
+}
+
 async function send(path: string, init: RequestInit = {}, retry = true): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) {
@@ -994,6 +1089,32 @@ export const api = {
     status: () => request<SearchStatus>('/api/v1/admin/search/status'),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
+  },
+
+  notifications: {
+    list: (params: { unreadOnly?: boolean; cursor?: string | null; take?: number } = {}) =>
+      request<NotificationPage>(`/api/v1/notifications${query(params)}`),
+    unreadCount: () => request<{ count: number }>('/api/v1/notifications/unread-count'),
+    /** Without ids: every unread notification of the caller. */
+    markRead: (ids?: string[]) =>
+      request<{ count: number }>('/api/v1/notifications/read', { method: 'POST', body: JSON.stringify({ ids: ids ?? null }) }),
+  },
+
+  audit: {
+    list: (filter: AuditFilter, skip = 0, take = 100) =>
+      request<AuditEntry[]>(`/api/v1/audit${query({ ...filter, skip, take })}`),
+    actions: () => request<string[]>('/api/v1/audit/actions'),
+    async export(filter: AuditFilter, format: 'csv' | 'jsonl'): Promise<void> {
+      const response = await send(`/api/v1/audit/export${query({ ...filter, format })}`);
+      if (!response.ok) {
+        throw await toError(response);
+      }
+
+      await saveResponse(response, `audit.${format}`);
+    },
+    sealStatus: () => request<SealStatus>('/api/v1/audit/seals/status'),
+    verify: (from: string | null, to: string | null) =>
+      request<SealVerification>('/api/v1/audit/seals/verify', { method: 'POST', body: JSON.stringify({ from, to }) }),
   },
 
   isSignedIn: () => accessToken !== null,

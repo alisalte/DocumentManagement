@@ -3,6 +3,7 @@ using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Contracts;
 using Dms.Identity.Contracts;
+using Dms.Notifications.Contracts;
 using Dms.SharedKernel;
 using Dms.SharedKernel.Rules;
 using Dms.Workflow.Contracts;
@@ -87,6 +88,27 @@ public sealed class AssigneeResolver(
         }
     }
 
+    /// <summary>
+    /// Who can act on a task right now: its user, or the active members of its group or role.
+    /// For telling people about it; who may actually act is still decided when they do.
+    /// </summary>
+    public async Task<IReadOnlyList<UserId>> RecipientsAsync(Assignee assignee, CancellationToken cancellationToken)
+    {
+        if (assignee.UserId is { } user)
+        {
+            return [user];
+        }
+
+        if (assignee.GroupId is { } group)
+        {
+            return [.. await groups.GetActiveMemberIdsAsync(group, cancellationToken)];
+        }
+
+        return assignee.RoleId is { } role
+            ? await ActiveAsync(await roles.GetUserIdsAsync(role, cancellationToken), cancellationToken)
+            : [];
+    }
+
     private async Task<IReadOnlyList<UserId>> ActiveAsync(IReadOnlySet<UserId> candidates, CancellationToken cancellationToken)
     {
         if (candidates.Count == 0)
@@ -110,6 +132,7 @@ public sealed class WorkflowEngine(
     IDocumentApprovalGateway documents,
     IWorkflowInstanceRepository instances,
     IAuditWriter audit,
+    INotificationSender notifications,
     TimeProvider timeProvider)
 {
     public async Task<WorkflowInstance> StartAsync(
@@ -253,6 +276,7 @@ public sealed class WorkflowEngine(
                     ["toUserId"] = receiver.Value,
                     ["comment"] = comment,
                 }, cancellationToken);
+                await NotifyTaskAsync(NotificationTypes.TaskAssigned, version, forwarded, step, cancellationToken);
 
                 return Result.Success();
             }
@@ -283,7 +307,7 @@ public sealed class WorkflowEngine(
         foreach (var sequence in definition.Sequences.Where(sequence => sequence >= fromSequence))
         {
             instance.EnterSequence(sequence);
-            var opened = 0;
+            var opened = new List<(WorkflowTask Task, WorkflowStepDefinition Step)>();
 
             foreach (var step in definition.Steps.Where(step => step.Sequence == sequence).OrderBy(step => step.Code, StringComparer.Ordinal))
             {
@@ -317,13 +341,17 @@ public sealed class WorkflowEngine(
                 var dueAt = step.SlaHours is { } hours ? now.AddHours(hours) : (DateTimeOffset?)null;
                 foreach (var assignee in resolved)
                 {
-                    instance.AddTask(step.Code, sequence, assignee, dueAt, now);
-                    opened++;
+                    opened.Add((instance.AddTask(step.Code, sequence, assignee, dueAt, now), step));
                 }
             }
 
-            if (opened > 0)
+            if (opened.Count > 0)
             {
+                foreach (var (task, step) in opened)
+                {
+                    await NotifyTaskAsync(NotificationTypes.TaskAssigned, version, task, step, cancellationToken);
+                }
+
                 return;
             }
         }
@@ -353,6 +381,23 @@ public sealed class WorkflowEngine(
             ["comment"] = reason,
         }, cancellationToken);
 
+        // The author of the version and whoever started the review hear how it ended (not the
+        // person who ended it: the sender leaves the current user out).
+        await notifications.SendAsync(
+            new NotificationMessage(
+                NotificationTypes.WorkflowFinished,
+                [version.CreatedBy, instance.StartedBy],
+                version.DocumentId,
+                version.VersionId,
+                new Dictionary<string, object?>
+                {
+                    ["documentTitle"] = version.DocumentTitle,
+                    ["versionLabel"] = version.Label,
+                    ["outcome"] = status.ToString(),
+                    ["comment"] = reason,
+                }),
+            cancellationToken);
+
         if (status != WorkflowInstanceStatus.Approved)
         {
             return;
@@ -379,6 +424,44 @@ public sealed class WorkflowEngine(
                 $"Superseded by {version.Label}.",
                 cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Tells everyone who can take the task (TASK_ASSIGNED or TASK_OVERDUE). The version's author
+    /// is left out unless the step lets them approve their own work, as when tasks are assigned:
+    /// a group or role task is shared, and they could not act on it.
+    /// </summary>
+    public async Task NotifyTaskAsync(
+        string type,
+        VersionForWorkflow version,
+        WorkflowTask task,
+        WorkflowStepDefinition? step,
+        CancellationToken cancellationToken)
+    {
+        var recipients = (await assignees.RecipientsAsync(task.Assignee, cancellationToken))
+            .Where(user => step?.AllowSelfApproval == true || user != version.CreatedBy)
+            .ToList();
+        if (recipients.Count == 0)
+        {
+            return;
+        }
+
+        await notifications.SendAsync(
+            new NotificationMessage(
+                type,
+                recipients,
+                version.DocumentId,
+                version.VersionId,
+                new Dictionary<string, object?>
+                {
+                    ["documentTitle"] = version.DocumentTitle,
+                    ["versionLabel"] = version.Label,
+                    ["taskId"] = task.Id.Value,
+                    ["step"] = task.StepCode,
+                    ["stepName"] = step?.Name,
+                    ["dueAt"] = task.DueAt,
+                }),
+            cancellationToken);
     }
 
     private static WorkflowStepDefinition? ResolveReturnTarget(

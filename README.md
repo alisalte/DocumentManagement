@@ -6,13 +6,15 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phases 1–6 are done:** identity,
+**Status: phases 1–7 are done:** identity,
 authorization, audit, the job queue, documents and storage, dynamic document types with a rule
 language shared by the server and the browser, versioned approval workflows with a task inbox,
 malware scanning, watermarked previews and printing, Persian OCR and version-aware full-text
 search, and sharing: internal shares and external links, each pinned to one version, re-checked
-against the sharer's rights on every use and always overridden by an explicit DENY. Audit
-hardening and notifications are the next phase in the architecture document.
+against the sharer's rights on every use and always overridden by an explicit DENY; a restricted
+database role that can only append to the audit log, a tamper-evident seal chain over the log,
+audit export and viewer, and in-app notifications. The admin UI (users, groups, roles, the ACL
+editor) is the next phase in the architecture document.
 
 ## Stack
 
@@ -100,6 +102,22 @@ need a password (locked for `LinkPasswordLockoutMinutes` after `LinkPasswordMaxA
 guesses). `Dms__Sharing__ExternalLinksEnabled=false` switches links off altogether. Opening links
 is rate limited per address (`Dms__RateLimits__ShareLinkOpensPerMinute`, default 20).
 
+### Audit and notifications
+
+Users with AUDIT_VIEW find the log under **رویدادنگاری**: filters, the details of each entry, and
+the state of the **seals**. Every hour of the log is sealed (a digest of its rows, chained to the
+previous seal, HMAC-keyed with `Dms__Audit__SealKey`), so an edited, deleted or back-dated row
+shows up when the chain is verified, daily by the worker or on demand. AUDIT_EXPORT adds CSV and
+JSON-lines exports of up to a year (`Dms__Audit__MaxExportDays`); every export is audited too.
+
+The API and the worker connect as the runtime role (`dms_app`), which the migrator creates and
+grants DML only: INSERT and SELECT on `audit`, no UPDATE, DELETE, TRUNCATE or DDL anywhere
+(section 4.10). `scripts/dev-api.sh` still runs the API as the owner for convenience.
+
+The bell in the app bar shows in-app notifications: a task waiting for you (directly or through
+your group or role), an overdue task, the outcome of a review you started or whose version you
+wrote, and a version shared with you. Nobody is told about what they did themselves.
+
 Files are stored on the local filesystem by default (`Dms:Storage:Provider = filesystem`, under
 `.data/objects` in development). For S3 or MinIO set `Dms__Storage__Provider=s3` and the
 `Dms__Storage__S3__*` values; the bucket must exist.
@@ -130,8 +148,10 @@ cp deploy/.env.example deploy/.env    # then fill in every value marked below
 cd deploy && docker compose up -d --build
 ```
 
-`.env` must have **`POSTGRES_PASSWORD`, `DMS_ADMIN_PASSWORD` and `DMS_JWT_SIGNING_KEY`** set;
-compose refuses to start otherwise. Generate the key with `openssl rand -base64 64`.
+`.env` must have **`POSTGRES_PASSWORD`, `DMS_DB_APP_PASSWORD`, `DMS_ADMIN_PASSWORD` and
+`DMS_JWT_SIGNING_KEY`** set; compose refuses to start otherwise. Generate the key with
+`openssl rand -base64 64`. `DMS_AUDIT_SEAL_KEY` (`openssl rand -base64 32`) is optional but
+recommended; keep it out of the database backups.
 
 This builds the images and starts five containers, plus the optional processing services:
 

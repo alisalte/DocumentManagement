@@ -136,6 +136,12 @@ public static class AuditActions
     public const string PermissionGranted = "PERMISSION_GRANTED";
     public const string PermissionRevoked = "PERMISSION_REVOKED";
 
+    /// <summary>The seal chain was checked; outcome FAILED means tampering (or a lost key) was found.</summary>
+    public const string AuditSealsVerified = "AUDIT_SEALS_VERIFIED";
+
+    /// <summary>Audit rows were exported; the metadata holds the filters and the format.</summary>
+    public const string AuditExported = "AUDIT_EXPORTED";
+
     /// <summary>Written whenever a system administrator uses the ACL bypass (decision D5).</summary>
     public const string AdminPermissionOverride = "ADMIN_PERMISSION_OVERRIDE";
 }

@@ -109,6 +109,65 @@ namespace Dms.Audit.Infrastructure.Persistence.Migrations
 
                     b.ToTable("audit_logs", "audit");
                 });
+
+            modelBuilder.Entity("Dms.Audit.Domain.AuditSeal", b =>
+                {
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("sequence");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Sequence"));
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("algorithm");
+
+                    b.Property<string>("KeyId")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("key_id");
+
+                    b.Property<DateTimeOffset>("PeriodEnd")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_end");
+
+                    b.Property<DateTimeOffset>("PeriodStart")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("period_start");
+
+                    b.Property<byte[]>("PreviousHash")
+                        .HasColumnType("bytea")
+                        .HasColumnName("previous_hash");
+
+                    b.Property<long>("RowCount")
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_count");
+
+                    b.Property<byte[]>("RowsDigest")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("rows_digest");
+
+                    b.Property<byte[]>("SealHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("seal_hash");
+
+                    b.Property<DateTimeOffset>("SealedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sealed_at");
+
+                    b.HasKey("Sequence");
+
+                    b.HasIndex("PeriodStart")
+                        .IsUnique()
+                        .HasDatabaseName("ux_audit_seals_period_start");
+
+                    b.ToTable("audit_seals", "audit");
+                });
 #pragma warning restore 612, 618
         }
     }

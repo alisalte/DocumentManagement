@@ -4,6 +4,7 @@ using Dms.Authorization.Contracts;
 using Dms.DocumentTypes.Contracts;
 using Dms.Documents.Contracts;
 using Dms.Identity.Contracts;
+using Dms.Notifications.Contracts;
 using Dms.SharedKernel;
 using Dms.Workflow.Contracts;
 using Dms.Workflow.Domain;
@@ -574,9 +575,15 @@ public sealed class WorkflowTaskGrantSource(
     }
 }
 
-/// <summary>Records overdue tasks once each (section 6.8). Notifications arrive in phase 7; escalation later.</summary>
+/// <summary>
+/// Records overdue tasks once each (section 6.8) and tells whoever can take them. Escalation
+/// comes later.
+/// </summary>
 public sealed class WorkflowSlaJob(
     IWorkflowInstanceRepository instances,
+    IWorkflowDefinitionRepository definitions,
+    IDocumentApprovalGateway documents,
+    WorkflowEngine engine,
     IAuditWriter audit,
     TimeProvider timeProvider) : IJobHandler
 {
@@ -604,6 +611,12 @@ public sealed class WorkflowSlaJob(
                         Metadata = new Dictionary<string, object?> { ["step"] = task.StepCode, ["dueAt"] = task.DueAt },
                     },
                     cancellationToken);
+
+                if (await documents.FindVersionAsync(instance.DocumentVersionId, cancellationToken) is { } version)
+                {
+                    var definition = await definitions.FindVersionAsync(instance.WorkflowVersionId, cancellationToken);
+                    await engine.NotifyTaskAsync(NotificationTypes.TaskOverdue, version, task, definition?.FindStep(task.StepCode), cancellationToken);
+                }
             }
         }
     }

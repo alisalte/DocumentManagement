@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Dms.Notifications</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.Application\Dms.Application.csproj" />
+    <ProjectReference Include="..\..\..\BuildingBlocks\Dms.SharedKernel\Dms.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Identity\Dms.Identity.Contracts\Dms.Identity.Contracts.csproj" />
+    <ProjectReference Include="..\Dms.Notifications.Contracts\Dms.Notifications.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -9,6 +9,10 @@ namespace Dms.IntegrationTests;
 /// Boots the real host against a throwaway PostgreSQL database, applies the real migrations and
 /// runs the real seeders. Nothing is faked: these tests exercise the same code path as production.
 ///
+/// Also like production, the schema is applied by the owner and the host then runs as the
+/// runtime role with only the rights the migrator granted it (section 4.10), so every test also
+/// checks that those grants are enough, and the audit tests that they are no more than that.
+///
 /// The server is picked up from DMS_TEST_POSTGRES, defaulting to the development container on
 /// port 5433 (see deploy/docker-compose.yml). Each run gets its own database, which is dropped
 /// afterwards, so runs never interfere with each other.
@@ -17,6 +21,10 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 {
     public const string AdminUsername = "admin";
     public const string AdminPassword = "BootstrapAdminPassword!1";
+
+    /// <summary>Roles are per server, not per database: every test run shares this one.</summary>
+    public const string AppRole = "dms_app_test";
+    public const string AppRolePassword = "dms-app-test-password";
 
     private readonly string _databaseName = $"dms_test_{Guid.NewGuid():N}";
 
@@ -27,7 +35,11 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         Environment.GetEnvironmentVariable("DMS_TEST_POSTGRES")
         ?? "Host=localhost;Port=5433;Username=dms;Password=dms;Database=postgres";
 
+    /// <summary>The owner's connection, for tests that arrange or inspect rows directly.</summary>
     public string ConnectionString { get; private set; } = string.Empty;
+
+    /// <summary>The runtime role's connection, which the host uses.</summary>
+    public string AppConnectionString { get; private set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
     {
@@ -42,10 +54,20 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
         builder.Database = _databaseName;
         ConnectionString = builder.ConnectionString;
+        AppConnectionString = new NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            Username = AppRole,
+            Password = AppRolePassword,
+        }.ConnectionString;
 
         // The host reads configuration before WebApplicationFactory can inject any, so the test
         // settings go through the environment, exactly like a real deployment.
         Environment.SetEnvironmentVariable("ConnectionStrings__Dms", ConnectionString);
+        Environment.SetEnvironmentVariable("Dms__Database__AppRole", AppRole);
+        Environment.SetEnvironmentVariable("Dms__Database__AppRolePassword", AppRolePassword);
+
+        // A keyed seal chain, as production should have (32 random-looking bytes).
+        Environment.SetEnvironmentVariable("Dms__Audit__SealKey", Convert.ToBase64String("test-audit-seal-key-0123456789ab"u8.ToArray()));
         Environment.SetEnvironmentVariable("Dms__Jwt__SigningKey", new string('k', 64));
         Environment.SetEnvironmentVariable("Dms__Bootstrap__AdminPassword", AdminPassword);
 
@@ -67,10 +89,19 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             "Warning");
         Environment.SetEnvironmentVariable("Logging__LogLevel__Microsoft.Hosting.Lifetime", "Warning");
 
-        await using var scope = Services.CreateAsyncScope();
-        var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
-        await initializer.MigrateAsync(CancellationToken.None);
-        await initializer.SeedAsync(CancellationToken.None);
+        // The migrator's job, as the owner, in a host of its own; the tests' host is built after
+        // this, as the runtime role.
+        await using (var migrator = new WebApplicationFactory<Program>())
+        {
+            await using var scope = migrator.Services.CreateAsyncScope();
+            var initializer = scope.ServiceProvider.GetRequiredService<DatabaseInitializer>();
+            await initializer.MigrateAsync(CancellationToken.None);
+            await initializer.SeedAsync(CancellationToken.None);
+            await initializer.GrantRuntimeAccessAsync(CancellationToken.None);
+        }
+
+        Environment.SetEnvironmentVariable("ConnectionStrings__Dms", AppConnectionString);
+        _ = Services;
     }
 
     public override async ValueTask DisposeAsync()
@@ -93,6 +124,14 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     public async Task<NpgsqlConnection> OpenConnectionAsync()
     {
         var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    /// <summary>A connection as the runtime role, to show what the application itself can and cannot do.</summary>
+    public async Task<NpgsqlConnection> OpenAppConnectionAsync()
+    {
+        var connection = new NpgsqlConnection(AppConnectionString);
         await connection.OpenAsync();
         return connection;
     }

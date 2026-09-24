@@ -16,6 +16,7 @@
     <ProjectReference Include="..\Modules\Documents\Dms.Documents.Infrastructure\Dms.Documents.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Workflow\Dms.Workflow.Infrastructure\Dms.Workflow.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Sharing\Dms.Sharing.Infrastructure\Dms.Sharing.Infrastructure.csproj" />
+    <ProjectReference Include="..\Modules\Notifications\Dms.Notifications.Infrastructure\Dms.Notifications.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Search\Dms.Search.Infrastructure\Dms.Search.Infrastructure.csproj" />
   </ItemGroup>
 
