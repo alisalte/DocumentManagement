@@ -137,6 +137,12 @@ public sealed class User : AggregateRoot<UserId>
         UpdatedAt = now;
     }
 
+    public void SetSystemAdmin(bool isSystemAdmin, DateTimeOffset now)
+    {
+        IsSystemAdmin = isSystemAdmin;
+        UpdatedAt = now;
+    }
+
     public void ChangeProfile(string displayName, string? email, DateTimeOffset now)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);

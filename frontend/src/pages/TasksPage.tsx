@@ -1,9 +1,9 @@
-import { Alert, Box, Button, Chip, LinearProgress, Paper, Snackbar, Stack, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import { TaskActionDialog } from '../components/workflow/TaskActionDialog';
 import { actionLabels, w } from '../components/workflow/workflowStrings';
+import { Alert, Button, Card, Chip, ProgressBar, Toast } from '../components/ui';
 import { api, type WorkflowAction, type WorkflowTask } from '../lib/api';
 import { formatDateTime } from '../lib/dates';
 import { describeError } from '../strings';
@@ -16,52 +16,52 @@ export function TasksPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1000 }}>
-      <Typography variant="h5" component="h1">
-        {w.inbox}
-      </Typography>
-      {tasks.isFetching && <LinearProgress />}
+    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">{w.inbox}</h1>
+      </div>
+      {tasks.isFetching && <ProgressBar />}
       {tasks.isError && <Alert severity="error">{describeError(tasks.error)}</Alert>}
-      {tasks.data?.length === 0 && <Typography color="text.secondary">{w.inboxEmpty}</Typography>}
+      {tasks.data?.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{w.inboxEmpty}</p>}
 
-      {tasks.data?.map((task) => (
-        <Paper key={task.id} variant="outlined" sx={{ p: 2 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography
-                component={RouterLink}
-                to={`/documents/${task.documentId}`}
-                variant="subtitle1"
-                sx={{ fontWeight: 600, color: 'inherit', overflowWrap: 'anywhere' }}
-              >
-                {task.documentTitle}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span> · {formatDateTime(task.createdAt)}
-              </Typography>
-              {task.dueAt && (
-                <Typography variant="caption" color={task.isOverdue ? 'error' : 'text.secondary'}>
-                  {w.due}: {formatDateTime(task.dueAt)}
-                </Typography>
-              )}
-            </Box>
-            {task.isOverdue && <Chip size="small" color="error" label={w.overdue} />}
-            <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
-              {task.allowedActions.map((action) => (
-                <Button
-                  key={action}
-                  size="small"
-                  variant={action === 'Approve' ? 'contained' : 'outlined'}
-                  color={action === 'Reject' ? 'error' : 'primary'}
-                  onClick={() => setActing({ task, action })}
+      <div className="space-y-3">
+        {tasks.data?.map((task) => (
+          <Card key={task.id}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 sm:flex-1">
+                <RouterLink
+                  to={`/documents/${task.documentId}`}
+                  className="font-semibold break-words text-slate-800 hover:text-brand-700 hover:underline"
                 >
-                  {actionLabels[action]}
-                </Button>
-              ))}
-            </Stack>
-          </Stack>
-        </Paper>
-      ))}
+                  {task.documentTitle}
+                </RouterLink>
+                <p className="mt-1 text-sm text-slate-500">
+                  {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span> ·{' '}
+                  {formatDateTime(task.createdAt)}
+                </p>
+                {task.dueAt && (
+                  <p className={`mt-0.5 text-xs ${task.isOverdue ? 'text-rose-600' : 'text-slate-500'}`}>
+                    {w.due}: {formatDateTime(task.dueAt)}
+                  </p>
+                )}
+              </div>
+              {task.isOverdue && <Chip color="error" label={w.overdue} />}
+              <div className="flex flex-wrap gap-2">
+                {task.allowedActions.map((action) => (
+                  <Button
+                    key={action}
+                    size="sm"
+                    variant={action === 'Approve' ? 'primary' : action === 'Reject' ? 'danger' : 'outline'}
+                    onClick={() => setActing({ task, action })}
+                  >
+                    {actionLabels[action]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
 
       {acting && (
         <TaskActionDialog
@@ -76,7 +76,7 @@ export function TasksPage() {
           }}
         />
       )}
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} autoHideDuration={4000} />
+    </div>
   );
 }

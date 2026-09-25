@@ -1,7 +1,7 @@
-import { Alert, Button, LinearProgress, Pagination, Paper, Snackbar, Stack, Typography } from '@mui/material';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { DocumentList } from '../components/DocumentList';
+import { Alert, Button, Card, Pagination, ProgressBar, Toast } from '../components/ui';
 import { api } from '../lib/api';
 import { describeError, t } from '../strings';
 
@@ -35,32 +35,36 @@ export function RecycleBinPage() {
   const pages = bin.data ? Math.max(1, Math.ceil(bin.data.total / bin.data.pageSize)) : 1;
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h5" component="h1">
-        {t.recycleBin}
-      </Typography>
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">{t.recycleBin}</h1>
+      </div>
       {error && <Alert severity="error">{error}</Alert>}
-      <Paper variant="outlined" sx={{ p: { xs: 1, sm: 0 } }}>
-        {bin.isFetching && <LinearProgress />}
+      <Card flush className="overflow-hidden">
+        {bin.isFetching && <ProgressBar />}
         {bin.isError ? (
-          <Alert severity="error">{describeError(bin.error)}</Alert>
+          <div className="p-3 sm:p-4">
+            <Alert severity="error">{describeError(bin.error)}</Alert>
+          </div>
         ) : (
           bin.data && (
-            <DocumentList
-              items={bin.data.items}
-              dateOf={(item) => item.deletedAt ?? item.updatedAt}
-              dateLabel={t.deletedAt}
-              renderAction={(item) => (
-                <Button size="small" onClick={() => restore(item.id)}>
-                  {t.restore}
-                </Button>
-              )}
-            />
+            <div className="p-2 sm:p-0">
+              <DocumentList
+                items={bin.data.items}
+                dateOf={(item) => item.deletedAt ?? item.updatedAt}
+                dateLabel={t.deletedAt}
+                renderAction={(item) => (
+                  <Button size="sm" variant="ghost" onClick={() => restore(item.id)}>
+                    {t.restore}
+                  </Button>
+                )}
+              />
+            </div>
           )
         )}
-      </Paper>
-      {pages > 1 && <Pagination sx={{ alignSelf: 'center' }} count={pages} page={page} onChange={(_, value) => setPage(value)} />}
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      </Card>
+      {pages > 1 && <Pagination count={pages} page={page} onChange={(value) => setPage(value)} />}
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} autoHideDuration={4000} />
+    </div>
   );
 }

@@ -14,6 +14,8 @@ public static class AuthorizationEndpoints
 
     public sealed record SetRolePermissionsRequest(IReadOnlyList<string> PermissionCodes);
 
+    public sealed record UpdateRoleRequest(string Name, string? Description);
+
     public sealed record GrantPermissionRequest(
         SubjectType SubjectType,
         Guid SubjectId,
@@ -69,12 +71,14 @@ public static class AuthorizationEndpoints
         resources.MapGet("", async (
             ResourceType resourceType,
             Guid resourceId,
+            bool? includeInherited,
             IDispatcher dispatcher,
             CancellationToken ct) =>
         {
-            var result = await dispatcher.QueryAsync(new GetResourcePermissionsQuery(resourceType, resourceId), ct);
+            var result = await dispatcher.QueryAsync(new GetResourcePermissionsQuery(resourceType, resourceId, includeInherited ?? false), ct);
             return result.ToHttpResult();
-        });
+        })
+        .WithSummary("The ACL of a resource, with names; with includeInherited also what reaches it from ancestor categories.");
 
         resources.MapPost("", async (
             ResourceType resourceType,
@@ -102,11 +106,20 @@ public static class AuthorizationEndpoints
             .RequireAuthorization()
             .RequireSystemPermission(PermissionCodes.AdminManageRoles);
 
-        roles.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+        roles.MapGet("", async (Guid? userId, IDispatcher dispatcher, CancellationToken ct) =>
         {
-            var result = await dispatcher.QueryAsync(new ListRolesQuery(), ct);
+            var result = await dispatcher.QueryAsync(new ListRolesQuery(userId), ct);
             return result.ToHttpResult();
-        });
+        })
+        .WithSummary("All roles, or those one user holds.");
+
+        roles.MapPut("/{roleId:guid}", async (Guid roleId, UpdateRoleRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new UpdateRoleCommand(roleId, request.Name, request.Description), ct)).ToHttpResult())
+            .WithSummary("Rename a role or change its description.");
+
+        roles.MapGet("/{roleId:guid}/users", async (Guid roleId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListRoleUsersQuery(roleId), ct)).ToHttpResult())
+            .WithSummary("Who holds the role.");
 
         roles.MapPost("", async (CreateRoleRequest request, IDispatcher dispatcher, CancellationToken ct) =>
         {

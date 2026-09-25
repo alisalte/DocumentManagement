@@ -1,31 +1,12 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
-  LinearProgress,
-  List,
-  ListItem,
-  MenuItem,
-  Paper,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Checkbox, Chip, Dialog, ProgressBar, Select, TextArea, TextField, Toast } from '../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router';
 import { DocumentViewer } from '../components/DocumentViewer';
 import { FilePicker } from '../components/FilePicker';
 import { SharesPanel } from '../components/sharing/SharesPanel';
+import { AclEditor } from '../components/acl/AclEditor';
+import { d as directory } from './admin/directoryStrings';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { MetadataView } from '../components/metadata/MetadataView';
 import { WorkflowPanel } from '../components/workflow/WorkflowPanel';
@@ -40,6 +21,8 @@ import { describeError, t } from '../strings';
 const can = (document: DocumentDetails | undefined, permission: string) =>
   document?.allowedActions.includes(permission) ?? false;
 
+const noop = () => {};
+
 export function DocumentPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
@@ -48,6 +31,7 @@ export function DocumentPage() {
   const [notice, setNotice] = useState<string | null>((location.state as { notice?: string } | null)?.notice ?? null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | null>(null);
+  const [aclOpen, setAclOpen] = useState(false);
   // Null: the viewer shows what a plain reader gets; a version row can point it elsewhere.
   const [previewVersion, setPreviewVersion] = useState<string | null>(null);
 
@@ -87,12 +71,12 @@ export function DocumentPage() {
   };
 
   if (document.isPending) {
-    return <LinearProgress />;
+    return <ProgressBar />;
   }
 
   if (document.isError) {
     return (
-      <Alert severity="error" action={<Button component={RouterLink} to="/">{t.back}</Button>}>
+      <Alert severity="error" action={<Button as={RouterLink} to="/">{t.back}</Button>}>
         {describeError(document.error)}
       </Alert>
     );
@@ -102,76 +86,84 @@ export function DocumentPage() {
   const current = versions.data?.find((version) => version.isCurrent) ?? null;
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1000 }}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="h5" component="h1" sx={{ overflowWrap: 'anywhere' }}>
-                {doc.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                <RouterLink to={`/?category=${doc.categoryId}`}>{doc.categoryName}</RouterLink>
+    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+      <Card>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold break-words text-slate-800">{doc.title}</h1>
+              <p className="text-sm text-slate-500">
+                <RouterLink to={`/?category=${doc.categoryId}`} className="text-brand-700 hover:underline">
+                  {doc.categoryName}
+                </RouterLink>
                 {current && <> · <span dir="ltr">{current.label}</span></>}
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               {can(doc, 'DOCUMENT_DOWNLOAD') && (
-                <Button variant="contained" onClick={() => download(null)}>
-                  {t.download}
-                </Button>
+                <Button onClick={() => download(null)}>{t.download}</Button>
               )}
               {can(doc, 'DOCUMENT_CREATE_VERSION') && (
-                <Button variant="outlined" onClick={() => setDialog('version')}>
+                <Button variant="outline" onClick={() => setDialog('version')}>
                   {t.addVersion}
                 </Button>
               )}
               {can(doc, 'DOCUMENT_EDIT') && (
-                <Button onClick={() => setDialog('edit')}>{t.edit}</Button>
+                <Button variant="ghost" onClick={() => setDialog('edit')}>
+                  {t.edit}
+                </Button>
+              )}
+              {can(doc, 'DOCUMENT_MANAGE_PERMISSION') && (
+                <Button variant="ghost" onClick={() => setAclOpen(true)}>
+                  {directory.permissionsTitle}
+                </Button>
               )}
               {can(doc, 'DOCUMENT_DELETE') && (
-                <Button color="error" onClick={() => setDialog('delete')}>
+                <Button variant="danger" onClick={() => setDialog('delete')}>
                   {t.delete}
                 </Button>
               )}
-            </Stack>
-          </Stack>
+            </div>
+          </div>
 
           {doc.description && (
-            <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{doc.description}</Typography>
+            <p className="break-words whitespace-pre-wrap text-sm text-slate-700">{doc.description}</p>
           )}
 
           {schema.data && schema.data.fields.length > 0 && (
-            <Box>
-              <Stack direction="row" sx={{ alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle1" component="h2" sx={{ flexGrow: 1 }}>
-                  {t.metadata}
-                </Typography>
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <h2 className="flex-1 text-base font-semibold text-slate-800">{t.metadata}</h2>
                 {can(doc, 'DOCUMENT_EDIT') && (
-                  <Button size="small" onClick={() => setDialog('metadata')}>
+                  <Button size="sm" variant="ghost" onClick={() => setDialog('metadata')}>
                     {t.editMetadata}
                   </Button>
                 )}
-              </Stack>
+              </div>
               <MetadataView schema={schema.data} metadata={doc.currentMetadata} />
-            </Box>
+            </div>
           )}
 
           {doc.tags.length > 0 && (
-            <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+            <div className="flex flex-wrap gap-1.5">
               {doc.tags.map((tag) => (
                 <Chip key={tag.id} label={tag.name} size="small" />
               ))}
-            </Stack>
+            </div>
           )}
 
-          <Typography variant="caption" color="text.secondary">
+          <p className="text-xs text-slate-400">
             {t.createdAt}: {formatDateTime(doc.createdAt)} · {t.updatedAt}: {formatDateTime(doc.updatedAt)}
-          </Typography>
+          </p>
 
           {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </Paper>
+        </div>
+      </Card>
+
+      {aclOpen && (
+        <AclEditor resourceType="Document" resourceId={doc.id} resourceName={doc.title} open onClose={() => setAclOpen(false)} />
+      )}
 
       <DocumentViewer documentId={doc.id} versionId={previewVersion} canReprocess={can(doc, 'DOCUMENT_EDIT')} />
 
@@ -194,28 +186,26 @@ export function DocumentPage() {
         />
       )}
 
-      <Paper variant="outlined">
-        <Typography variant="h6" component="h2" sx={{ px: { xs: 2, sm: 3 }, pt: 2 }}>
-          {t.versions}
-        </Typography>
-        {versions.isFetching && <LinearProgress />}
-        <List>
-          {(versions.data ?? []).map((version, index) => (
-            <Box key={version.id}>
-              {index > 0 && <Divider component="li" />}
-              <VersionRow
-                version={version}
-                canDownload={can(doc, 'DOCUMENT_DOWNLOAD')}
-                onDownload={() => download(version)}
-                onPreview={() => {
-                  setPreviewVersion(version.isEffective ? null : version.id);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              />
-            </Box>
+      <Card flush>
+        {versions.isFetching && <ProgressBar />}
+        <div className="px-4 pt-4 sm:px-5">
+          <h2 className="text-base font-semibold text-slate-800">{t.versions}</h2>
+        </div>
+        <ul className="mt-3 divide-y divide-slate-100">
+          {(versions.data ?? []).map((version) => (
+            <VersionRow
+              key={version.id}
+              version={version}
+              canDownload={can(doc, 'DOCUMENT_DOWNLOAD')}
+              onDownload={() => download(version)}
+              onPreview={() => {
+                setPreviewVersion(version.isEffective ? null : version.id);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           ))}
-        </List>
-      </Paper>
+        </ul>
+      </Card>
 
       {dialog === 'edit' && (
         <EditDialog document={doc} onClose={() => setDialog(null)} onSaved={() => refresh(t.saved)} />
@@ -249,8 +239,8 @@ export function DocumentPage() {
         />
       )}
 
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} />
+    </div>
   );
 }
 
@@ -273,60 +263,51 @@ function VersionRow({
   const blocked = scan[version.scanStatus];
 
   return (
-    <ListItem sx={{ px: { xs: 2, sm: 3 }, alignItems: 'flex-start' }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%' }}>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-            <Typography sx={{ fontWeight: 600 }} dir="ltr">
-              {version.label}
-            </Typography>
-            <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
-            {version.approvalStatus !== 'NotRequired' && (
-              <Chip
-                size="small"
-                color={version.approvalStatus === 'Approved' ? 'success' : version.approvalStatus === 'Rejected' ? 'error' : 'default'}
-                label={approvalLabels[version.approvalStatus] ?? version.approvalStatus}
-              />
-            )}
-            {version.isCurrent && <Chip size="small" color="primary" label={t.current} />}
-            {version.isEffective && !version.isCurrent && <Chip size="small" label={t.effective} />}
-            {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}
-          </Stack>
-          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-            {version.fileName} · {formatBytes(version.fileSize)}
-          </Typography>
-          {version.changeDescription && (
-            <Typography variant="body2" color="text.secondary">
-              {version.changeDescription}
-            </Typography>
+    <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span dir="ltr" className="font-semibold text-slate-800">
+            {version.label}
+          </span>
+          <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
+          {version.approvalStatus !== 'NotRequired' && (
+            <Chip
+              size="small"
+              color={version.approvalStatus === 'Approved' ? 'success' : version.approvalStatus === 'Rejected' ? 'error' : 'default'}
+              label={approvalLabels[version.approvalStatus] ?? version.approvalStatus}
+            />
           )}
-          <Typography variant="caption" color="text.secondary" component="div">
-            {formatDateTime(version.createdAt)}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            dir="ltr"
-            title={t.sha256}
-            sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere', display: 'block' }}
-          >
-            SHA-256 {version.sha256}
-          </Typography>
-        </Box>
-        {!blocked && (
-          <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-            <Button size="small" onClick={onPreview}>
-              {t.preview}
+          {version.isCurrent && <Chip size="small" color="primary" label={t.current} />}
+          {version.isEffective && !version.isCurrent && <Chip size="small" label={t.effective} />}
+          {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}
+        </div>
+
+        <p className="mt-1 break-words text-sm text-slate-700">
+          {version.fileName} · {formatBytes(version.fileSize)}
+        </p>
+
+        {version.changeDescription && <p className="text-sm text-slate-500">{version.changeDescription}</p>}
+
+        <p className="text-xs text-slate-400">{formatDateTime(version.createdAt)}</p>
+
+        <p dir="ltr" title={t.sha256} className="block break-all font-mono text-xs text-slate-400">
+          SHA-256 {version.sha256}
+        </p>
+      </div>
+
+      {!blocked && (
+        <div className="flex shrink-0 gap-1 self-start">
+          <Button size="sm" variant="ghost" onClick={onPreview}>
+            {t.preview}
+          </Button>
+          {canDownload && (
+            <Button size="sm" variant="ghost" onClick={onDownload}>
+              {t.downloadVersion}
             </Button>
-            {canDownload && (
-              <Button size="small" onClick={onDownload}>
-                {t.downloadVersion}
-              </Button>
-            )}
-          </Stack>
-        )}
-      </Stack>
-    </ListItem>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -415,28 +396,27 @@ function MetadataDialog({
       disabled={!schema.data}
     >
       {newerSchema && (
-        <FormControlLabel
-          control={<Checkbox checked={upgrade} onChange={(event) => setUpgrade(event.target.checked)} disabled={busy} />}
+        <Checkbox
+          checked={upgrade}
+          onChange={(event) => setUpgrade(event.target.checked)}
+          disabled={busy}
           label={
-            <Box>
-              <Typography variant="body2">{t.upgradeSchema}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {t.upgradeSchemaHelp}
-              </Typography>
-            </Box>
+            <span className="flex flex-col">
+              <span className="text-sm text-slate-700">{t.upgradeSchema}</span>
+              <span className="text-xs text-slate-500">{t.upgradeSchemaHelp}</span>
+            </span>
           }
         />
       )}
       {schema.data ? (
         <DynamicForm schema={schema.data} value={values} onChange={setValues} errors={errors} disabled={busy} />
       ) : (
-        <LinearProgress />
+        <ProgressBar />
       )}
       <TextField
         label={t.changeDescription}
         value={changeDescription}
         onChange={(event) => setChangeDescription(event.target.value)}
-        fullWidth
       />
     </FormDialog>
   );
@@ -464,22 +444,30 @@ function FormDialog({
   children: ReactNode;
 }) {
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {children}
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
-          {t.cancel}
-        </Button>
-        <Button variant="contained" color={submitColor} onClick={onSubmit} disabled={busy || disabled}>
-          {busy ? t.saving : submitLabel}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open
+      onClose={busy ? noop : onClose}
+      title={title}
+      maxWidth="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {t.cancel}
+          </Button>
+          <Button
+            variant={submitColor === 'error' ? 'danger' : 'primary'}
+            onClick={onSubmit}
+            disabled={busy || disabled}
+          >
+            {busy ? t.saving : submitLabel}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {children}
+        {error && <Alert severity="error">{error}</Alert>}
+      </div>
     </Dialog>
   );
 }
@@ -534,30 +522,22 @@ function EditDialog({
       submitLabel={t.save}
       disabled={!title.trim()}
     >
-      <TextField label={t.title} value={title} onChange={(event) => setTitle(event.target.value)} required fullWidth />
-      <TextField
-        select
-        label={t.category}
-        value={categoryId}
-        onChange={(event) => setCategoryId(event.target.value)}
-        fullWidth
-      >
+      <TextField label={t.title} value={title} onChange={(event) => setTitle(event.target.value)} required />
+      <Select label={t.category} value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
         {targets.map((category) => (
-          <MenuItem key={category.id} value={category.id} sx={{ paddingInlineStart: 2 + category.depth }}>
+          <option key={category.id} value={category.id} style={{ paddingInlineStart: `${16 + category.depth * 8}px` }}>
             {category.name}
-          </MenuItem>
+          </option>
         ))}
         {targets.every((category) => category.id !== document.categoryId) && (
-          <MenuItem value={document.categoryId}>{document.categoryName}</MenuItem>
+          <option value={document.categoryId}>{document.categoryName}</option>
         )}
-      </TextField>
-      <TextField
+      </Select>
+      <TextArea
         label={t.description}
         value={description}
         onChange={(event) => setDescription(event.target.value)}
-        multiline
-        minRows={3}
-        fullWidth
+        rows={3}
       />
       <TagInput value={tags} onChange={setTags} disabled={busy} />
     </FormDialog>
@@ -630,7 +610,6 @@ function AddVersionDialog({
         label={t.changeDescription}
         value={changeDescription}
         onChange={(event) => setChangeDescription(event.target.value)}
-        fullWidth
       />
     </FormDialog>
   );
@@ -671,8 +650,8 @@ function DeleteDialog({
       submitLabel={t.delete}
       submitColor="error"
     >
-      <Typography>{t.deleteConfirm}</Typography>
-      <TextField label={t.deleteReason} value={reason} onChange={(event) => setReason(event.target.value)} fullWidth />
+      <p className="text-sm text-slate-700">{t.deleteConfirm}</p>
+      <TextField label={t.deleteReason} value={reason} onChange={(event) => setReason(event.target.value)} />
     </FormDialog>
   );
 }

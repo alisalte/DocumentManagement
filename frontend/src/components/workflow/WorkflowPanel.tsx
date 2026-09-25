@@ -1,27 +1,17 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  LinearProgress,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, type DocumentVersion, type WorkflowAction, type WorkflowInstance, type WorkflowTask } from '../../lib/api';
 import { formatDateTime } from '../../lib/dates';
 import { describeError } from '../../strings';
 import { useEntityLabel } from '../metadata/EntityPicker';
+import { Alert, Button, Card, Chip, Dialog, ProgressBar, TextField, cx, type ChipColor } from '../ui';
 import { TaskActionDialog } from './TaskActionDialog';
 import { actionLabels, statusColors, statusLabels, w } from './workflowStrings';
+
+/** Maps a run status onto the primitive's chip palette. */
+function runChipColor(color: (typeof statusColors)[WorkflowInstance['status']]): ChipColor {
+  return color === 'info' ? 'primary' : color;
+}
 
 /**
  * The workflow of one document: every run with its tasks, the buttons for tasks the viewer may
@@ -76,66 +66,59 @@ export function WorkflowPanel({
     }
   };
 
-  if (runs.isPending) return <LinearProgress />;
+  if (runs.isPending) return <Card><ProgressBar /></Card>;
   if (runs.isError) return null; // No VIEW means no panel; the document page already said why.
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={2}>
-        <Stack direction="row" sx={{ alignItems: 'center' }}>
-          <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
-            {w.workflow}
-          </Typography>
+    <Card>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="grow text-base font-semibold text-slate-800">{w.workflow}</h2>
           {startable && (
-            <Button variant="contained" onClick={start} disabled={busy}>
+            <Button onClick={start} loading={busy} disabled={busy}>
               {w.start}
             </Button>
           )}
-        </Stack>
+        </div>
 
         {error && <Alert severity="error">{error}</Alert>}
-        {runs.data.length === 0 && <Typography color="text.secondary">{w.noWorkflow}</Typography>}
+        {runs.data.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{w.noWorkflow}</p>}
 
         {runs.data.map((run, index) => (
-          <Box key={run.id}>
-            {index > 0 && <Divider sx={{ mb: 2 }} />}
-            <Stack spacing={1}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-                <Chip size="small" color={statusColors[run.status]} label={statusLabels[run.status]} />
-                <Typography variant="body2" dir="ltr">
-                  {run.versionLabel}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDateTime(run.startedAt)}
-                </Typography>
-                <Box sx={{ flexGrow: 1 }} />
-                {run.canCancel && (
-                  <Button size="small" color="error" onClick={() => setCancelling(run)}>
-                    {w.cancel}
-                  </Button>
-                )}
-              </Stack>
-
-              {run.attentionReason && <Alert severity="warning">{w.attention}: {run.attentionReason}</Alert>}
-              {run.cancelReason && (
-                <Typography variant="body2" color="text.secondary">
-                  {run.cancelReason}
-                </Typography>
+          <div key={run.id} className={cx('space-y-2', index > 0 && 'border-t border-slate-100 pt-4')}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip size="small" color={runChipColor(statusColors[run.status])} label={statusLabels[run.status]} />
+              <span className="text-sm" dir="ltr">
+                {run.versionLabel}
+              </span>
+              <span className="text-xs text-slate-500">{formatDateTime(run.startedAt)}</span>
+              <div className="flex-1" />
+              {run.canCancel && (
+                <Button variant="danger" size="sm" onClick={() => setCancelling(run)}>
+                  {w.cancel}
+                </Button>
               )}
+            </div>
 
-              {run.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} onAct={(action) => setActing({ task, action })} />
-              ))}
+            {run.attentionReason && (
+              <Alert severity="warning">
+                {w.attention}: {run.attentionReason}
+              </Alert>
+            )}
+            {run.cancelReason && <p className="text-sm text-slate-500">{run.cancelReason}</p>}
 
-              {run.skippedSteps.length > 0 && (
-                <Typography variant="caption" color="text.secondary">
-                  {w.skipped}: {run.skippedSteps.join('، ')}
-                </Typography>
-              )}
-            </Stack>
-          </Box>
+            {run.tasks.map((task) => (
+              <TaskRow key={task.id} task={task} onAct={(action) => setActing({ task, action })} />
+            ))}
+
+            {run.skippedSteps.length > 0 && (
+              <p className="text-xs text-slate-500">
+                {w.skipped}: {run.skippedSteps.join('، ')}
+              </p>
+            )}
+          </div>
         ))}
-      </Stack>
+      </div>
 
       {acting && (
         <TaskActionDialog
@@ -159,22 +142,16 @@ export function WorkflowPanel({
           }}
         />
       )}
-    </Paper>
+    </Card>
   );
 }
 
 export function TaskRow({ task, onAct }: { task: WorkflowTask; onAct: (action: WorkflowAction) => void }) {
   return (
-    <Stack
-      direction={{ xs: 'column', sm: 'row' }}
-      spacing={1}
-      sx={{ alignItems: { sm: 'center' }, py: 0.5, paddingInlineStart: 1, borderInlineStart: 3, borderColor: 'divider' }}
-    >
-      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {task.stepName}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" component="div">
+    <div className="flex flex-col gap-2 rounded-lg border-s-[3px] border-slate-200 py-1.5 ps-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-3">
+      <div className="min-w-0 grow">
+        <p className="text-sm font-semibold text-slate-700">{task.stepName}</p>
+        <p className="text-xs text-slate-500">
           <Assignee task={task} />
           {task.status === 'Completed' && task.action && <> — {actionLabels[task.action]}</>}
           {task.status === 'Cancelled' && <> — لغوشده</>}
@@ -185,30 +162,25 @@ export function TaskRow({ task, onAct }: { task: WorkflowTask; onAct: (action: W
               {w.due}: {formatDateTime(task.dueAt)}
             </>
           )}
-        </Typography>
-        {task.comment && (
-          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-            «{task.comment}»
-          </Typography>
-        )}
-      </Box>
+        </p>
+        {task.comment && <p className="mt-1 text-sm whitespace-pre-wrap text-slate-700">«{task.comment}»</p>}
+      </div>
       {task.isOverdue && <Chip size="small" color="error" label={w.overdue} />}
       {task.canAct && (
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+        <div className="flex flex-wrap gap-2">
           {task.allowedActions.map((action) => (
             <Button
               key={action}
-              size="small"
-              variant={action === 'Approve' ? 'contained' : 'outlined'}
-              color={action === 'Reject' ? 'error' : 'primary'}
+              size="sm"
+              variant={action === 'Approve' ? 'primary' : action === 'Reject' ? 'danger' : 'outline'}
               onClick={() => onAct(action)}
             >
               {actionLabels[action]}
             </Button>
           ))}
-        </Stack>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }
 
@@ -238,22 +210,28 @@ function CancelDialog({ instance, onClose, onDone }: { instance: WorkflowInstanc
   };
 
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{w.cancel}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField label={w.cancelReason} value={reason} onChange={(event) => setReason(event.target.value)} required fullWidth />
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
-          {w.close}
-        </Button>
-        <Button color="error" variant="contained" onClick={submit} disabled={busy || !reason.trim()}>
-          {w.cancel}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      title={w.cancel}
+      maxWidth="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {w.close}
+          </Button>
+          <Button variant="danger" loading={busy} onClick={submit} disabled={busy || !reason.trim()}>
+            {w.cancel}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <TextField label={w.cancelReason} value={reason} onChange={(event) => setReason(event.target.value)} required />
+        {error && <Alert severity="error">{error}</Alert>}
+      </div>
     </Dialog>
   );
 }

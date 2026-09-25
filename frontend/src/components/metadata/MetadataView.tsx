@@ -1,9 +1,10 @@
-import { Box, Chip, Link, Stack, Typography } from '@mui/material';
+import type { ReactNode } from 'react';
 import { Link as RouterLink } from 'react-router';
 import type { DocumentTypeSchema, FieldSchema, Metadata } from '../../lib/api';
 import { formatDate, formatDateTime } from '../../lib/dates';
 import { formatNumber } from '../../lib/format';
 import { orderedFields } from '../../lib/metadata';
+import { Chip } from '../ui';
 import { useEntityLabel } from './EntityPicker';
 
 /**
@@ -20,16 +21,7 @@ export function MetadataView({ schema, metadata }: { schema: DocumentTypeSchema 
   const unknown = Object.keys(metadata).filter((code) => !known.some((field) => field.code === code));
 
   return (
-    <Box
-      component="dl"
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'minmax(120px, max-content) 1fr' },
-        columnGap: 2,
-        rowGap: { xs: 0.25, sm: 1 },
-        m: 0,
-      }}
-    >
+    <dl className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-[minmax(7.5rem,max-content)_minmax(0,1fr)] sm:gap-y-2.5">
       {known.map((field) => (
         <Row key={field.code} label={field.label.fa}>
           <Value field={field} value={metadata[field.code]} />
@@ -37,22 +29,18 @@ export function MetadataView({ schema, metadata }: { schema: DocumentTypeSchema 
       ))}
       {unknown.map((code) => (
         <Row key={code} label={code}>
-          <Typography variant="body2">{String(metadata[code])}</Typography>
+          {String(metadata[code])}
         </Row>
       ))}
-    </Box>
+    </dl>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <Typography component="dt" variant="body2" color="text.secondary" sx={{ pt: { xs: 1, sm: 0 } }}>
-        {label}
-      </Typography>
-      <Box component="dd" sx={{ m: 0, overflowWrap: 'anywhere' }}>
-        {children}
-      </Box>
+      <dt className="pt-1.5 text-sm text-slate-500 sm:pt-0">{label}</dt>
+      <dd className="m-0 min-w-0 text-sm text-slate-800 [overflow-wrap:anywhere]">{children}</dd>
     </>
   );
 }
@@ -63,50 +51,50 @@ function Value({ field, value }: { field: FieldSchema; value: unknown }) {
 
   switch (field.type) {
     case 'Boolean':
-      return <Typography variant="body2">{value ? 'بله' : 'خیر'}</Typography>;
+      return <>{value ? 'بله' : 'خیر'}</>;
     case 'Date':
-      return <Typography variant="body2">{formatDate(String(value))}</Typography>;
+      return <>{formatDate(String(value))}</>;
     case 'DateTime':
-      return <Typography variant="body2">{formatDateTime(String(value))}</Typography>;
+      return <>{formatDateTime(String(value))}</>;
     case 'Integer':
     case 'Decimal': {
       // Decimals arrive as strings; formatting only groups digits, it never rounds.
       const text = String(value);
-      return <Typography variant="body2">{/^-?\d+(\.\d+)?$/.test(text) ? groupDigits(text) : text}</Typography>;
+      return <>{/^-?\d+(\.\d+)?$/.test(text) ? groupDigits(text) : text}</>;
     }
     case 'Select':
-      return <Typography variant="body2">{optionLabel(value)}</Typography>;
+      return <>{optionLabel(value)}</>;
     case 'MultiSelect':
       return (
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+        <span className="flex flex-wrap gap-1.5">
           {(Array.isArray(value) ? value : []).map((item) => (
             <Chip key={String(item)} size="small" label={optionLabel(item)} />
           ))}
-        </Stack>
+        </span>
       );
     case 'User':
     case 'Group':
       return <EntityName kind={field.type} id={String(value)} />;
     case 'DocumentReference':
       return (
-        <Link component={RouterLink} to={`/documents/${String(value)}`}>
+        <RouterLink to={`/documents/${String(value)}`} className="text-brand-700 hover:underline">
           <EntityName kind="DocumentReference" id={String(value)} />
-        </Link>
+        </RouterLink>
       );
     case 'Url':
       return (
-        <Link href={String(value)} target="_blank" rel="noopener noreferrer" dir="ltr">
+        <a href={String(value)} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-brand-700 hover:underline">
           {String(value)}
-        </Link>
+        </a>
       );
     default:
-      return <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{String(value)}</Typography>;
+      return <span className="whitespace-pre-wrap">{String(value)}</span>;
   }
 }
 
 function EntityName({ kind, id }: { kind: 'User' | 'Group' | 'DocumentReference'; id: string }) {
   const label = useEntityLabel(kind, id);
-  return <Typography variant="body2" component="span">{label.data ?? '…'}</Typography>;
+  return <span>{label.data ?? '…'}</span>;
 }
 
 /** "12500.75" to "۱۲٬۵۰۰٫۷۵" without ever converting to a float. */

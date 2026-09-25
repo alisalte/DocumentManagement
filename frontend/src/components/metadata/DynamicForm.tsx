@@ -1,17 +1,8 @@
-import {
-  Autocomplete,
-  Chip,
-  FormControlLabel,
-  FormHelperText,
-  MenuItem,
-  Stack,
-  Switch,
-  TextField,
-} from '@mui/material';
 import { useEffect, useMemo, useState } from 'react';
 import type { DocumentTypeSchema, FieldSchema, Metadata } from '../../lib/api';
 import { formatDate, parseJalaliDate, toJalaliInput } from '../../lib/dates';
 import { evaluateForm, orderedFields } from '../../lib/metadata';
+import { Checkbox, Select, Switch, TextArea, TextField, cx } from '../ui';
 import { EntityPicker } from './EntityPicker';
 
 interface Props {
@@ -34,7 +25,7 @@ export function DynamicForm({ schema, value, onChange, errors = {}, disabled }: 
   const set = (code: string, next: unknown) => onChange({ ...value, [code]: next });
 
   return (
-    <Stack spacing={2}>
+    <div className="space-y-4">
       {fields.map((field) => (
         <FieldInput
           key={field.code}
@@ -46,7 +37,7 @@ export function DynamicForm({ schema, value, onChange, errors = {}, disabled }: 
           disabled={disabled}
         />
       ))}
-    </Stack>
+    </div>
   );
 }
 
@@ -62,13 +53,13 @@ interface FieldProps {
 function FieldInput({ field, value, onChange, required, error, disabled }: FieldProps) {
   const label = field.label.fa;
   const helperText = error ?? field.helpText?.fa ?? undefined;
-  const common = { label, required, error: !!error, helperText, disabled, fullWidth: true };
+  const common = { label, required, error: !!error, helperText, disabled };
   const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   const activeOptions = field.options.filter((option) => option.isActive);
 
   switch (field.type) {
     case 'LongText':
-      return <TextField {...common} multiline minRows={3} value={text} onChange={(event) => onChange(event.target.value)} />;
+      return <TextArea {...common} rows={3} value={text} onChange={(event) => onChange(event.target.value)} />;
 
     case 'Integer':
     case 'Decimal':
@@ -78,21 +69,25 @@ function FieldInput({ field, value, onChange, required, error, disabled }: Field
         <TextField
           {...common}
           value={text}
+          inputMode={field.type === 'Integer' ? 'numeric' : 'decimal'}
+          dir="ltr"
           onChange={(event) => onChange(event.target.value)}
-          slotProps={{ htmlInput: { inputMode: field.type === 'Integer' ? 'numeric' : 'decimal', dir: 'ltr' } }}
         />
       );
 
     case 'Boolean':
       return (
-        <Stack>
-          <FormControlLabel
-            disabled={disabled}
-            control={<Switch checked={value === true} onChange={(event) => onChange(event.target.checked)} />}
+        <div className="w-full">
+          <Switch
             label={label}
+            checked={value === true}
+            onChange={(event) => onChange(event.target.checked)}
+            disabled={disabled}
           />
-          {helperText && <FormHelperText error={!!error}>{helperText}</FormHelperText>}
-        </Stack>
+          {helperText && (
+            <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>
+          )}
+        </div>
       );
 
     case 'Date':
@@ -105,45 +100,34 @@ function FieldInput({ field, value, onChange, required, error, disabled }: Field
           type="datetime-local"
           value={toLocalInput(typeof value === 'string' ? value : '')}
           onChange={(event) => onChange(event.target.value ? new Date(event.target.value).toISOString() : '')}
-          slotProps={{ inputLabel: { shrink: true } }}
         />
       );
 
     case 'Select':
       return (
-        <TextField {...common} select value={text} onChange={(event) => onChange(event.target.value)}>
-          {!required && <MenuItem value="">—</MenuItem>}
+        <Select {...common} value={text} onChange={(event) => onChange(event.target.value)}>
+          {!required && <option value="">—</option>}
           {activeOptions.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
+            <option key={option.value} value={option.value}>
               {option.label.fa}
-            </MenuItem>
+            </option>
           ))}
-        </TextField>
+        </Select>
       );
 
-    case 'MultiSelect': {
-      const selected = Array.isArray(value) ? (value as string[]) : [];
+    case 'MultiSelect':
       return (
-        <Autocomplete
-          multiple
+        <MultiSelectField
+          label={label}
+          required={required}
+          options={activeOptions}
+          selected={Array.isArray(value) ? (value as string[]) : []}
+          onChange={onChange}
+          helperText={helperText}
+          error={!!error}
           disabled={disabled}
-          options={activeOptions.map((option) => option.value)}
-          getOptionLabel={(option) => field.options.find((candidate) => candidate.value === option)?.label.fa ?? option}
-          value={selected}
-          onChange={(_, next) => onChange(next)}
-          renderValue={(items, getItemProps) =>
-            items.map((item, index) => {
-              const { key, ...itemProps } = getItemProps({ index });
-              const option = field.options.find((candidate) => candidate.value === item);
-              return <Chip key={key} size="small" label={option?.label.fa ?? item} {...itemProps} />;
-            })
-          }
-          renderInput={(params) => (
-            <TextField {...params} label={label} required={required} error={!!error} helperText={helperText} />
-          )}
         />
       );
-    }
 
     case 'User':
     case 'Group':
@@ -169,8 +153,8 @@ function FieldInput({ field, value, onChange, required, error, disabled }: Field
           {...common}
           type={field.type === 'Email' ? 'email' : field.type === 'Url' ? 'url' : 'tel'}
           value={text}
+          dir="ltr"
           onChange={(event) => onChange(event.target.value)}
-          slotProps={{ htmlInput: { dir: 'ltr' } }}
         />
       );
 
@@ -179,11 +163,61 @@ function FieldInput({ field, value, onChange, required, error, disabled }: Field
         <TextField
           {...common}
           value={text}
+          maxLength={field.validation.maxLength ?? 1000}
           onChange={(event) => onChange(event.target.value)}
-          slotProps={{ htmlInput: { maxLength: field.validation.maxLength ?? 1000 } }}
         />
       );
   }
+}
+
+/** The option list is fixed by the schema, so every choice is visible as a checkbox. */
+function MultiSelectField({
+  label,
+  required,
+  options,
+  selected,
+  onChange,
+  helperText,
+  error,
+  disabled,
+}: {
+  label: string;
+  required: boolean;
+  options: FieldSchema['options'];
+  selected: string[];
+  onChange: (value: unknown) => void;
+  helperText?: string;
+  error: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="w-full">
+      <label className="mb-1.5 block text-sm font-medium text-slate-700">
+        {label}
+        {required && <span className="text-rose-500"> *</span>}
+      </label>
+      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 shadow-sm">
+        {options.map((option) => (
+          <Checkbox
+            key={option.value}
+            label={option.label.fa ?? option.value}
+            checked={selected.includes(option.value)}
+            disabled={disabled}
+            onChange={(event) =>
+              onChange(
+                event.target.checked
+                  ? [...selected, option.value]
+                  : selected.filter((item) => item !== option.value),
+              )
+            }
+          />
+        ))}
+      </div>
+      {helperText && (
+        <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -203,7 +237,6 @@ function JalaliDateField({
   error: boolean;
   helperText?: string;
   disabled?: boolean;
-  fullWidth: boolean;
 }) {
   const [text, setText] = useState(() => toJalaliInput(value) || value);
 
@@ -225,7 +258,8 @@ function JalaliDateField({
         onChange(parseJalaliDate(event.target.value) ?? event.target.value);
       }}
       helperText={helperText ?? (iso ? formatDate(iso) : undefined)}
-      slotProps={{ htmlInput: { dir: 'ltr', inputMode: 'numeric' } }}
+      inputMode="numeric"
+      dir="ltr"
     />
   );
 }

@@ -1,19 +1,4 @@
-import {
-  Alert,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  List,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Chip, Dialog, TextField } from '../../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -27,37 +12,40 @@ export function DocumentTypesPage() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 900 }}>
-      <Stack direction="row" sx={{ alignItems: 'center' }}>
-        <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }}>
-          {a.documentTypes}
-        </Typography>
-        <Button variant="contained" onClick={() => setCreating(true)}>
-          {a.newType}
-        </Button>
-      </Stack>
+    <div className="max-w-4xl space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">{a.documentTypes}</h1>
+        <Button onClick={() => setCreating(true)}>{a.newType}</Button>
+      </div>
 
       {types.isError && <Alert severity="error">{describeError(types.error)}</Alert>}
 
-      <Paper variant="outlined">
-        <List disablePadding>
+      <Card flush>
+        <div className="divide-y divide-slate-100">
           {(types.data ?? []).map((type) => (
-            <ListItemButton key={type.id} onClick={() => navigate(`/admin/document-types/${type.id}`)} divider>
-              <ListItemText
-                primary={type.name}
-                secondary={<span dir="ltr">{type.code}</span>}
-              />
-              <Stack direction="row" spacing={0.5}>
+            <button
+              key={type.id}
+              type="button"
+              onClick={() => navigate(`/admin/document-types/${type.id}`)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-slate-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-slate-800">{type.name}</span>
+                <span dir="ltr" className="block truncate text-start text-xs text-slate-500">
+                  {type.code}
+                </span>
+              </span>
+              <span className="flex shrink-0 gap-1.5">
                 {!type.latestPublishedVersionId && <Chip size="small" color="warning" label={a.unpublished} />}
                 {!type.isActive && <Chip size="small" label={a.inactive} />}
-              </Stack>
-            </ListItemButton>
+              </span>
+            </button>
           ))}
-        </List>
-      </Paper>
+        </div>
+      </Card>
 
       {creating && <CreateTypeDialog onClose={() => setCreating(false)} onCreated={(id) => navigate(`/admin/document-types/${id}`)} />}
-    </Stack>
+    </div>
   );
 }
 
@@ -82,29 +70,35 @@ function CreateTypeDialog({ onClose, onCreated }: { onClose: () => void; onCreat
   };
 
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{a.newType}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField label={a.name} value={name} onChange={(event) => setName(event.target.value)} required fullWidth />
-          <TextField
-            label={a.code}
-            value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase())}
-            helperText={a.codeHelp}
-            required
-            fullWidth
-            slotProps={{ htmlInput: { dir: 'ltr', maxLength: 64 } }}
-          />
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>{a.cancel}</Button>
-        <Button variant="contained" onClick={create} disabled={busy || !code.trim() || !name.trim()}>
-          {a.create}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open
+      onClose={busy ? () => {} : onClose}
+      title={a.newType}
+      maxWidth="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {a.cancel}
+          </Button>
+          <Button onClick={create} disabled={busy || !code.trim() || !name.trim()}>
+            {a.create}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <TextField label={a.name} value={name} onChange={(event) => setName(event.target.value)} required />
+        <TextField
+          label={a.code}
+          value={code}
+          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          helperText={a.codeHelp}
+          required
+          dir="ltr"
+          maxLength={64}
+        />
+        {error && <Alert severity="error">{error}</Alert>}
+      </div>
     </Dialog>
   );
 }

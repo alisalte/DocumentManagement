@@ -1,16 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  LinearProgress,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Chip, ProgressBar, Select, TextField } from '../../components/ui';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link as RouterLink } from 'react-router';
@@ -117,89 +105,101 @@ export function AuditPage() {
   const rows = entries.data?.pages.flat() ?? [];
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h5" component="h1">
-        {a.title}
-      </Typography>
+    <div className="space-y-4 sm:space-y-5">
+      <h1 className="text-xl font-bold text-slate-800">{a.title}</h1>
 
       <SealPanel />
 
-      <Paper variant="outlined" component="form" onSubmit={apply} sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2,
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' },
-          }}
-        >
-          <TextField label={a.from} value={fromText} onChange={(event) => setFromText(event.target.value)} placeholder="1403/07/01" slotProps={{ htmlInput: { dir: 'ltr' } }} />
-          <TextField label={a.to} value={toText} onChange={(event) => setToText(event.target.value)} placeholder="1403/07/30" slotProps={{ htmlInput: { dir: 'ltr' } }} />
-          <TextField select label={a.action} value={action} onChange={(event) => setAction(event.target.value)}>
-            <MenuItem value="">{a.any}</MenuItem>
-            {(actions.data ?? []).map((code) => (
-              <MenuItem key={code} value={code} dir="ltr">
-                {code}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select label={a.outcome} value={outcome} onChange={(event) => setOutcome(event.target.value)}>
-            <MenuItem value="">{a.any}</MenuItem>
-            {Object.entries(a.outcomes).map(([code, label]) => (
-              <MenuItem key={code} value={code}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select label={a.actorType} value={actorType} onChange={(event) => setActorType(event.target.value)}>
-            <MenuItem value="">{a.any}</MenuItem>
-            {Object.entries(a.actorTypes).map(([code, label]) => (
-              <MenuItem key={code} value={code}>
-                {label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <EntityPicker kind="User" label={a.user} value={userId} onChange={setUserId} />
-          <TextField label={a.documentId} value={documentId} onChange={(event) => setDocumentId(event.target.value)} slotProps={{ htmlInput: { dir: 'ltr' } }} />
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Button type="submit" variant="contained">
-              {a.apply}
-            </Button>
-            {canExport && (
-              <>
-                <Button disabled={busy} onClick={() => exportAs('csv')}>
-                  CSV
-                </Button>
-                <Button disabled={busy} onClick={() => exportAs('jsonl')}>
-                  JSONL
-                </Button>
-              </>
-            )}
-          </Stack>
-        </Box>
-        {formError && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {formError}
-          </Alert>
-        )}
-      </Paper>
+      <Card>
+        <form onSubmit={apply} className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <TextField
+              className="sm:w-48"
+              label={a.from}
+              value={fromText}
+              onChange={(event) => setFromText(event.target.value)}
+              placeholder="1403/07/01"
+              dir="ltr"
+            />
+            <TextField
+              className="sm:w-48"
+              label={a.to}
+              value={toText}
+              onChange={(event) => setToText(event.target.value)}
+              placeholder="1403/07/30"
+              dir="ltr"
+            />
+            <Select className="sm:w-56" label={a.action} value={action} onChange={(event) => setAction(event.target.value)}>
+              <option value="">{a.any}</option>
+              {(actions.data ?? []).map((code) => (
+                <option key={code} value={code} dir="ltr">
+                  {code}
+                </option>
+              ))}
+            </Select>
+            <Select className="sm:w-48" label={a.outcome} value={outcome} onChange={(event) => setOutcome(event.target.value)}>
+              <option value="">{a.any}</option>
+              {Object.entries(a.outcomes).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+            <Select className="sm:w-56" label={a.actorType} value={actorType} onChange={(event) => setActorType(event.target.value)}>
+              <option value="">{a.any}</option>
+              {Object.entries(a.actorTypes).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+            <div className="w-full sm:w-64 [&>*]:w-full">
+              <EntityPicker kind="User" label={a.user} value={userId} onChange={setUserId} />
+            </div>
+            <TextField
+              className="sm:w-56"
+              label={a.documentId}
+              value={documentId}
+              onChange={(event) => setDocumentId(event.target.value)}
+              dir="ltr"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit">{a.apply}</Button>
+              {canExport && (
+                <>
+                  <Button variant="ghost" disabled={busy} onClick={() => exportAs('csv')}>
+                    CSV
+                  </Button>
+                  <Button variant="ghost" disabled={busy} onClick={() => exportAs('jsonl')}>
+                    JSONL
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          {formError && <Alert severity="error">{formError}</Alert>}
+        </form>
+      </Card>
 
       {message && <Alert severity={message.severity}>{message.text}</Alert>}
-      {entries.isPending && <LinearProgress />}
+      {entries.isPending && <ProgressBar className="rounded-full" />}
       {entries.isError && <Alert severity="error">{describeError(entries.error)}</Alert>}
-      {entries.isSuccess && rows.length === 0 && <Typography color="text.secondary">{a.empty}</Typography>}
+      {entries.isSuccess && rows.length === 0 && (
+        <p className="py-10 text-center text-sm text-slate-500">{a.empty}</p>
+      )}
 
-      <Stack spacing={1}>
+      <div className="space-y-2">
         {rows.map((entry) => (
           <EntryRow key={entry.id} entry={entry} />
         ))}
-      </Stack>
+      </div>
 
       {entries.hasNextPage && (
-        <Button onClick={() => entries.fetchNextPage()} disabled={entries.isFetchingNextPage}>
+        <Button variant="ghost" onClick={() => entries.fetchNextPage()} disabled={entries.isFetchingNextPage}>
           {a.more}
         </Button>
       )}
-    </Stack>
+    </div>
   );
 }
 
@@ -215,46 +215,41 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
         : a.actorTypes[entry.actorType] ?? entry.actorType;
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5 }}>
-      <Box
+    <Card>
+      <div
         role="button"
         tabIndex={0}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setOpen(!open)}
-        sx={{
-          cursor: 'pointer',
-          display: 'grid',
-          gap: 1,
-          alignItems: 'center',
-          gridTemplateColumns: { xs: '1fr auto', md: '11rem 1fr 7rem 12rem 10rem' },
-        }}
+        className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 md:grid-cols-[11rem_1fr_7rem_12rem_10rem]"
       >
-        <Typography variant="body2" color="text.secondary">
-          {formatDateTime(entry.occurredAt)}
-        </Typography>
-        <Typography variant="body2" dir="ltr" sx={{ fontFamily: 'monospace', textAlign: 'start', gridRow: { xs: 2, md: 'auto' } }}>
+        <span className="min-w-0 text-sm text-slate-500">{formatDateTime(entry.occurredAt)}</span>
+        <span dir="ltr" className="col-start-1 row-start-2 min-w-0 font-mono text-sm break-all text-slate-700 md:col-auto md:row-auto">
           {entry.action}
-        </Typography>
-        <Box>
-          <Chip size="small" color={outcomeColors[entry.outcome] ?? 'default'} label={a.outcomes[entry.outcome] ?? entry.outcome} />
-        </Box>
-        <Typography variant="body2" noWrap>
-          {actor}
-        </Typography>
-        <Typography variant="body2" dir="ltr" color="text.secondary" noWrap sx={{ display: { xs: 'none', md: 'block' } }}>
+        </span>
+        <span className="col-start-2 row-start-1 md:col-auto md:row-auto">
+          <Chip
+            size="small"
+            color={outcomeColors[entry.outcome] ?? 'default'}
+            label={a.outcomes[entry.outcome] ?? entry.outcome}
+          />
+        </span>
+        <span className="col-start-2 row-start-2 min-w-0 truncate text-sm text-slate-800 md:col-auto md:row-auto">{actor}</span>
+        <span dir="ltr" className="hidden min-w-0 truncate font-mono text-sm text-slate-500 md:block">
           {entry.ipAddress ?? ''}
-        </Typography>
-      </Box>
-      <Collapse in={open} unmountOnExit>
-        <Stack spacing={0.5} sx={{ mt: 1.5 }}>
+        </span>
+      </div>
+
+      {open && (
+        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
           {entry.documentId && (
-            <Typography variant="body2">
+            <p className="text-sm text-slate-700">
               {a.document}:{' '}
-              <RouterLink to={`/documents/${entry.documentId}`} dir="ltr">
+              <RouterLink to={`/documents/${entry.documentId}`} dir="ltr" className="font-mono text-brand-700 hover:underline">
                 {entry.documentId}
               </RouterLink>
-            </Typography>
+            </p>
           )}
           <Detail label={a.entity} value={entry.entityType ? `${entry.entityType} ${entry.entityId ?? ''}` : null} />
           <Detail label={a.version} value={entry.versionId} />
@@ -262,28 +257,27 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
           <Detail label={a.ip} value={entry.ipAddress} />
           <Detail label={a.userAgent} value={entry.userAgent} />
           <Detail label={a.correlation} value={entry.correlationId} />
-          <Box
-            component="pre"
+          <pre
             dir="ltr"
-            sx={{ m: 0, p: 1, bgcolor: 'grey.100', borderRadius: 1, fontSize: 12, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            className="m-0 overflow-x-auto rounded-lg bg-slate-100 p-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words"
           >
             {pretty(entry.metadata)}
-          </Box>
-        </Stack>
-      </Collapse>
-    </Paper>
+          </pre>
+        </div>
+      )}
+    </Card>
   );
 }
 
 function Detail({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <Typography variant="body2">
+    <p className="text-sm text-slate-700">
       {label}:{' '}
-      <Box component="span" dir="ltr" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+      <span dir="ltr" className="font-mono break-all text-slate-600">
         {value}
-      </Box>
-    </Typography>
+      </span>
+    </p>
   );
 }
 
@@ -320,21 +314,23 @@ function SealPanel() {
 
   const data = status.data;
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={1.5}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}>
-          <Typography variant="subtitle1" component="h2" sx={{ flexGrow: 1 }}>
-            {a.seals}
-          </Typography>
-          <Button variant="outlined" onClick={verify} disabled={busy}>
+    <Card>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-slate-800">{a.seals}</h2>
+          <Button variant="outline" onClick={verify} disabled={busy}>
             {busy ? a.verifying : a.verify(verifyDays)}
           </Button>
-        </Stack>
+        </div>
         {status.isError && <Alert severity="error">{describeError(status.error)}</Alert>}
         {data && (
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+          <div className="flex flex-wrap gap-2">
             <Chip size="small" color={data.keyed ? 'success' : 'warning'} label={data.keyed ? a.keyed : a.unkeyed} />
-            <Chip size="small" variant="outlined" label={data.sealedUntil ? `${a.sealedUntil} ${formatDateTime(data.sealedUntil)}` : a.nothingSealed} />
+            <Chip
+              size="small"
+              variant="outlined"
+              label={data.sealedUntil ? `${a.sealedUntil} ${formatDateTime(data.sealedUntil)}` : a.nothingSealed}
+            />
             <Chip size="small" variant="outlined" label={`${a.sealCount}: ${data.sealCount.toLocaleString('fa-IR')}`} />
             {data.lastVerifiedAt && (
               <Chip
@@ -343,7 +339,7 @@ function SealPanel() {
                 label={`${data.lastVerificationIntact ? a.lastIntact : a.lastBroken} (${formatDateTime(data.lastVerifiedAt)})`}
               />
             )}
-          </Stack>
+          </div>
         )}
         {data && !data.keyed && <Alert severity="warning">{a.unkeyedHelp}</Alert>}
         {error && <Alert severity="error">{error}</Alert>}
@@ -353,21 +349,21 @@ function SealPanel() {
               ? a.intact(result.sealsChecked, result.rowsChecked)
               : a.broken(result.problems.length)}
             {!result.intact && (
-              <Box component="ul" sx={{ m: 0, mt: 1, pl: 2 }}>
+              <ul className="mt-2 list-disc space-y-1 ps-4">
                 {result.problems.slice(0, 20).map((problem, index) => (
                   <li key={index}>
                     {a.problemKinds[problem.kind] ?? problem.kind} — {formatDateTime(problem.periodStart)} …{' '}
                     {formatDateTime(problem.periodEnd)}{' '}
-                    <Box component="span" dir="ltr" sx={{ color: 'text.secondary' }}>
+                    <span dir="ltr" className="text-slate-500">
                       ({problem.detail})
-                    </Box>
+                    </span>
                   </li>
                 ))}
-              </Box>
+              </ul>
             )}
           </Alert>
         )}
-      </Stack>
-    </Paper>
+      </div>
+    </Card>
   );
 }

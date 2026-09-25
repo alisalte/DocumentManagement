@@ -1,16 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  FormControlLabel,
-  LinearProgress,
-  Pagination,
-  Paper,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Pagination, ProgressBar, Switch, TextField } from '../components/ui';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
@@ -56,75 +44,71 @@ export function BrowsePage() {
   const pages = documents.data ? Math.max(1, Math.ceil(documents.data.total / pageSize)) : 1;
 
   return (
-    <Stack spacing={2}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-        <Typography variant="h5" component="h1" sx={{ flexGrow: 1 }}>
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">
           {heading}
           {documents.data && (
-            <Typography component="span" color="text.secondary" sx={{ marginInlineStart: 1 }}>
-              ({formatNumber(documents.data.total)})
-            </Typography>
+            <span className="ms-2 text-sm font-normal text-slate-400">({formatNumber(documents.data.total)})</span>
           )}
-        </Typography>
+        </h1>
         {category?.canCreate && (
-          <Button variant="contained" component={RouterLink} to={`/new?category=${category.id}`}>
+          <Button as={RouterLink} to={`/new?category=${category.id}`}>
             {t.newDocument}
           </Button>
         )}
-      </Stack>
+      </div>
 
-      <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ alignItems: { sm: 'center' } }}>
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <TextField
             label={t.search}
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
-            size="small"
-            fullWidth
+            size="sm"
             type="search"
+            className="flex-1"
           />
           {categoryId && (
-            <FormControlLabel
-              sx={{ flexShrink: 0 }}
-              control={
-                <Switch
-                  checked={includeSubcategories}
-                  onChange={(event) => setIncludeSubcategories(event.target.checked)}
-                />
-              }
-              label={t.includeSubcategories}
-            />
+            <div className="shrink-0">
+              <Switch
+                label={t.includeSubcategories}
+                checked={includeSubcategories}
+                onChange={(event) => setIncludeSubcategories(event.target.checked)}
+              />
+            </div>
           )}
-        </Stack>
-      </Paper>
+        </div>
+      </Card>
 
-      <Paper variant="outlined">
-        {documents.isFetching && <LinearProgress />}
+      <Card flush>
+        {documents.isFetching && <ProgressBar />}
         {documents.isError ? (
-          <Alert severity="error" action={<Button onClick={() => documents.refetch()}>{t.retry}</Button>}>
-            {describeError(documents.error)}
-          </Alert>
+          <div className="p-3 sm:p-4">
+            <Alert severity="error" action={<Button size="sm" onClick={() => documents.refetch()}>{t.retry}</Button>}>
+              {describeError(documents.error)}
+            </Alert>
+          </div>
         ) : (
-          <Box sx={{ p: { xs: 1, sm: 0 } }}>
+          <div className="p-2 sm:p-0">
             {documents.data && (
               <DocumentList items={documents.data.items} onOpen={(item) => navigate(`/documents/${item.id}`)} />
             )}
-          </Box>
+          </div>
         )}
-      </Paper>
+      </Card>
 
       {pages > 1 && (
         <Pagination
-          sx={{ alignSelf: 'center' }}
           count={pages}
           page={page}
-          onChange={(_, value) => {
+          onChange={(value) => {
             const next = new URLSearchParams(params);
             next.set('page', String(value));
             setParams(next);
           }}
         />
       )}
-    </Stack>
+    </div>
   );
 }

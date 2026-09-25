@@ -1,8 +1,8 @@
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { api, ApiError, type WorkflowAction, type WorkflowTask } from '../../lib/api';
 import { describeError } from '../../strings';
 import { EntityPicker } from '../metadata/EntityPicker';
+import { Alert, Button, Dialog, TextArea } from '../ui';
 import { actionLabels, w } from './workflowStrings';
 
 const needsComment: WorkflowAction[] = ['Reject', 'RequestChanges'];
@@ -52,49 +52,51 @@ export function TaskActionDialog({
   };
 
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>
-        {actionLabels[action]} — {task.documentTitle}
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span>
-          </Typography>
-          {action === 'Forward' && (
-            <EntityPicker kind="User" label={w.forwardTo} value={forwardTo} onChange={setForwardTo} required disabled={busy} />
-          )}
-          <TextField
-            label={w.comment}
-            value={comment}
-            onChange={(event) => {
-              setComment(event.target.value);
-              setCommentError(null);
-            }}
-            required={needsComment.includes(action)}
-            error={!!commentError}
-            helperText={commentError ?? undefined}
-            multiline
-            minRows={3}
-            fullWidth
-            disabled={busy}
-          />
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
-          {w.close}
-        </Button>
-        <Button
-          variant="contained"
-          color={action === 'Reject' ? 'error' : 'primary'}
-          onClick={submit}
-          disabled={busy || (action === 'Forward' && !forwardTo)}
-        >
-          {actionLabels[action]}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      title={`${actionLabels[action]} — ${task.documentTitle}`}
+      maxWidth="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {w.close}
+          </Button>
+          <Button
+            variant={action === 'Reject' ? 'danger' : 'primary'}
+            loading={busy}
+            onClick={submit}
+            disabled={busy || (action === 'Forward' && !forwardTo)}
+          >
+            {actionLabels[action]}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">
+          {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span>
+        </p>
+        {action === 'Forward' && (
+          <EntityPicker kind="User" label={w.forwardTo} value={forwardTo} onChange={setForwardTo} required disabled={busy} />
+        )}
+        <TextArea
+          label={w.comment}
+          value={comment}
+          onChange={(event) => {
+            setComment(event.target.value);
+            setCommentError(null);
+          }}
+          required={needsComment.includes(action)}
+          error={!!commentError}
+          helperText={commentError ?? undefined}
+          rows={3}
+          disabled={busy}
+        />
+        {error && <Alert severity="error">{error}</Alert>}
+      </div>
     </Dialog>
   );
 }

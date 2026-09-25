@@ -1,24 +1,18 @@
 import {
   Alert,
-  Box,
   Button,
+  Card,
+  CenteredSpinner,
   Checkbox,
   Chip,
   Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  FormControlLabel,
-  LinearProgress,
-  MenuItem,
-  Paper,
-  Snackbar,
-  Stack,
+  ProgressBar,
+  Select,
   Switch,
+  TextArea,
   TextField,
-  Typography,
-} from '@mui/material';
+  Toast,
+} from '../../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
@@ -59,7 +53,7 @@ export function WorkflowEditorPage() {
   const { id = '' } = useParams();
   const queryClient = useQueryClient();
   const admin = useQuery({ queryKey: ['admin-workflow', id], queryFn: () => api.admin.workflow(id) });
-  const roles = useQuery({ queryKey: ['roles'], queryFn: api.admin.roles });
+  const roles = useQuery({ queryKey: ['roles'], queryFn: () => api.admin.roles() });
 
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -115,7 +109,14 @@ export function WorkflowEditorPage() {
     }
   };
 
-  if (admin.isPending) return <LinearProgress />;
+  if (admin.isPending) {
+    return (
+      <Card flush className="max-w-[1100px] overflow-hidden">
+        <ProgressBar />
+        <CenteredSpinner />
+      </Card>
+    );
+  }
   if (admin.isError) return <Alert severity="error">{describeError(admin.error)}</Alert>;
 
   const { workflow, versions } = admin.data;
@@ -123,28 +124,39 @@ export function WorkflowEditorPage() {
     change(steps.map((step, at) => (at === index ? { ...step, ...patch } : step)));
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1100 }}>
-      <Typography variant="h5" component="h1">
-        {workflow.name} <Typography component="span" color="text.secondary" dir="ltr">({workflow.code})</Typography>
-      </Typography>
+    <div className="max-w-[1100px] space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">
+          {workflow.name}{' '}
+          <span className="text-sm font-medium text-slate-500" dir="ltr">
+            ({workflow.code})
+          </span>
+        </h1>
+        {dirty && <Chip color="warning" label={a.unsaved} />}
+      </div>
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h6" component="h2">{a.steps}</Typography>
-              <Typography variant="body2" color="text.secondary">{a.stepsHelp}</Typography>
-            </Box>
-            {dirty && <Chip size="small" color="warning" label={a.unsaved} />}
-            <Button onClick={save} disabled={busy || !dirty}>{a.saveDraft}</Button>
-            <Button variant="contained" onClick={() => setConfirm(true)} disabled={busy}>{a.publish}</Button>
-          </Stack>
+      <Card flush className="overflow-hidden">
+        {busy && <ProgressBar />}
+        <div className="space-y-5 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-800">{a.steps}</h2>
+              <p className="mt-1 text-sm text-slate-500">{a.stepsHelp}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" onClick={save} disabled={busy || !dirty}>
+                {a.saveDraft}
+              </Button>
+              <Button onClick={() => setConfirm(true)} disabled={busy}>
+                {a.publish}
+              </Button>
+            </div>
+          </div>
 
-          {busy && <LinearProgress />}
           {error && (
             <Alert severity="error">
               {error}
-              <Box component="ul" sx={{ m: 0, mt: 1, paddingInlineStart: 2 }}>
+              <ul className="mt-1 space-y-0.5 list-disc ps-4">
                 {Object.entries(errors).flatMap(([path, messages]) =>
                   messages.map((message) => (
                     <li key={path + message}>
@@ -152,20 +164,29 @@ export function WorkflowEditorPage() {
                     </li>
                   )),
                 )}
-              </Box>
+              </ul>
             </Alert>
           )}
 
           {steps.map((step, index) => (
-            <Paper key={index} variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={2}>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <TextField label={a.stepName} value={step.name} onChange={(event) => update(index, { name: event.target.value })} required fullWidth />
+            <Card key={index}>
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                    {step.name || <span dir="ltr">{step.code}</span>}
+                  </h3>
+                  <Button size="sm" variant="danger" onClick={() => change(steps.filter((_, at) => at !== index))}>
+                    {a.remove}
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField label={a.stepName} value={step.name} onChange={(event) => update(index, { name: event.target.value })} required className="sm:col-span-2" />
                   <TextField
                     label={a.code}
                     value={step.code}
                     onChange={(event) => update(index, { code: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
-                    slotProps={{ htmlInput: { dir: 'ltr' } }}
+                    dir="ltr"
                   />
                   <TextField
                     label={a.sequence}
@@ -173,55 +194,51 @@ export function WorkflowEditorPage() {
                     value={step.sequence}
                     onChange={(event) => update(index, { sequence: Number(event.target.value) || 1 })}
                     helperText={a.sequenceHelp}
-                    sx={{ minWidth: 120 }}
                   />
                   <TextField
                     label={a.slaHours}
                     type="number"
                     value={step.slaHours ?? ''}
                     onChange={(event) => update(index, { slaHours: event.target.value ? Number(event.target.value) : null })}
-                    sx={{ minWidth: 120 }}
                   />
-                </Stack>
+                </div>
 
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <TextField
-                    select
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Select
                     label={a.assignee}
                     value={step.assigneeType}
                     onChange={(event) =>
                       update(index, { assigneeType: event.target.value as AssigneeType, assigneeId: null, assigneeFieldCode: null })
                     }
-                    sx={{ minWidth: 200 }}
                   >
                     {assigneeTypes.map((type) => (
-                      <MenuItem key={type} value={type}>{assigneeTypeLabels[type]}</MenuItem>
+                      <option key={type} value={type}>
+                        {assigneeTypeLabels[type]}
+                      </option>
                     ))}
-                  </TextField>
+                  </Select>
 
                   {(step.assigneeType === 'User' || step.assigneeType === 'Group') && (
-                    <Box sx={{ flexGrow: 1 }}>
-                      <EntityPicker
-                        kind={step.assigneeType}
-                        label={assigneeTypeLabels[step.assigneeType]}
-                        value={step.assigneeId}
-                        onChange={(value) => update(index, { assigneeId: value })}
-                        required
-                      />
-                    </Box>
+                    <EntityPicker
+                      kind={step.assigneeType}
+                      label={assigneeTypeLabels[step.assigneeType]}
+                      value={step.assigneeId}
+                      onChange={(value) => update(index, { assigneeId: value })}
+                      required
+                    />
                   )}
                   {step.assigneeType === 'Role' && (
-                    <TextField
-                      select
+                    <Select
                       label={assigneeTypeLabels.Role}
                       value={step.assigneeId ?? ''}
                       onChange={(event) => update(index, { assigneeId: event.target.value || null })}
-                      fullWidth
                     >
                       {(roles.data ?? []).map((role) => (
-                        <MenuItem key={role.id} value={role.id}>{role.name}</MenuItem>
+                        <option key={role.id} value={role.id}>
+                          {role.name}
+                        </option>
                       ))}
-                    </TextField>
+                    </Select>
                   )}
                   {step.assigneeType === 'DynamicUserField' && (
                     <TextField
@@ -229,34 +246,29 @@ export function WorkflowEditorPage() {
                       value={step.assigneeFieldCode ?? ''}
                       onChange={(event) => update(index, { assigneeFieldCode: event.target.value || null })}
                       helperText={a.assigneeFieldHelp}
-                      fullWidth
-                      slotProps={{ htmlInput: { dir: 'ltr' } }}
+                      dir="ltr"
                     />
                   )}
                   {(step.assigneeType === 'Group' || step.assigneeType === 'Role') && (
-                    <TextField
-                      select
+                    <Select
                       label={a.completionRule}
                       value={step.completionRule}
                       onChange={(event) => update(index, { completionRule: event.target.value as WorkflowStep['completionRule'] })}
-                      sx={{ minWidth: 200 }}
                     >
-                      <MenuItem value="Any">{a.completionAny}</MenuItem>
-                      <MenuItem value="All">{a.completionAll}</MenuItem>
-                    </TextField>
+                      <option value="Any">{a.completionAny}</option>
+                      <option value="All">{a.completionAll}</option>
+                    </Select>
                   )}
-                </Stack>
+                </div>
 
-                <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 2 }}>
-                  <FormControlLabel
-                    control={<Switch checked={step.isRequired} onChange={(event) => update(index, { isRequired: event.target.checked })} />}
-                    label={a.required}
-                  />
-                  <FormControlLabel
-                    control={<Switch checked={step.allowSelfApproval} onChange={(event) => update(index, { allowSelfApproval: event.target.checked })} />}
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  <Switch label={a.required} checked={step.isRequired} onChange={(event) => update(index, { isRequired: event.target.checked })} />
+                  <Switch
                     label={a.allowSelfApproval}
+                    checked={step.allowSelfApproval}
+                    onChange={(event) => update(index, { allowSelfApproval: event.target.checked })}
                   />
-                </Stack>
+                </div>
 
                 <ActionsEditor
                   actions={step.actions}
@@ -265,46 +277,48 @@ export function WorkflowEditorPage() {
                 />
 
                 <ConditionField value={step.condition} onChange={(condition) => update(index, { condition })} />
-
-                <Box>
-                  <Button color="error" size="small" onClick={() => change(steps.filter((_, at) => at !== index))}>
-                    {a.remove}
-                  </Button>
-                </Box>
-              </Stack>
-            </Paper>
+              </div>
+            </Card>
           ))}
 
-          <Box>
-            <Button onClick={() => change([...steps, newStep(steps.length, Math.max(0, ...steps.map((step) => step.sequence)) + 1)])}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" onClick={() => change([...steps, newStep(steps.length, Math.max(0, ...steps.map((step) => step.sequence)) + 1)])}>
               {a.addStep}
             </Button>
-          </Box>
-        </Stack>
-      </Paper>
+          </div>
+        </div>
+      </Card>
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>{a.versions}</Typography>
-        {versions.map((version) => (
-          <Typography key={version.id} variant="body2">
-            <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
-            {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.stepCount} {a.steps}
-          </Typography>
-        ))}
-      </Paper>
+      <Card>
+        <h2 className="text-base font-semibold text-slate-800">{a.versions}</h2>
+        <div className="mt-2 space-y-1">
+          {versions.map((version) => (
+            <p key={version.id} className="text-sm text-slate-600">
+              <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
+              {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.stepCount} {a.steps}
+            </p>
+          ))}
+        </div>
+      </Card>
 
-      <Dialog open={confirm} onClose={() => setConfirm(false)}>
-        <DialogTitle>{a.publish}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{a.publishWorkflowConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirm(false)}>{a.cancel}</Button>
-          <Button variant="contained" onClick={publish}>{a.publish}</Button>
-        </DialogActions>
+      <Dialog
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        title={a.publish}
+        maxWidth="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirm(false)}>
+              {a.cancel}
+            </Button>
+            <Button onClick={publish}>{a.publish}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">{a.publishWorkflowConfirm}</p>
       </Dialog>
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} />
+    </div>
   );
 }
 
@@ -327,35 +341,37 @@ function ActionsEditor({
   const returnAction = find('Return');
 
   return (
-    <Stack spacing={1}>
-      <Typography variant="subtitle2">{a.allowedActions}</Typography>
-      <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 1 }}>
+    <div className="space-y-2">
+      <p className="text-sm font-semibold text-slate-800">{a.allowedActions}</p>
+      <div className="flex flex-wrap gap-x-4 gap-y-2">
         {allActions.map((action) => (
-          <FormControlLabel
+          <Checkbox
             key={action}
-            control={<Checkbox checked={!!find(action)} onChange={(event) => toggle(action, event.target.checked)} />}
+            checked={!!find(action)}
+            onChange={(event) => toggle(action, event.target.checked)}
             label={actionLabels[action]}
           />
         ))}
-      </Stack>
+      </div>
       {returnAction && earlierSteps.length > 0 && (
-        <TextField
-          select
-          size="small"
+        <Select
+          size="sm"
           label={a.returnTarget}
           value={returnAction.targetStepCode ?? ''}
           onChange={(event) =>
             onChange(actions.map((candidate) => (candidate.action === 'Return' ? { ...candidate, targetStepCode: event.target.value || null } : candidate)))
           }
-          sx={{ maxWidth: 300 }}
+          className="max-w-[300px]"
         >
-          <MenuItem value="">{a.returnPrevious}</MenuItem>
+          <option value="">{a.returnPrevious}</option>
           {earlierSteps.map((code) => (
-            <MenuItem key={code} value={code} dir="ltr">{code}</MenuItem>
+            <option key={code} value={code} dir="ltr">
+              {code}
+            </option>
           ))}
-        </TextField>
+        </Select>
       )}
-    </Stack>
+    </div>
   );
 }
 
@@ -372,7 +388,7 @@ function ConditionField({ value, onChange }: { value: unknown; onChange: (value:
   }
 
   return (
-    <TextField
+    <TextArea
       label={a.stepCondition}
       value={text}
       onChange={(event) => {
@@ -388,10 +404,9 @@ function ConditionField({ value, onChange }: { value: unknown; onChange: (value:
       }}
       error={!!problem}
       helperText={problem ?? a.stepConditionHelp}
-      multiline
-      minRows={1}
-      fullWidth
-      slotProps={{ htmlInput: { dir: 'ltr', style: { fontFamily: 'monospace' } } }}
+      rows={1}
+      dir="ltr"
+      style={{ fontFamily: 'monospace' }}
     />
   );
 }

@@ -51,6 +51,9 @@ public sealed class UserRepository(IdentityDbContext context) : IUserRepository,
             .Where(user => userIds.Contains(user.Id))
             .ToListAsync(cancellationToken);
 
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        context.Users.CountAsync(user => user.IsSystemAdmin && user.IsActive, cancellationToken);
+
     public void Add(User user) => context.Users.Add(user);
 
     async Task<UserSummary?> IUserDirectory.FindAsync(UserId userId, CancellationToken cancellationToken)
@@ -170,6 +173,18 @@ public sealed class MembershipRepository(IdentityDbContext context) : IMembershi
 
         return ids.ToHashSet();
     }
+
+    public async Task<IReadOnlyList<GroupId>> ListGroupIdsAsync(UserId userId, CancellationToken cancellationToken) =>
+        await context.Memberships.AsNoTracking()
+            .Where(membership => membership.UserId == userId)
+            .Select(membership => membership.GroupId)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<UserId>> ListMemberIdsAsync(GroupId groupId, CancellationToken cancellationToken) =>
+        await context.Memberships.AsNoTracking()
+            .Where(membership => membership.GroupId == groupId)
+            .Select(membership => membership.UserId)
+            .ToListAsync(cancellationToken);
 
     public void Add(UserGroupMembership membership) => context.Memberships.Add(membership);
 

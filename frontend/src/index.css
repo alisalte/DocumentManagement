@@ -1,0 +1,54 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Vazirmatn', 'Segoe UI', Tahoma, Arial, sans-serif;
+
+  /* Brand: the archive teal from the old theme, kept as the primary colour. */
+  --color-brand-50: #edf6f6;
+  --color-brand-100: #d4eaea;
+  --color-brand-200: #a9d5d4;
+  --color-brand-300: #7bbdba;
+  --color-brand-400: #4a9f9c;
+  --color-brand-500: #2c8583;
+  --color-brand-600: #1d6f6f;
+  --color-brand-700: #185a5a;
+  --color-brand-800: #144848;
+  --color-brand-900: #0f3838;
+
+  /* Accent: the warm secondary from the old theme. */
+  --color-accent-50: #f7f2ec;
+  --color-accent-100: #ece1d3;
+  --color-accent-200: #d9c3a7;
+  --color-accent-300: #c4a17b;
+  --color-accent-400: #ab815a;
+  --color-accent-500: #976c43;
+  --color-accent-600: #8a5a2b;
+  --color-accent-700: #714924;
+  --color-accent-800: #5c3c20;
+  --color-accent-900: #4a311c;
+
+  --animate-progress: progress 1.4s ease-in-out infinite;
+}
+
+@keyframes progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(350%);
+  }
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-600;
+  }
+}

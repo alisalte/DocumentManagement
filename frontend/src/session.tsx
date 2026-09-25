@@ -6,6 +6,8 @@ interface Session {
   ready: boolean;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Changes the password, which ends every session, and signs in again with the new one. */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -39,7 +41,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  return <SessionContext.Provider value={{ user, ready, signIn, signOut }}>{children}</SessionContext.Provider>;
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!user) return;
+      await api.changePassword(currentPassword, newPassword);
+      await api.login(user.username, newPassword);
+      setUser(await api.me());
+    },
+    [user],
+  );
+
+  return <SessionContext.Provider value={{ user, ready, signIn, signOut, changePassword }}>{children}</SessionContext.Provider>;
 }
 
 export function useSession(): Session {

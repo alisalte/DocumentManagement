@@ -1,12 +1,14 @@
-import { Alert, Box, Button, Chip, Divider, LinearProgress, List, ListItem, Paper, Stack, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, type DocumentVersion, type Share, type ShareLink } from '../../lib/api';
 import { formatDateTime } from '../../lib/dates';
 import { formatNumber } from '../../lib/format';
 import { describeError } from '../../strings';
+import { Alert, Button, Card, Chip, ProgressBar } from '../ui';
 import { ShareDialog } from './ShareDialog';
 import { permissionLabels, s, stateLabels } from './sharingStrings';
+
+const rowClasses = 'flex flex-col gap-2 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-3';
 
 /**
  * The shares and links of a document, with the button that makes new ones. Permission managers
@@ -62,42 +64,41 @@ export function SharesPanel({
   ].sort((left, right) => right.at.localeCompare(left.at));
 
   return (
-    <Paper variant="outlined">
-      <Stack direction="row" sx={{ alignItems: 'center', px: { xs: 2, sm: 3 }, pt: 2 }}>
-        <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
-          {s.shares}
-        </Typography>
+    <Card>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="grow text-base font-semibold text-slate-800">{s.shares}</h2>
         {(data.canShare || data.canShareExternal) && (
-          <Button variant="outlined" onClick={() => setDialogOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
             {s.share}
           </Button>
         )}
-      </Stack>
-      {shares.isFetching && <LinearProgress sx={{ mt: 1 }} />}
-      {error && <Alert severity="error" sx={{ mx: 2, mt: 1 }}>{error}</Alert>}
+      </div>
+
+      {shares.isFetching && <ProgressBar className="mt-3" />}
+      {error && (
+        <Alert severity="error" className="mt-3">
+          {error}
+        </Alert>
+      )}
+
       {rows.length === 0 ? (
-        <Typography color="text.secondary" sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
-          {s.noShares}
-        </Typography>
+        <p className="py-8 text-center text-sm text-slate-500">{s.noShares}</p>
       ) : (
-        <List>
-          {rows.map((row, index) => (
-            <Box key={row.kind === 'share' ? row.share.id : row.link.id}>
-              {index > 0 && <Divider component="li" />}
-              {row.kind === 'share' ? (
-                <ShareRow share={row.share} onRevoke={() => revoke(() => api.sharing.revoke(row.share.id))} />
-              ) : (
-                <LinkRow link={row.link} onRevoke={() => revoke(() => api.sharing.revokeLink(row.link.id))} />
-              )}
-            </Box>
-          ))}
-        </List>
+        <ul className="mt-4 -mx-2 divide-y divide-slate-100">
+          {rows.map((row) =>
+            row.kind === 'share' ? (
+              <ShareRow
+                key={row.share.id}
+                share={row.share}
+                onRevoke={() => revoke(() => api.sharing.revoke(row.share.id))}
+              />
+            ) : (
+              <LinkRow key={row.link.id} link={row.link} onRevoke={() => revoke(() => api.sharing.revokeLink(row.link.id))} />
+            ),
+          )}
+        </ul>
       )}
-      {!data.canManageAll && rows.length > 0 && (
-        <Typography variant="caption" color="text.secondary" sx={{ px: { xs: 2, sm: 3 }, pb: 2, display: 'block' }}>
-          {s.onlyYours}
-        </Typography>
-      )}
+      {!data.canManageAll && rows.length > 0 && <p className="mt-3 text-xs text-slate-500">{s.onlyYours}</p>}
 
       {dialogOpen && (
         <ShareDialog
@@ -111,7 +112,7 @@ export function SharesPanel({
           onShared={refresh}
         />
       )}
-    </Paper>
+    </Card>
   );
 }
 
@@ -125,67 +126,69 @@ function StateChip({ state }: { state: keyof typeof stateLabels }) {
 
 function ShareRow({ share, onRevoke }: { share: Share; onRevoke: () => void }) {
   return (
-    <ListItem sx={{ px: { xs: 2, sm: 3 } }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', alignItems: { sm: 'center' } }}>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-            <Typography sx={{ fontWeight: 600 }}>{share.sharedWith.displayName}</Typography>
-            <Chip size="small" variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
-            <StateChip state={share.state} />
-          </Stack>
-          <Typography variant="body2" color="text.secondary">
-            <Permissions list={share.permissions} /> · {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)}
-            {share.expiresAt && <> · {s.expires} {formatDateTime(share.expiresAt)}</>}
-          </Typography>
-          {share.message && (
-            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-              {share.message}
-            </Typography>
+    <li className={rowClasses}>
+      <div className="min-w-0 grow">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-slate-800">{share.sharedWith.displayName}</span>
+          <Chip size="small" variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
+          <StateChip state={share.state} />
+        </div>
+        <p className="mt-1 text-sm text-slate-500">
+          <Permissions list={share.permissions} /> · {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)}
+          {share.expiresAt && (
+            <>
+              {' '}
+              · {s.expires} {formatDateTime(share.expiresAt)}
+            </>
           )}
-        </Box>
-        {share.state === 'Active' && (
-          <Button size="small" color="error" onClick={onRevoke}>
-            {s.revoke}
-          </Button>
-        )}
-      </Stack>
-    </ListItem>
+        </p>
+        {share.message && <p className="mt-1 text-sm text-slate-700 [overflow-wrap:anywhere]">{share.message}</p>}
+      </div>
+      {share.state === 'Active' && (
+        <Button variant="danger" size="sm" className="self-start sm:self-center" onClick={onRevoke}>
+          {s.revoke}
+        </Button>
+      )}
+    </li>
   );
 }
 
 function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) {
   return (
-    <ListItem sx={{ px: { xs: 2, sm: 3 } }}>
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ width: '100%', alignItems: { sm: 'center' } }}>
-        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-            <Typography sx={{ fontWeight: 600 }}>
-              {s.externalLink}{' '}
-              <Box component="span" dir="ltr" sx={{ fontFamily: 'monospace' }}>
-                {link.tokenPrefix}…
-              </Box>
-            </Typography>
-            <Chip size="small" variant="outlined" label={<span dir="ltr">{link.versionLabel}</span>} />
-            <StateChip state={link.state} />
-            {link.requiresPassword && <Chip size="small" variant="outlined" label={s.password} />}
-          </Stack>
-          {link.label && <Typography variant="body2">{link.label}</Typography>}
-          <Typography variant="body2" color="text.secondary">
-            <Permissions list={link.permissions} /> · {s.expires} {formatDateTime(link.expiresAt)} ·{' '}
-            {formatNumber(link.accessCount)}
-            {link.maxAccessCount !== null && <> / {formatNumber(link.maxAccessCount)}</>} {s.openings}
-            {link.lockedUntil && <> · {s.locked} {formatDateTime(link.lockedUntil)}</>}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {link.createdBy.displayName} · {formatDateTime(link.createdAt)}
-          </Typography>
-        </Box>
-        {link.state === 'Active' && (
-          <Button size="small" color="error" onClick={onRevoke}>
-            {s.revoke}
-          </Button>
-        )}
-      </Stack>
-    </ListItem>
+    <li className={rowClasses}>
+      <div className="min-w-0 grow">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-slate-800">
+            {s.externalLink}{' '}
+            <span dir="ltr" className="font-mono">
+              {link.tokenPrefix}…
+            </span>
+          </span>
+          <Chip size="small" variant="outlined" label={<span dir="ltr">{link.versionLabel}</span>} />
+          <StateChip state={link.state} />
+          {link.requiresPassword && <Chip size="small" variant="outlined" label={s.password} />}
+        </div>
+        {link.label && <p className="mt-1 text-sm text-slate-700">{link.label}</p>}
+        <p className="mt-1 text-sm text-slate-500">
+          <Permissions list={link.permissions} /> · {s.expires} {formatDateTime(link.expiresAt)} ·{' '}
+          {formatNumber(link.accessCount)}
+          {link.maxAccessCount !== null && <> / {formatNumber(link.maxAccessCount)}</>} {s.openings}
+          {link.lockedUntil && (
+            <>
+              {' '}
+              · {s.locked} {formatDateTime(link.lockedUntil)}
+            </>
+          )}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {link.createdBy.displayName} · {formatDateTime(link.createdAt)}
+        </p>
+      </div>
+      {link.state === 'Active' && (
+        <Button variant="danger" size="sm" className="self-start sm:self-center" onClick={onRevoke}>
+          {s.revoke}
+        </Button>
+      )}
+    </li>
   );
 }

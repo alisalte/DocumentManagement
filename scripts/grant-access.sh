@@ -18,7 +18,9 @@
 #   --category CODE    category code (default: the root category)
 #   --read-only        only view, download and print
 #
-# The password is asked for and never echoed; set DMS_PASSWORD to run without a prompt.
+# The password is asked for and never echoed; set DMS_PASSWORD to run without a prompt. An account
+# that must change its password (the seeded administrator) is asked for a new one first
+# (or DMS_NEW_PASSWORD).
 # Entries the user already has on that category, ALLOW or DENY, are reported and left untouched.
 set -euo pipefail
 
@@ -80,6 +82,21 @@ except urllib.error.HTTPError as error:
 except urllib.error.URLError as error:
     sys.exit(f'Cannot reach {base}: {error.reason}')
 token = session['accessToken']
+
+# A first sign-in (the seeded administrator, or a reset account) must change the password before
+# anything else; the server refuses everything else until then.
+if session['user'].get('mustChangePassword'):
+    print('This account must change its password first.')
+    new_password = os.environ.get('DMS_NEW_PASSWORD') or getpass.getpass('New password: ')
+    if not os.environ.get('DMS_NEW_PASSWORD') and getpass.getpass('Repeat it: ') != new_password:
+        sys.exit('The passwords differ.')
+    try:
+        call('POST', '/api/v1/auth/change-password', {'currentPassword': password, 'newPassword': new_password}, token=token)
+        session = call('POST', '/api/v1/auth/login', {'username': os.environ['DMS_LOGIN'], 'password': new_password})
+    except urllib.error.HTTPError as error:
+        sys.exit(f'Changing the password failed: {problem(error)}')
+    token = session['accessToken']
+    print('Password changed.')
 
 grantee_name = os.environ['DMS_GRANTEE']
 if grantee_name:

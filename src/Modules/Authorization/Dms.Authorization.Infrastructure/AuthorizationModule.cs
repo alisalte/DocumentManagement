@@ -40,6 +40,11 @@ public static class AuthorizationModule
         services.AddScoped<ICommandHandler<SetRolePermissionsCommand, Result>, SetRolePermissionsHandler>();
         services.AddScoped<ICommandHandler<AssignRoleCommand, Result>, AssignRoleHandler>();
         services.AddScoped<ICommandHandler<UnassignRoleCommand, Result>, UnassignRoleHandler>();
+        services.AddScoped<ICommandHandler<UpdateRoleCommand, Result>, UpdateRoleHandler>();
+        services.AddScoped<IQueryHandler<ListRoleUsersQuery, Result<IReadOnlyList<RoleMemberDto>>>, ListRoleUsersHandler>();
+        services.AddScoped<AclAdministration>();
+        services.AddScoped<SubjectNames>();
+        services.AddScoped<RoleEscalationGuard>();
 
         services.AddScoped<IQueryHandler<ListRolesQuery, Result<IReadOnlyList<RoleDto>>>, ListRolesHandler>();
         services.AddScoped<IQueryHandler<GetResourcePermissionsQuery, Result<IReadOnlyList<ResourcePermissionDto>>>,

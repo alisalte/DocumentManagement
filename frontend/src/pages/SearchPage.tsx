@@ -1,20 +1,4 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Divider,
-  FormControlLabel,
-  LinearProgress,
-  List,
-  ListItemButton,
-  MenuItem,
-  Paper,
-  Stack,
-  Switch,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Chip, ProgressBar, Select, Switch, TextField } from '../components/ui';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router';
@@ -74,111 +58,119 @@ export function SearchPage() {
   const pages = result ? Math.max(1, Math.ceil(result.total / pageSize)) : 1;
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1000 }}>
-      <Paper variant="outlined" component="form" onSubmit={submit} sx={{ p: { xs: 1.5, sm: 2 } }}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1}>
+    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+      <form onSubmit={submit}>
+        <Card className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <TextField
-              fullWidth
-              size="small"
               label={t.searchEverything}
               placeholder={t.searchPlaceholder}
               value={text}
               onChange={(event) => setText(event.target.value)}
               autoFocus
-              slotProps={{ htmlInput: { enterKeyHint: 'search' } }}
+              enterKeyHint="search"
+              size="sm"
+              className="flex-1"
             />
-            <Button type="submit" variant="contained">
+            <Button type="submit" className="shrink-0">
               {t.searchButton}
             </Button>
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <TextField
-              select
-              size="small"
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <Select
               label={t.category}
+              size="sm"
               value={categoryId ?? ''}
               onChange={(event) => update({ category: event.target.value || null })}
-              sx={{ minWidth: 180 }}
+              className="sm:w-auto sm:min-w-[180px]"
             >
-              <MenuItem value="">{t.allCategories}</MenuItem>
+              <option value="">{t.allCategories}</option>
               {(categories.data ?? [])
                 .filter((category) => category.canView)
                 .map((category) => (
-                  <MenuItem key={category.id} value={category.id} sx={{ pl: 2 + category.depth * 2 }}>
+                  <option
+                    key={category.id}
+                    value={category.id}
+                    style={{ paddingInlineStart: `${16 + category.depth * 16}px` }}
+                  >
                     {category.name}
-                  </MenuItem>
+                  </option>
                 ))}
-            </TextField>
-            <TextField
-              select
-              size="small"
+            </Select>
+
+            <Select
               label={t.documentType}
+              size="sm"
               value={documentTypeId ?? ''}
               onChange={(event) => update({ type: event.target.value || null })}
-              sx={{ minWidth: 180 }}
+              className="sm:w-auto sm:min-w-[180px]"
             >
-              <MenuItem value="">{t.allTypes}</MenuItem>
+              <option value="">{t.allTypes}</option>
               {(types.data ?? []).map((type) => (
-                <MenuItem key={type.id} value={type.id}>
+                <option key={type.id} value={type.id}>
                   {type.name}
-                </MenuItem>
+                </option>
               ))}
-            </TextField>
-            <FormControlLabel
-              control={<Switch checked={allVersions} onChange={(_, checked) => update({ all: checked ? '1' : null })} />}
-              label={t.allVersions}
-            />
-          </Stack>
-          {tag && (
-            <Box>
-              <Chip label={`${t.tags}: ${tag}`} onDelete={() => update({ tag: null })} size="small" />
-            </Box>
-          )}
-        </Stack>
-      </Paper>
+            </Select>
 
-      {search.isFetching && <LinearProgress />}
+            <div className="shrink-0">
+              <Switch
+                label={t.allVersions}
+                checked={allVersions}
+                onChange={(event) => update({ all: event.target.checked ? '1' : null })}
+              />
+            </div>
+          </div>
+
+          {tag && (
+            <div>
+              <Chip label={`${t.tags}: ${tag}`} onDelete={() => update({ tag: null })} size="small" />
+            </div>
+          )}
+        </Card>
+      </form>
+
+      {search.isFetching && <ProgressBar />}
       {search.isError && <Alert severity="error">{describeError(search.error)}</Alert>}
       {result?.degraded && <Alert severity="warning">{t.searchDegraded}</Alert>}
 
       {result && (
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ alignItems: 'flex-start' }}>
-          <Paper variant="outlined" sx={{ flexGrow: 1, minWidth: 0, width: '100%' }}>
-            <Typography variant="body2" color="text.secondary" sx={{ px: 2, pt: 1.5 }}>
+        <div className="flex flex-col items-start gap-4 md:flex-row">
+          <Card className="w-full min-w-0 flex-1">
+            <p className="text-sm text-slate-500">
               {result.total.toLocaleString('fa-IR')} {t.searchResults}
-            </Typography>
+            </p>
+
             {result.hits.length === 0 ? (
-              <Typography sx={{ p: 2 }} color="text.secondary">
-                {t.searchNothing}
-              </Typography>
+              <p className="py-10 text-center text-sm text-slate-500">{t.searchNothing}</p>
             ) : (
-              <List>
-                {result.hits.map((hit, index) => (
-                  <Box key={`${hit.documentId}-${hit.versionId}`}>
-                    {index > 0 && <Divider component="li" />}
+              <ul className="-mx-2 mt-3 divide-y divide-slate-100 sm:-mx-3">
+                {result.hits.map((hit) => (
+                  <li key={`${hit.documentId}-${hit.versionId}`}>
                     <HitRow hit={hit} categoryName={hit.categoryId ? categoryName(hit.categoryId) : null} />
-                  </Box>
+                  </li>
                 ))}
-              </List>
+              </ul>
             )}
+
             {pages > 1 && (
-              <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', pb: 1.5 }}>
-                <Button size="small" disabled={page <= 1} onClick={() => update({ page: String(page - 1) })}>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => update({ page: String(page - 1) })}>
                   {t.previous}
                 </Button>
-                <Typography variant="body2" sx={{ alignSelf: 'center' }}>
+                <span className="text-sm text-slate-500">
                   {page.toLocaleString('fa-IR')} {t.of} {pages.toLocaleString('fa-IR')}
-                </Typography>
-                <Button size="small" disabled={page >= pages} onClick={() => update({ page: String(page + 1) })}>
+                </span>
+                <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => update({ page: String(page + 1) })}>
                   {t.next}
                 </Button>
-              </Stack>
+              </div>
             )}
-          </Paper>
+          </Card>
 
           {!result.degraded && (
-            <Stack spacing={1.5} sx={{ width: { xs: '100%', md: 260 }, flexShrink: 0 }}>
+            <div className="w-full shrink-0 space-y-3 md:w-64">
               <Facet
                 title={t.category}
                 buckets={result.facets.category}
@@ -192,50 +184,55 @@ export function SearchPage() {
                 onPick={(key) => update({ type: key })}
               />
               <Facet title={t.tags} buckets={result.facets.tag} label={(key) => key} onPick={(key) => update({ tag: key })} />
-            </Stack>
+            </div>
           )}
-        </Stack>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }
 
 function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | null }) {
   return (
-    <ListItemButton component={RouterLink} to={`/documents/${hit.documentId}`} sx={{ px: 2, alignItems: 'flex-start' }}>
-      <Stack spacing={0.5} sx={{ minWidth: 0, width: '100%' }}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-          <Typography sx={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{hit.title}</Typography>
+    <RouterLink
+      to={`/documents/${hit.documentId}`}
+      className="block rounded-lg px-2 py-3 transition-colors hover:bg-slate-50 sm:px-3"
+    >
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="break-words font-semibold text-slate-800">{hit.title}</span>
           {hit.label && (
-            <Typography variant="body2" color="text.secondary" dir="ltr">
+            <span dir="ltr" className="text-sm text-slate-500">
               {hit.label}
-            </Typography>
+            </span>
           )}
           {!hit.isEffective && hit.isCurrent && <Chip size="small" label={t.draftVersion} />}
           {!hit.isEffective && !hit.isCurrent && <Chip size="small" variant="outlined" label={t.olderVersion} />}
           {hit.approvalStatus && hit.approvalStatus !== 'NotRequired' && hit.approvalStatus !== 'Approved' && (
             <Chip size="small" variant="outlined" label={approvalLabels[hit.approvalStatus] ?? hit.approvalStatus} />
           )}
-        </Stack>
+        </div>
+
         {hit.highlights.map((fragment, index) => (
-          <Typography key={index} variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+          <p key={index} className="break-words text-sm text-slate-500">
             {parseHighlight(fragment).map((segment, part) =>
               segment.marked ? (
-                <Box key={part} component="mark" sx={{ bgcolor: 'warning.light', color: 'inherit', px: 0.25, borderRadius: 0.5 }}>
+                <mark key={part} className="rounded-sm bg-amber-100 px-0.5 text-inherit">
                   {segment.text}
-                </Box>
+                </mark>
               ) : (
                 <span key={part}>{segment.text}</span>
               ),
             )}
             …
-          </Typography>
+          </p>
         ))}
-        <Typography variant="caption" color="text.secondary">
+
+        <p className="text-xs text-slate-400">
           {[categoryName, hit.fileName, hit.updatedAt ? formatDateTime(hit.updatedAt) : null].filter(Boolean).join(' · ')}
-        </Typography>
-      </Stack>
-    </ListItemButton>
+        </p>
+      </div>
+    </RouterLink>
   );
 }
 
@@ -255,21 +252,22 @@ function Facet({
   }
 
   return (
-    <Paper variant="outlined" sx={{ p: 1.5 }}>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        {title}
-      </Typography>
-      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+    <Card>
+      <h2 className="mb-2 text-sm font-semibold text-slate-800">{title}</h2>
+      <div className="flex flex-wrap gap-1.5">
         {buckets.map((bucket) => (
-          <Chip
+          <button
             key={bucket.key}
-            size="small"
-            clickable
+            type="button"
             onClick={() => onPick(bucket.key)}
-            label={`${label(bucket.key)} (${bucket.count.toLocaleString('fa-IR')})`}
-          />
+            className="inline-flex h-6 max-w-full items-center rounded-full bg-slate-100 px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+          >
+            <span className="truncate">
+              {label(bucket.key)} ({bucket.count.toLocaleString('fa-IR')})
+            </span>
+          </button>
         ))}
-      </Stack>
-    </Paper>
+      </div>
+    </Card>
   );
 }

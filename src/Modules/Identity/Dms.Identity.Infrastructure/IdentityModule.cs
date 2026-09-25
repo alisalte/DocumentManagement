@@ -49,10 +49,17 @@ public static class IdentityModule
         services.AddScoped<ICommandHandler<CreateGroupCommand, Result<Guid>>, CreateGroupHandler>();
         services.AddScoped<ICommandHandler<AddUserToGroupCommand, Result>, AddUserToGroupHandler>();
         services.AddScoped<ICommandHandler<RemoveUserFromGroupCommand, Result>, RemoveUserFromGroupHandler>();
+        services.AddScoped<UserAdministration>();
+        services.AddScoped<ICommandHandler<UpdateUserCommand, Result>, UpdateUserHandler>();
+        services.AddScoped<ICommandHandler<ResetUserPasswordCommand, Result>, ResetUserPasswordHandler>();
+        services.AddScoped<ICommandHandler<SetUserAdminCommand, Result>, SetUserAdminHandler>();
+        services.AddScoped<ICommandHandler<UpdateGroupCommand, Result>, UpdateGroupHandler>();
 
         services.AddScoped<IQueryHandler<GetCurrentUserQuery, Result<CurrentUserDto>>, GetCurrentUserHandler>();
         services.AddScoped<IQueryHandler<ListUsersQuery, Result<IReadOnlyList<UserDto>>>, ListUsersHandler>();
         services.AddScoped<IQueryHandler<ListGroupsQuery, Result<IReadOnlyList<GroupDto>>>, ListGroupsHandler>();
+        services.AddScoped<IQueryHandler<GetUserQuery, Result<UserDetailsDto>>, GetUserHandler>();
+        services.AddScoped<IQueryHandler<ListGroupMembersQuery, Result<IReadOnlyList<GroupMemberDto>>>, ListGroupMembersHandler>();
 
         services.AddScoped<IDataSeeder, BootstrapAdminSeeder>();
 

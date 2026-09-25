@@ -1,7 +1,7 @@
-import { Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
 import { useRef } from 'react';
 import { formatBytes, formatNumber } from '../lib/format';
 import { t } from '../strings';
+import { Button } from './ui';
 
 interface Props {
   file: File | null;
@@ -17,22 +17,16 @@ interface Props {
  */
 export function FilePicker({ file, onChange, progress, disabled }: Props) {
   const input = useRef<HTMLInputElement>(null);
+  const percent = progress === null ? 0 : Math.round(progress * 100);
 
   return (
-    <Box
-      sx={{
-        border: 1,
-        borderStyle: 'dashed',
-        borderColor: 'divider',
-        borderRadius: 1,
-        p: 2,
-        textAlign: 'center',
-      }}
+    <div
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
         if (!disabled && event.dataTransfer.files[0]) onChange(event.dataTransfer.files[0]);
       }}
+      className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/60 p-4 text-center"
     >
       <input
         ref={input}
@@ -40,24 +34,38 @@ export function FilePicker({ file, onChange, progress, disabled }: Props) {
         hidden
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
       />
-      <Stack spacing={1} sx={{ alignItems: 'center' }}>
-        <Button variant="outlined" onClick={() => input.current?.click()} disabled={disabled}>
+      <div className="flex flex-col items-center gap-2">
+        <Button variant="outline" onClick={() => input.current?.click()} disabled={disabled}>
           {t.chooseFile}
         </Button>
+
         {file && (
-          <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+          <p className="text-sm break-all text-slate-700">
             {file.name} — {formatBytes(file.size)}
-          </Typography>
+          </p>
         )}
+
         {progress !== null && (
-          <Box sx={{ width: '100%' }}>
-            <LinearProgress variant="determinate" value={progress * 100} />
-            <Typography variant="caption" color="text.secondary">
-              {t.uploading} {formatNumber(Math.round(progress * 100))}٪
-            </Typography>
-          </Box>
+          <div className="w-full">
+            <div
+              role="progressbar"
+              aria-label={t.uploading}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={percent}
+              className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200"
+            >
+              <div
+                className="h-full rounded-full bg-brand-600 transition-[width] duration-300"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-slate-500">
+              {t.uploading} {formatNumber(percent)}٪
+            </p>
+          </div>
         )}
-      </Stack>
-    </Box>
+      </div>
+    </div>
   );
 }

@@ -1,23 +1,9 @@
-import {
-  Card,
-  CardActionArea,
-  CardContent,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
 import type { ReactNode } from 'react';
 import type { DocumentListItem } from '../lib/api';
 import { formatDateTime } from '../lib/dates';
 import { formatBytes } from '../lib/format';
 import { t } from '../strings';
+import { Chip, cx } from './ui';
 
 interface Props {
   items: DocumentListItem[];
@@ -28,78 +14,61 @@ interface Props {
   dateLabel?: string;
 }
 
-/** A table on wide screens, a stack of cards on phones: the same data, never a sideways scroll. */
+/**
+ * One scannable row per document at any width: title first, the file's details underneath,
+ * version, date and any per-row action on the trailing side. The whole row opens the document.
+ */
 export function DocumentList({ items, onOpen, renderAction, dateOf, dateLabel = t.updatedAt }: Props) {
-  const theme = useTheme();
-  const wide = useMediaQuery(theme.breakpoints.up('sm'));
   const dateFor = dateOf ?? ((item: DocumentListItem) => item.updatedAt);
 
   if (items.length === 0) {
-    return (
-      <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
-        {t.noDocuments}
-      </Typography>
-    );
-  }
-
-  if (!wide) {
-    return (
-      <Stack spacing={1}>
-        {items.map((item) => (
-          <Card key={item.id} variant="outlined">
-            <CardActionArea onClick={() => onOpen?.(item)} disabled={!onOpen}>
-              <CardContent sx={{ py: 1.5 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {item.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {item.fileName} · {item.currentVersionLabel} · {formatBytes(item.fileSize)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {formatDateTime(dateFor(item))}
-                </Typography>
-              </CardContent>
-            </CardActionArea>
-            {renderAction && <Stack sx={{ px: 2, pb: 1.5 }}>{renderAction(item)}</Stack>}
-          </Card>
-        ))}
-      </Stack>
-    );
+    return <p className="py-10 text-center text-sm text-slate-500">{t.noDocuments}</p>;
   }
 
   return (
-    <TableContainer>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>{t.title}</TableCell>
-            <TableCell>{t.file}</TableCell>
-            <TableCell>{t.version}</TableCell>
-            <TableCell>{t.size}</TableCell>
-            <TableCell>{dateLabel}</TableCell>
-            {renderAction && <TableCell />}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {items.map((item) => (
-            <TableRow
-              key={item.id}
-              hover={!!onOpen}
-              onClick={() => onOpen?.(item)}
-              sx={{ cursor: onOpen ? 'pointer' : 'default' }}
-            >
-              <TableCell sx={{ fontWeight: 600 }}>{item.title}</TableCell>
-              <TableCell sx={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {item.fileName}
-              </TableCell>
-              <TableCell dir="ltr">{item.currentVersionLabel}</TableCell>
-              <TableCell>{formatBytes(item.fileSize)}</TableCell>
-              <TableCell>{formatDateTime(dateFor(item))}</TableCell>
-              {renderAction && <TableCell onClick={(event) => event.stopPropagation()}>{renderAction(item)}</TableCell>}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <ul className="divide-y divide-slate-100">
+      {items.map((item) => (
+        <li key={item.id}>
+          <div
+            onClick={() => onOpen?.(item)}
+            className={cx(
+              'flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 transition-colors sm:px-4',
+              onOpen && 'cursor-pointer hover:bg-slate-50',
+            )}
+          >
+            <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+              <button
+                type="button"
+                disabled={!onOpen}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpen?.(item);
+                }}
+                className="block w-full rounded text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              >
+                <span className="block truncate text-sm font-semibold text-slate-800">{item.title}</span>
+              </button>
+              <p className="mt-0.5 truncate text-xs text-slate-500">
+                {[item.fileName, formatBytes(item.fileSize)].filter(Boolean).join(' · ')}
+              </p>
+            </div>
+
+            {item.currentVersionLabel && (
+              <Chip label={item.currentVersionLabel} variant="outlined" dir="ltr" className="shrink-0" />
+            )}
+
+            <span title={dateLabel} className="shrink-0 text-xs whitespace-nowrap text-slate-500">
+              {formatDateTime(dateFor(item))}
+            </span>
+
+            {renderAction && (
+              <div onClick={(event) => event.stopPropagation()} className="flex shrink-0 items-center">
+                {renderAction(item)}
+              </div>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

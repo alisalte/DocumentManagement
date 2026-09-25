@@ -1,8 +1,8 @@
-import { Alert, Box, Button, Chip, LinearProgress, Paper, Snackbar, Stack, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link as RouterLink } from 'react-router';
 import { permissionLabels, s } from '../components/sharing/sharingStrings';
+import { Alert, Button, Card, Chip, ProgressBar, Toast } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDateTime } from '../lib/dates';
 import { formatBytes } from '../lib/format';
@@ -31,56 +31,52 @@ export function SharedWithMePage() {
   };
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1000 }}>
-      <Typography variant="h5" component="h1">
-        {s.sharedWithMe}
-      </Typography>
-      {received.isFetching && <LinearProgress />}
+    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">{s.sharedWithMe}</h1>
+      </div>
+      {received.isFetching && <ProgressBar />}
       {received.isError && <Alert severity="error">{describeError(received.error)}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
-      {received.data?.length === 0 && <Typography color="text.secondary">{s.sharedWithMeEmpty}</Typography>}
+      {received.data?.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{s.sharedWithMeEmpty}</p>}
 
-      {received.data?.map((share) => (
-        <Paper key={share.id} variant="outlined" sx={{ p: 2 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ alignItems: { sm: 'center' } }}>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-                <Typography
-                  component={RouterLink}
-                  to={`/shared/${share.documentId}/${share.versionId}`}
-                  variant="subtitle1"
-                  sx={{ fontWeight: 600, color: 'inherit', overflowWrap: 'anywhere' }}
-                >
-                  {share.documentTitle}
-                </Typography>
-                <Chip size="small" variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
-              </Stack>
-              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                {share.fileName} · {formatBytes(share.fileSize)}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)} ·{' '}
-                {share.permissions.map((permission) => permissionLabels[permission]).join('، ')}
-                {share.expiresAt && <> · {s.expires} {formatDateTime(share.expiresAt)}</>}
-              </Typography>
-              {share.message && (
-                <Typography variant="body2" sx={{ mt: 0.5, overflowWrap: 'anywhere' }}>
-                  {share.message}
-                </Typography>
-              )}
-            </Box>
-            <Stack direction="row" spacing={0.5}>
-              <Button variant="contained" size="small" component={RouterLink} to={`/shared/${share.documentId}/${share.versionId}`}>
-                {s.open}
-              </Button>
-              <Button size="small" onClick={() => decline(share.id)}>
-                {s.decline}
-              </Button>
-            </Stack>
-          </Stack>
-        </Paper>
-      ))}
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      <div className="space-y-3">
+        {received.data?.map((share) => (
+          <Card key={share.id}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 sm:flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <RouterLink
+                    to={`/shared/${share.documentId}/${share.versionId}`}
+                    className="font-semibold break-words text-slate-800 hover:text-brand-700 hover:underline"
+                  >
+                    {share.documentTitle}
+                  </RouterLink>
+                  <Chip variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
+                </div>
+                <p className="mt-1 text-sm break-words text-slate-600">
+                  {share.fileName} · {formatBytes(share.fileSize)}
+                </p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)} ·{' '}
+                  {share.permissions.map((permission) => permissionLabels[permission]).join('، ')}
+                  {share.expiresAt && <> · {s.expires} {formatDateTime(share.expiresAt)}</>}
+                </p>
+                {share.message && <p className="mt-1 text-sm break-words text-slate-600">{share.message}</p>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" as={RouterLink} to={`/shared/${share.documentId}/${share.versionId}`}>
+                  {s.open}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => decline(share.id)}>
+                  {s.decline}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} autoHideDuration={4000} />
+    </div>
   );
 }

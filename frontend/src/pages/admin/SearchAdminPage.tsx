@@ -1,4 +1,4 @@
-import { Alert, Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
+import { Alert, Button, Card, Chip, ProgressBar } from '../../components/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import { api } from '../../lib/api';
@@ -34,17 +34,15 @@ export function SearchAdminPage() {
   const failed = data?.extractions.Failed ?? 0;
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 900 }}>
-      <Typography variant="h5" component="h1">
-        {t.searchAdmin}
-      </Typography>
-      {status.isLoading && <LinearProgress />}
+    <div className="max-w-4xl space-y-4 sm:space-y-5">
+      <h1 className="text-xl font-bold text-slate-800">{t.searchAdmin}</h1>
+      {status.isLoading && <ProgressBar className="rounded-full" />}
       {status.isError && <Alert severity="error">{describeError(status.error)}</Alert>}
       {message && <Alert severity={message.severity}>{message.text}</Alert>}
 
       {data && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-          <Stack spacing={1.5}>
+        <Card>
+          <div className="space-y-3">
             <Row label={t.engine}>
               <Chip
                 size="small"
@@ -58,17 +56,17 @@ export function SearchAdminPage() {
             {data.engineEnabled && (
               <>
                 <Row label={t.liveIndex}>
-                  <Typography dir="ltr" variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  <span dir="ltr" className="font-mono text-sm break-all text-slate-700">
                     {data.index ?? '—'}
-                  </Typography>
+                  </span>
                 </Row>
                 <Row label={t.indexedVersions}>
-                  <Typography variant="body2">{Math.max(data.indexedVersions, 0).toLocaleString('fa-IR')}</Typography>
+                  <span className="text-sm text-slate-700">{Math.max(data.indexedVersions, 0).toLocaleString('fa-IR')}</span>
                 </Row>
               </>
             )}
             <Row label={t.extractions}>
-              <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+              <span className="flex flex-wrap gap-1.5">
                 {Object.entries(data.extractions).map(([key, count]) => (
                   <Chip
                     key={key}
@@ -78,20 +76,17 @@ export function SearchAdminPage() {
                     label={`${extractionLabels[key] ?? key}: ${count.toLocaleString('fa-IR')}`}
                   />
                 ))}
-              </Stack>
+              </span>
             </Row>
-          </Stack>
-        </Paper>
+          </div>
+        </Card>
       )}
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={1.5}>
-          <Typography variant="body2" color="text.secondary">
-            {t.reindexHelp}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+      <Card>
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">{t.reindexHelp}</p>
+          <div className="flex flex-wrap gap-2">
             <Button
-              variant="contained"
               disabled={busy || !data?.engineEnabled}
               onClick={() => run(async () => {
                 await api.searchAdmin.reindex();
@@ -101,7 +96,7 @@ export function SearchAdminPage() {
               {t.reindex}
             </Button>
             <Button
-              variant="outlined"
+              variant="outline"
               disabled={busy || failed === 0}
               onClick={() => run(async () => {
                 const { queued } = await api.searchAdmin.retryFailed();
@@ -110,20 +105,18 @@ export function SearchAdminPage() {
             >
               {t.retryFailed}
             </Button>
-          </Stack>
-        </Stack>
-      </Paper>
-    </Stack>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.5, sm: 2 }} sx={{ alignItems: { sm: 'center' } }}>
-      <Typography variant="body2" color="text.secondary" sx={{ width: { sm: 200 }, flexShrink: 0 }}>
-        {label}
-      </Typography>
-      {children}
-    </Stack>
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+      <span className="shrink-0 text-sm text-slate-500 sm:w-48">{label}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
   );
 }

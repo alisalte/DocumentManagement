@@ -6,7 +6,7 @@
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "-c",
-        "export PATH=$HOME/.dotnet:$PATH DOTNET_ROOT=$HOME/.dotnet ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5090 ConnectionStrings__Dms='Host=localhost;Port=5433;Database=dms_phase2_preview;Username=dms;Password=change-me' Dms__Jwt__SigningKey=preview-signing-key-preview-signing-key-preview-signing-key-0123 Dms__Storage__FileSystem__RootPath=/tmp/claude-1000/-home-ali-DocumentManagement/9ca1b7aa-414a-4951-9c9b-d7c8838e058d/scratchpad/objects && cd src/Dms.Host && exec dotnet bin/Debug/net10.0/Dms.Host.dll"
+        "export PATH=$HOME/.dotnet:$PATH DOTNET_ROOT=$HOME/.dotnet ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5090 ConnectionStrings__Dms='Host=localhost;Port=5433;Database=dms_phase7_preview;Username=dms_app;Password=preview-app-pw' Dms__Jwt__SigningKey=preview-signing-key-preview-signing-key-preview-signing-key-0123 Dms__Audit__SealKey=dGVzdC1hdWRpdC1zZWFsLWtleS0wMTIzNDU2Nzg5YWI= Dms__Storage__FileSystem__RootPath=/tmp/claude-1000/-home-ali-DocumentManagement/7dbd7ea1-db2a-475c-bf5d-0eea7bf0a25c/scratchpad/objects && cd src/Dms.Host && exec dotnet bin/Debug/net10.0/Dms.Host.dll"
       ],
       "port": 5090
     },

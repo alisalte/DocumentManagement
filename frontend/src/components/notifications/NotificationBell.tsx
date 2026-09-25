@@ -1,10 +1,10 @@
-import { Alert, Badge, Box, Button, CircularProgress, Divider, List, ListItemButton, ListItemText, Popover, Stack, Typography } from '@mui/material';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api, type AppNotification } from '../../lib/api';
 import { formatDateTime } from '../../lib/dates';
 import { describeError } from '../../strings';
+import { Alert, Badge, Button, Menu, Spinner, cx } from '../ui';
 import { describeNotification, n, notificationTarget } from './notificationStrings';
 
 /**
@@ -50,64 +50,65 @@ export function NotificationBell() {
 
   return (
     <>
-      <Button color="inherit" onClick={(event) => setAnchor(event.currentTarget)} aria-haspopup="dialog">
-        <Badge color="secondary" badgeContent={count} max={99}>
-          {n.notifications}
-        </Badge>
-      </Button>
-      <Popover
-        open={anchor !== null}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { sx: { width: { xs: 'calc(100vw - 32px)', sm: 400 }, maxHeight: '70vh' } } }}
+      <button
+        type="button"
+        aria-label={n.notifications}
+        title={n.notifications}
+        onClick={(event) => setAnchor(event.currentTarget)}
+        aria-haspopup="dialog"
+        className="relative inline-flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
       >
-        <Stack direction="row" sx={{ px: 2, py: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="subtitle1" component="h2">
-            {n.notifications}
-          </Typography>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.082a23.85 23.85 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+        </svg>
+        <Badge count={count} max={99} />
+      </button>
+
+      <Menu anchor={anchor} onClose={() => setAnchor(null)} className="w-[calc(100vw-1.5rem)] sm:w-96">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
+          <h2 className="text-sm font-semibold text-slate-800">{n.notifications}</h2>
           {count > 0 && (
-            <Button size="small" onClick={markAll}>
+            <Button variant="ghost" size="sm" onClick={markAll}>
               {n.markAllRead}
             </Button>
           )}
-        </Stack>
-        <Divider />
+        </div>
+
         {pages.isPending && (
-          <Box sx={{ p: 2, textAlign: 'center' }}>
-            <CircularProgress size={24} />
-          </Box>
+          <div className="grid place-items-center py-6">
+            <Spinner size="sm" />
+          </div>
         )}
-        {pages.isError && <Alert severity="error">{describeError(pages.error)}</Alert>}
-        {pages.isSuccess && items.length === 0 && (
-          <Typography sx={{ p: 2 }} color="text.secondary">
-            {n.empty}
-          </Typography>
+        {pages.isError && (
+          <div className="p-2">
+            <Alert severity="error">{describeError(pages.error)}</Alert>
+          </div>
         )}
-        <List dense disablePadding>
-          {items.map((item) => (
-            <ListItemButton
-              key={item.id}
-              onClick={() => open(item)}
-              sx={{ alignItems: 'flex-start', bgcolor: item.readAt ? undefined : 'action.hover' }}
-            >
-              <ListItemText
-                primary={describeNotification(item)}
-                secondary={formatDateTime(item.createdAt)}
-                slotProps={{ primary: { sx: { fontWeight: item.readAt ? 400 : 600 } } }}
-              />
-            </ListItemButton>
-          ))}
-        </List>
+        {pages.isSuccess && items.length === 0 && <p className="px-3 py-3 text-sm text-slate-500">{n.empty}</p>}
+
+        {items.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => open(item)}
+            className={cx(
+              'flex w-full flex-col gap-0.5 px-3 py-2.5 text-start transition-colors hover:bg-slate-50',
+              item.readAt ? 'text-slate-600' : 'bg-brand-50/60 font-semibold text-slate-900',
+            )}
+          >
+            <span className="text-sm leading-6">{describeNotification(item)}</span>
+            <span className="text-xs font-normal text-slate-400">{formatDateTime(item.createdAt)}</span>
+          </button>
+        ))}
+
         {pages.hasNextPage && (
-          <Box sx={{ p: 1, textAlign: 'center' }}>
-            <Button size="small" onClick={() => pages.fetchNextPage()} disabled={pages.isFetchingNextPage}>
+          <div className="border-t border-slate-100 p-2 text-center">
+            <Button variant="ghost" size="sm" loading={pages.isFetchingNextPage} onClick={() => pages.fetchNextPage()}>
               {n.more}
             </Button>
-          </Box>
+          </div>
         )}
-      </Popover>
+      </Menu>
     </>
   );
 }

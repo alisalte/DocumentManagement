@@ -1,10 +1,10 @@
-import { Alert, Box, Button, Chip, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link as RouterLink, useParams } from 'react-router';
 import { DocumentViewer } from '../components/DocumentViewer';
 import { MetadataView } from '../components/metadata/MetadataView';
 import { s } from '../components/sharing/sharingStrings';
+import { Alert, Button, Card, CenteredSpinner, Chip } from '../components/ui';
 import { api } from '../lib/api';
 import { formatDateTime } from '../lib/dates';
 import { formatBytes } from '../lib/format';
@@ -32,14 +32,27 @@ export function SharedVersionPage() {
   });
 
   if (details.isPending) {
-    return <LinearProgress />;
+    return (
+      <div className="space-y-4 sm:space-y-5">
+        <CenteredSpinner />
+      </div>
+    );
   }
 
   if (details.isError) {
     return (
-      <Alert severity="error" action={<Button component={RouterLink} to="/shared">{t.back}</Button>}>
-        {describeError(details.error)}
-      </Alert>
+      <div className="space-y-4 sm:space-y-5">
+        <Alert
+          severity="error"
+          action={
+            <Button as={RouterLink} to="/shared" variant="outline" size="sm">
+              {t.back}
+            </Button>
+          }
+        >
+          {describeError(details.error)}
+        </Alert>
+      </div>
     );
   }
 
@@ -54,47 +67,38 @@ export function SharedVersionPage() {
   };
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1000 }}>
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="h5" component="h1" sx={{ overflowWrap: 'anywhere' }}>
-                {title}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 0.5 }}>
-                <Chip size="small" label={s.sharedWithMe} />
-                <Typography variant="body2" color="text.secondary" dir="ltr">
+    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+      <Card>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-bold break-words text-slate-800">{title}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Chip label={s.sharedWithMe} />
+                <span className="text-sm text-slate-500" dir="ltr">
                   {version.label}
-                </Typography>
-              </Stack>
-            </Box>
-            {allowedActions.includes('DOCUMENT_DOWNLOAD') && (
-              <Button variant="contained" onClick={download}>
-                {t.download}
-              </Button>
-            )}
-          </Stack>
-          {description && <Typography sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{description}</Typography>}
-          <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                </span>
+              </div>
+            </div>
+            {allowedActions.includes('DOCUMENT_DOWNLOAD') && <Button onClick={download}>{t.download}</Button>}
+          </div>
+
+          {description && <p className="text-sm break-words whitespace-pre-wrap text-slate-700">{description}</p>}
+          <p className="text-sm break-words text-slate-500">
             {version.fileName} · {formatBytes(version.fileSize)} · {formatDateTime(version.createdAt)}
-          </Typography>
+          </p>
           {schema.data && schema.data.fields.length > 0 && (
-            <Box>
-              <Typography variant="subtitle1" component="h2" sx={{ mb: 1 }}>
-                {t.metadata}
-              </Typography>
+            <div>
+              <h2 className="mb-2 text-base font-semibold text-slate-800">{t.metadata}</h2>
               <MetadataView schema={schema.data} metadata={version.metadata} />
-            </Box>
+            </div>
           )}
-          <Typography variant="caption" color="text.secondary">
-            {s.versionHelp}
-          </Typography>
+          <p className="text-xs text-slate-500">{s.versionHelp}</p>
           {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </Paper>
+        </div>
+      </Card>
 
       <DocumentViewer documentId={documentId} versionId={versionId} canReprocess={false} />
-    </Stack>
+    </div>
   );
 }

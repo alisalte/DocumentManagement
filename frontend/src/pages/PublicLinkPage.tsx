@@ -1,9 +1,16 @@
-import { Alert, Box, Button, CircularProgress, Container, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router';
 import { printImages } from '../components/DocumentViewer';
 import { s } from '../components/sharing/sharingStrings';
+import {
+  Alert,
+  Button,
+  Card,
+  CenteredSpinner,
+  Spinner,
+  TextField,
+} from '../components/ui';
 import { api, ApiError, type OpenedLink } from '../lib/api';
 import { formatBytes, formatNumber } from '../lib/format';
 import { describeError, t } from '../strings';
@@ -54,52 +61,48 @@ export function PublicLinkPage() {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50', py: { xs: 2, sm: 4 } }}>
-      <Container maxWidth="md">
-        <Stack spacing={2}>
-          <Typography variant="h6" component="p" color="text.secondary">
-            {t.appTitle}
-          </Typography>
+    <div className="min-h-screen bg-slate-50 px-3 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto w-full max-w-4xl space-y-4">
+        <p className="text-sm font-semibold text-slate-500">{t.appTitle}</p>
 
-          {!opened && info.isPending && <CircularProgress />}
-          {!opened && info.isError && <Alert severity="error">{describeError(info.error)}</Alert>}
+        {!opened && info.isPending && <CenteredSpinner />}
+        {!opened && info.isError && <Alert severity="error">{describeError(info.error)}</Alert>}
 
-          {info.data && !opened && (
-            <Paper variant="outlined" component="form" onSubmit={open} sx={{ p: { xs: 2, sm: 3 } }}>
-              <Stack spacing={2}>
-                <Typography variant="h5" component="h1">
-                  {s.linkTitle}
-                </Typography>
-                {info.data.requiresPassword && (
-                  <>
-                    <Typography>{s.linkNeedsPassword}</Typography>
-                    <TextField
-                      type="password"
-                      label={t.password}
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      autoComplete="off"
-                      required
-                      fullWidth
-                    />
-                  </>
-                )}
-                {info.data.lockedUntil && <Alert severity="warning">{s.linkLocked}</Alert>}
-                {error && <Alert severity="error">{error}</Alert>}
-                <Typography variant="body2" color="text.secondary">
-                  {s.linkOpenHelp}
-                </Typography>
-                <Button type="submit" variant="contained" disabled={opening || (info.data.requiresPassword && !password)}>
-                  {opening ? t.loading : s.linkOpen}
-                </Button>
-              </Stack>
-            </Paper>
-          )}
+        {info.data && !opened && (
+          <Card>
+            <form onSubmit={open} className="space-y-4">
+              <h1 className="text-xl font-bold text-slate-800">{s.linkTitle}</h1>
+              {info.data.requiresPassword && (
+                <>
+                  <p className="text-sm text-slate-600">{s.linkNeedsPassword}</p>
+                  <TextField
+                    type="password"
+                    label={t.password}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="off"
+                    required
+                  />
+                </>
+              )}
+              {info.data.lockedUntil && <Alert severity="warning">{s.linkLocked}</Alert>}
+              {error && <Alert severity="error">{error}</Alert>}
+              <p className="text-sm text-slate-500">{s.linkOpenHelp}</p>
+              <Button
+                type="submit"
+                fullWidth
+                loading={opening}
+                disabled={opening || (info.data.requiresPassword && !password)}
+              >
+                {opening ? t.loading : s.linkOpen}
+              </Button>
+            </form>
+          </Card>
+        )}
 
-          {opened && <OpenedLinkView token={token} link={opened} onEnded={ended} />}
-        </Stack>
-      </Container>
-    </Box>
+        {opened && <OpenedLinkView token={token} link={opened} onEnded={ended} />}
+      </div>
+    </div>
   );
 }
 
@@ -175,26 +178,24 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 3 } }}>
-      <Stack spacing={1.5}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'flex-start' } }}>
-          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Typography variant="h5" component="h1" sx={{ overflowWrap: 'anywhere' }}>
-              {link.title}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+    <Card>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold break-words text-slate-800">{link.title}</h1>
+            <p className="mt-1 text-sm break-words text-slate-500">
               <span dir="ltr">{link.versionLabel}</span> · {link.fileName} · {formatBytes(link.fileSize)}
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
             {link.canDownload && (
-              <Button variant="contained" disabled={busy} onClick={() => run(() => api.publicLink.download(token, session, link.fileName))}>
+              <Button disabled={busy} onClick={() => run(() => api.publicLink.download(token, session, link.fileName))}>
                 {t.download}
               </Button>
             )}
             {link.canPrint && ready && (
               <Button
-                variant="outlined"
+                variant="outline"
                 disabled={busy}
                 onClick={() =>
                   run(async () => {
@@ -206,8 +207,8 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
                 {busy ? t.preparingPrint : t.print}
               </Button>
             )}
-          </Stack>
-        </Stack>
+          </div>
+        </div>
 
         {error && <Alert severity="error">{error}</Alert>}
         {link.previewStatus === 'Pending' && <Alert severity="info">{t.previewPending}</Alert>}
@@ -216,37 +217,34 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
 
         {ready && (
           <>
-            <Box sx={{ bgcolor: 'grey.100', borderRadius: 1, minHeight: 240, display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-              {image.isLoading && <CircularProgress />}
+            <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-slate-100">
+              {image.isLoading && <Spinner />}
               {image.data && (
-                <Box
-                  component="img"
+                <img
                   src={image.data}
                   alt={`${t.page} ${page}`}
                   onContextMenu={(event) => event.preventDefault()}
-                  sx={{ width: '100%', height: 'auto', display: 'block', userSelect: 'none' }}
+                  className="block h-auto w-full select-none"
                 />
               )}
-            </Box>
+            </div>
             {link.pageCount > 1 && (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-                <Button size="small" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   {t.previous}
                 </Button>
-                <Typography variant="body2">
+                <p className="text-sm text-slate-600">
                   {t.page} {formatNumber(page)} {t.of} {formatNumber(link.pageCount)}
-                </Typography>
-                <Button size="small" disabled={page >= link.pageCount} onClick={() => setPage(page + 1)}>
+                </p>
+                <Button size="sm" variant="ghost" disabled={page >= link.pageCount} onClick={() => setPage(page + 1)}>
                   {t.next}
                 </Button>
-              </Stack>
+              </div>
             )}
           </>
         )}
-        <Typography variant="caption" color="text.secondary">
-          {s.linkWatermark}
-        </Typography>
-      </Stack>
-    </Paper>
+        <p className="text-xs text-slate-500">{s.linkWatermark}</p>
+      </div>
+    </Card>
   );
 }

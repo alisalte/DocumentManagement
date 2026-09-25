@@ -145,13 +145,17 @@ public enum DecisionReason
     DeniedUnknownResource,
 }
 
-public sealed record AuthorizationDecision(bool Allowed, DecisionReason Reason, string Explanation)
-{
-    public static AuthorizationDecision Allow(DecisionReason reason, string explanation) =>
-        new(true, reason, explanation);
+/// <summary>The ACL entry that decided, for the "why?" view: where it sits and whom it names.</summary>
+public sealed record DecisionSource(ResourceRef Resource, SubjectType SubjectType, Guid SubjectId, PermissionEffect Effect);
 
-    public static AuthorizationDecision Deny(DecisionReason reason, string explanation) =>
-        new(false, reason, explanation);
+/// <param name="Source">The deciding ACL entry, when an entry decided (allow, inherited allow or deny).</param>
+public sealed record AuthorizationDecision(bool Allowed, DecisionReason Reason, string Explanation, DecisionSource? Source = null)
+{
+    public static AuthorizationDecision Allow(DecisionReason reason, string explanation, DecisionSource? source = null) =>
+        new(true, reason, explanation, source);
+
+    public static AuthorizationDecision Deny(DecisionReason reason, string explanation, DecisionSource? source = null) =>
+        new(false, reason, explanation, source);
 }
 
 /// <summary>

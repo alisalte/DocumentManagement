@@ -1,26 +1,20 @@
 import {
   Alert,
-  Autocomplete,
-  Box,
   Button,
+  Card,
+  CenteredSpinner,
+  Checkbox,
   Chip,
+  ChipsInput,
   Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Divider,
-  FormControlLabel,
   IconButton,
-  LinearProgress,
-  MenuItem,
-  Paper,
-  Snackbar,
-  Stack,
+  ProgressBar,
+  Select,
   Switch,
+  TextArea,
   TextField,
-  Typography,
-} from '@mui/material';
+  Toast,
+} from '../../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
@@ -147,41 +141,58 @@ export function DocumentTypeEditorPage() {
     }
   };
 
-  if (admin.isPending) return <LinearProgress />;
+  if (admin.isPending) {
+    return (
+      <Card flush className="max-w-[1100px] overflow-hidden">
+        <ProgressBar />
+        <CenteredSpinner />
+      </Card>
+    );
+  }
   if (admin.isError) return <Alert severity="error">{describeError(admin.error)}</Alert>;
 
   const { type, versions } = admin.data;
   const codes = fields.map((field) => field.code);
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 1100 }}>
-      <Typography variant="h5" component="h1">
-        {type.name} <Typography component="span" color="text.secondary" dir="ltr">({type.code})</Typography>
-      </Typography>
+    <div className="max-w-[1100px] space-y-4 sm:space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-slate-800">
+          {type.name}{' '}
+          <span className="text-sm font-medium text-slate-500" dir="ltr">
+            ({type.code})
+          </span>
+        </h1>
+        {dirty && <Chip color="warning" label={a.unsaved} />}
+      </div>
 
       <SettingsPanel typeId={id} name={type.name} description={type.description} settings={type.settings} isActive={type.isActive} />
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="h6" component="h2">
-                {a.draft} {admin.data.draft && <span dir="ltr">(v{admin.data.draft.versionNumber})</span>}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {a.draftHelp}
-              </Typography>
-            </Box>
-            {dirty && <Chip color="warning" size="small" label={a.unsaved} />}
-            <Button onClick={saveDraft} disabled={busy || !dirty}>
-              {a.saveDraft}
-            </Button>
-            <Button variant="contained" onClick={() => setConfirmPublish(true)} disabled={busy}>
-              {a.publish}
-            </Button>
-          </Stack>
+      <Card flush className="overflow-hidden">
+        {busy && <ProgressBar />}
+        <div className="space-y-5 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-base font-semibold text-slate-800">
+                {a.draft}{' '}
+                {admin.data.draft && (
+                  <span className="text-sm font-medium text-slate-500" dir="ltr">
+                    (v{admin.data.draft.versionNumber})
+                  </span>
+                )}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">{a.draftHelp}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" onClick={saveDraft} disabled={busy || !dirty}>
+                {a.saveDraft}
+              </Button>
+              <Button onClick={() => setConfirmPublish(true)} disabled={busy}>
+                {a.publish}
+              </Button>
+            </div>
+          </div>
 
-          {busy && <LinearProgress />}
           {error && (
             <Alert severity="error">
               {error}
@@ -189,101 +200,108 @@ export function DocumentTypeEditorPage() {
             </Alert>
           )}
 
-          <Typography variant="subtitle1" component="h3">
-            {a.fields}
-          </Typography>
-          {fields.length === 0 && <Typography color="text.secondary">{a.noFields}</Typography>}
-          <Stack divider={<Divider flexItem />}>
-            {fields.map((field, index) => (
-              <Stack key={index} direction="row" spacing={1} sx={{ alignItems: 'center', py: 1 }}>
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography sx={{ fontWeight: 600 }}>{field.label.fa || '—'}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    <span dir="ltr">{field.code}</span> · {fieldTypeLabels[field.type]}
-                    {field.isRequired && ` · ${a.required}`}
-                    {field.isApprovalRelevant && ` · ${a.approvalRelevant}`}
-                    {!field.isActive && ` · ${a.inactive}`}
-                  </Typography>
-                </Box>
-                <IconButton size="small" disabled={index === 0} onClick={() => change(move(fields, index, -1))} aria-label="up">
-                  {a.up}
-                </IconButton>
-                <IconButton
-                  size="small"
-                  disabled={index === fields.length - 1}
-                  onClick={() => change(move(fields, index, 1))}
-                  aria-label="down"
-                >
-                  {a.down}
-                </IconButton>
-                <Button size="small" onClick={() => setEditing(index)}>
-                  {a.editField}
-                </Button>
-                <Button size="small" color="error" onClick={() => change(fields.filter((_, at) => at !== index))}>
-                  {a.remove}
-                </Button>
-              </Stack>
-            ))}
-          </Stack>
-          <Box>
-            <Button
-              onClick={() => {
-                change([...fields, newField(fields.length)]);
-                setEditing(fields.length);
-              }}
-            >
-              {a.addField}
-            </Button>
-          </Box>
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-800">{a.fields}</h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  change([...fields, newField(fields.length)]);
+                  setEditing(fields.length);
+                }}
+              >
+                {a.addField}
+              </Button>
+            </div>
+            {fields.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{a.noFields}</p>}
+            {fields.length > 0 && (
+              <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                {fields.map((field, index) => (
+                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-800">{field.label.fa || '—'}</p>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        <span dir="ltr">{field.code}</span> · {fieldTypeLabels[field.type]}
+                        {field.isRequired && ` · ${a.required}`}
+                        {field.isApprovalRelevant && ` · ${a.approvalRelevant}`}
+                        {!field.isActive && ` · ${a.inactive}`}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <IconButton label="up" size="sm" disabled={index === 0} onClick={() => change(move(fields, index, -1))}>
+                        {a.up}
+                      </IconButton>
+                      <IconButton
+                        label="down"
+                        size="sm"
+                        disabled={index === fields.length - 1}
+                        onClick={() => change(move(fields, index, 1))}
+                      >
+                        {a.down}
+                      </IconButton>
+                      <Button size="sm" variant="ghost" onClick={() => setEditing(index)}>
+                        {a.editField}
+                      </Button>
+                      <Button size="sm" variant="danger" onClick={() => change(fields.filter((_, at) => at !== index))}>
+                        {a.remove}
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
-          <Divider />
-          <Typography variant="subtitle1" component="h3">
-            {a.rules}
-          </Typography>
-          {rules.map((rule, index) => (
-            <RuleEditor
-              key={index}
-              rule={rule}
-              codes={codes}
-              onChange={(next) => change(fields, rules.map((current, at) => (at === index ? next : current)))}
-              onRemove={() => change(fields, rules.filter((_, at) => at !== index))}
-            />
-          ))}
-          <Box>
-            <Button
-              onClick={() =>
-                change(fields, [...rules, { kind: 'Show', targets: [], condition: undefined, displayOrder: rules.length }])
-              }
-            >
-              {a.addRule}
-            </Button>
-          </Box>
-        </Stack>
-      </Paper>
+          <section className="space-y-3 border-t border-slate-100 pt-5">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-800">{a.rules}</h3>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  change(fields, [...rules, { kind: 'Show', targets: [], condition: undefined, displayOrder: rules.length }])
+                }
+              >
+                {a.addRule}
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {rules.map((rule, index) => (
+                <RuleEditor
+                  key={index}
+                  rule={rule}
+                  codes={codes}
+                  onChange={(next) => change(fields, rules.map((current, at) => (at === index ? next : current)))}
+                  onRemove={() => change(fields, rules.filter((_, at) => at !== index))}
+                />
+              ))}
+            </div>
+          </section>
+        </div>
+      </Card>
 
       {previewSchema && previewSchema.fields.length > 0 && (
-        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-          <Typography variant="h6" component="h2">
-            {a.preview}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {a.previewHelp}
-          </Typography>
-          <DynamicForm schema={previewSchema} value={preview} onChange={setPreview} />
-        </Paper>
+        <Card>
+          <h2 className="text-base font-semibold text-slate-800">{a.preview}</h2>
+          <p className="mt-1 text-sm text-slate-500">{a.previewHelp}</p>
+          <div className="mt-4">
+            <DynamicForm schema={previewSchema} value={preview} onChange={setPreview} />
+          </div>
+        </Card>
       )}
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-          {a.versions}
-        </Typography>
-        {versions.map((version) => (
-          <Typography key={version.id} variant="body2">
-            <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
-            {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.fieldCount} {a.fields}
-          </Typography>
-        ))}
-      </Paper>
+      <Card>
+        <h2 className="text-base font-semibold text-slate-800">{a.versions}</h2>
+        <div className="mt-2 space-y-1">
+          {versions.map((version) => (
+            <p key={version.id} className="text-sm text-slate-600">
+              <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
+              {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.fieldCount} {a.fields}
+            </p>
+          ))}
+        </div>
+      </Card>
 
       {editing !== null && fields[editing] && (
         <FieldDialog
@@ -296,21 +314,25 @@ export function DocumentTypeEditorPage() {
         />
       )}
 
-      <Dialog open={confirmPublish} onClose={() => setConfirmPublish(false)}>
-        <DialogTitle>{a.publish}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>{a.publishConfirm}</DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmPublish(false)}>{a.cancel}</Button>
-          <Button variant="contained" onClick={publish}>
-            {a.publish}
-          </Button>
-        </DialogActions>
+      <Dialog
+        open={confirmPublish}
+        onClose={() => setConfirmPublish(false)}
+        title={a.publish}
+        maxWidth="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmPublish(false)}>
+              {a.cancel}
+            </Button>
+            <Button onClick={publish}>{a.publish}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">{a.publishConfirm}</p>
       </Dialog>
 
-      <Snackbar open={!!notice} autoHideDuration={4000} onClose={() => setNotice(null)} message={notice} />
-    </Stack>
+      <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} />
+    </div>
   );
 }
 
@@ -335,7 +357,7 @@ function ErrorList({ errors, fields }: { errors: Record<string, string[]>; field
   };
 
   return (
-    <Box component="ul" sx={{ m: 0, mt: 1, paddingInlineStart: 2 }}>
+    <ul className="mt-1 space-y-0.5 list-disc ps-4">
       {entries.flatMap(([path, messages]) =>
         messages.map((message) => (
           <li key={`${path}-${message}`}>
@@ -343,7 +365,7 @@ function ErrorList({ errors, fields }: { errors: Record<string, string[]>; field
           </li>
         )),
       )}
-    </Box>
+    </ul>
   );
 }
 
@@ -388,106 +410,93 @@ function SettingsPanel({
   const maxMb = form.settings.maxUploadBytes ? Math.round(form.settings.maxUploadBytes / 1024 / 1024) : '';
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
-      <Stack spacing={2}>
-        <Typography variant="h6" component="h2">
-          {a.settings}
-        </Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField label={a.name} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} fullWidth />
-          <TextField
-            select
-            label={a.editPolicy}
-            value={form.settings.metadataEditPolicy}
-            onChange={(event) =>
-              setForm({ ...form, settings: { ...form.settings, metadataEditPolicy: event.target.value as DocumentTypeSettings['metadataEditPolicy'] } })
-            }
-            fullWidth
-          >
-            <MenuItem value="NewRevision">{a.policyNewRevision}</MenuItem>
-            <MenuItem value="InPlace">{a.policyInPlace}</MenuItem>
-          </TextField>
-        </Stack>
+    <Card>
+      <h2 className="text-base font-semibold text-slate-800">{a.settings}</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <TextField label={a.name} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+        <Select
+          label={a.editPolicy}
+          value={form.settings.metadataEditPolicy}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              settings: {
+                ...form.settings,
+                metadataEditPolicy: event.target.value as DocumentTypeSettings['metadataEditPolicy'],
+              },
+            })
+          }
+        >
+          <option value="NewRevision">{a.policyNewRevision}</option>
+          <option value="InPlace">{a.policyInPlace}</option>
+        </Select>
         <TextField
           label={a.description}
           value={form.description}
           onChange={(event) => setForm({ ...form, description: event.target.value })}
-          fullWidth
+          className="sm:col-span-2"
         />
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField
-            select
-            label={a.workflowMode}
-            value={form.settings.workflowMode ?? 'None'}
-            onChange={(event) =>
-              setForm({ ...form, settings: { ...form.settings, workflowMode: event.target.value as DocumentTypeSettings['workflowMode'] } })
-            }
-            fullWidth
-          >
-            <MenuItem value="None">{a.modeNone}</MenuItem>
-            <MenuItem value="Manual">{a.modeManual}</MenuItem>
-            <MenuItem value="AutoOnVersion">{a.modeAuto}</MenuItem>
-          </TextField>
-          <TextField
-            select
-            label={a.workflow}
-            value={form.settings.workflowId ?? ''}
-            onChange={(event) => setForm({ ...form, settings: { ...form.settings, workflowId: event.target.value || null } })}
-            disabled={(form.settings.workflowMode ?? 'None') === 'None'}
-            fullWidth
-          >
-            <MenuItem value="">—</MenuItem>
-            {(workflows.data ?? []).map((workflow) => (
-              <MenuItem key={workflow.id} value={workflow.id} disabled={!workflow.latestPublishedVersionId || !workflow.isActive}>
-                {workflow.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <Autocomplete
-            multiple
-            freeSolo
-            fullWidth
-            options={[]}
-            value={form.settings.allowedExtensions}
-            onChange={(_, next) =>
-              setForm({
-                ...form,
-                settings: { ...form.settings, allowedExtensions: next.map((item) => item.trim().replace(/^\./, '').toLowerCase()).filter(Boolean) },
-              })
-            }
-            renderInput={(params) => <TextField {...params} label={a.allowedExtensions} helperText={a.allowedExtensionsHelp} />}
-          />
-          <TextField
-            label={a.maxUploadMb}
-            type="number"
-            value={maxMb}
-            onChange={(event) =>
-              setForm({
-                ...form,
-                settings: {
-                  ...form.settings,
-                  maxUploadBytes: event.target.value ? Number(event.target.value) * 1024 * 1024 : null,
-                },
-              })
-            }
-            sx={{ minWidth: 200 }}
-          />
-        </Stack>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <FormControlLabel
-            control={<Switch checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} />}
-            label={a.active}
-          />
-          <Box sx={{ flexGrow: 1 }} />
-          <Button onClick={save} disabled={busy || !form.name.trim()}>
-            {a.saveSettings}
-          </Button>
-        </Stack>
-        {message && <Alert severity={message.ok ? 'success' : 'error'}>{message.text}</Alert>}
-      </Stack>
-    </Paper>
+        <Select
+          label={a.workflowMode}
+          value={form.settings.workflowMode ?? 'None'}
+          onChange={(event) =>
+            setForm({ ...form, settings: { ...form.settings, workflowMode: event.target.value as DocumentTypeSettings['workflowMode'] } })
+          }
+        >
+          <option value="None">{a.modeNone}</option>
+          <option value="Manual">{a.modeManual}</option>
+          <option value="AutoOnVersion">{a.modeAuto}</option>
+        </Select>
+        <Select
+          label={a.workflow}
+          value={form.settings.workflowId ?? ''}
+          onChange={(event) => setForm({ ...form, settings: { ...form.settings, workflowId: event.target.value || null } })}
+          disabled={(form.settings.workflowMode ?? 'None') === 'None'}
+        >
+          <option value="">—</option>
+          {(workflows.data ?? []).map((workflow) => (
+            <option key={workflow.id} value={workflow.id} disabled={!workflow.latestPublishedVersionId || !workflow.isActive}>
+              {workflow.name}
+            </option>
+          ))}
+        </Select>
+        <ChipsInput
+          label={a.allowedExtensions}
+          value={form.settings.allowedExtensions}
+          onChange={(next) =>
+            setForm({
+              ...form,
+              settings: {
+                ...form.settings,
+                allowedExtensions: next.map((item) => item.trim().replace(/^\./, '').toLowerCase()).filter(Boolean),
+              },
+            })
+          }
+          helperText={a.allowedExtensionsHelp}
+        />
+        <TextField
+          label={a.maxUploadMb}
+          type="number"
+          value={maxMb}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              settings: {
+                ...form.settings,
+                maxUploadBytes: event.target.value ? Number(event.target.value) * 1024 * 1024 : null,
+              },
+            })
+          }
+        />
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <Switch label={a.active} checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} />
+        <Button onClick={save} disabled={busy || !form.name.trim()}>
+          {a.saveSettings}
+        </Button>
+      </div>
+      {message && <Alert className="mt-4" severity={message.ok ? 'success' : 'error'}>{message.text}</Alert>}
+    </Card>
   );
 }
 
@@ -510,142 +519,126 @@ function FieldDialog({ field, onClose, onSave }: { field: FieldSchema; onClose: 
   };
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>{a.editField}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label={a.label}
-              value={draft.label.fa}
-              onChange={(event) => set({ label: { ...draft.label, fa: event.target.value } })}
-              required
-              fullWidth
-            />
-            <TextField
-              label={a.labelEn}
-              value={draft.label.en ?? ''}
-              onChange={(event) => set({ label: { ...draft.label, en: event.target.value || null } })}
-              fullWidth
-              slotProps={{ htmlInput: { dir: 'ltr' } }}
-            />
-          </Stack>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label={a.code}
-              value={draft.code}
-              onChange={(event) => set({ code: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
-              helperText="snake_case"
-              required
-              fullWidth
-              slotProps={{ htmlInput: { dir: 'ltr', maxLength: 63 } }}
-            />
-            <TextField
-              select
-              label={a.type}
-              value={draft.type}
-              onChange={(event) => set({ type: event.target.value as FieldType, validation: {} })}
-              fullWidth
-            >
-              {fieldTypes.map((type) => (
-                <MenuItem key={type} value={type}>
-                  {fieldTypeLabels[type]}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
-
-          <Stack direction="row" sx={{ flexWrap: 'wrap', columnGap: 2 }}>
-            {(
-              [
-                ['isRequired', a.required],
-                ['isApprovalRelevant', a.approvalRelevant],
-                ['isSearchable', a.searchable],
-                ['showInList', a.showInList],
-                ['isActive', a.fieldActive],
-              ] as const
-            ).map(([key, label]) => (
-              <FormControlLabel
-                key={key}
-                control={<Switch checked={!!draft[key]} onChange={(event) => set({ [key]: event.target.checked })} />}
-                label={label}
-              />
+    <Dialog
+      open
+      onClose={onClose}
+      title={a.editField}
+      maxWidth="lg"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {a.cancel}
+          </Button>
+          <Button onClick={save} disabled={!draft.label.fa.trim() || !draft.code || defaultError}>
+            {a.save}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label={a.label}
+            value={draft.label.fa}
+            onChange={(event) => set({ label: { ...draft.label, fa: event.target.value } })}
+            required
+          />
+          <TextField
+            label={a.labelEn}
+            value={draft.label.en ?? ''}
+            onChange={(event) => set({ label: { ...draft.label, en: event.target.value || null } })}
+            dir="ltr"
+          />
+          <TextField
+            label={a.code}
+            value={draft.code}
+            onChange={(event) => set({ code: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })}
+            helperText="snake_case"
+            required
+            dir="ltr"
+            maxLength={63}
+          />
+          <Select label={a.type} value={draft.type} onChange={(event) => set({ type: event.target.value as FieldType, validation: {} })}>
+            {fieldTypes.map((type) => (
+              <option key={type} value={type}>
+                {fieldTypeLabels[type]}
+              </option>
             ))}
-          </Stack>
-          {draft.isApprovalRelevant && (
-            <Typography variant="caption" color="text.secondary">
-              {a.approvalRelevantHelp}
-            </Typography>
-          )}
+          </Select>
+        </div>
 
-          <TextField
-            label={a.helpText}
-            value={draft.helpText?.fa ?? ''}
-            onChange={(event) => set({ helpText: event.target.value ? { fa: event.target.value } : null })}
-            fullWidth
-          />
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {(
+            [
+              ['isRequired', a.required],
+              ['isApprovalRelevant', a.approvalRelevant],
+              ['isSearchable', a.searchable],
+              ['showInList', a.showInList],
+              ['isActive', a.fieldActive],
+            ] as const
+          ).map(([key, label]) => (
+            <Switch key={key} label={label} checked={!!draft[key]} onChange={(event) => set({ [key]: event.target.checked })} />
+          ))}
+        </div>
+        {draft.isApprovalRelevant && <p className="text-xs text-slate-500">{a.approvalRelevantHelp}</p>}
 
-          {textTypes.includes(draft.type) && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label={a.minLength} type="number" value={draft.validation.minLength ?? ''} onChange={(event) => setValidation({ minLength: num(event.target.value) })} />
-              <TextField label={a.maxLength} type="number" value={draft.validation.maxLength ?? ''} onChange={(event) => setValidation({ maxLength: num(event.target.value) })} />
-              <TextField
-                label={a.pattern}
-                value={draft.validation.pattern ?? ''}
-                onChange={(event) => setValidation({ pattern: event.target.value || null })}
-                fullWidth
-                slotProps={{ htmlInput: { dir: 'ltr' } }}
-              />
-              <TextField
-                label={a.patternMessage}
-                value={draft.validation.patternMessage?.fa ?? ''}
-                onChange={(event) => setValidation({ patternMessage: event.target.value ? { fa: event.target.value } : null })}
-                fullWidth
-              />
-            </Stack>
-          )}
+        <TextField
+          label={a.helpText}
+          value={draft.helpText?.fa ?? ''}
+          onChange={(event) => set({ helpText: event.target.value ? { fa: event.target.value } : null })}
+        />
 
-          {numberTypes.includes(draft.type) && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label={a.min} type="number" value={draft.validation.min ?? ''} onChange={(event) => setValidation({ min: num(event.target.value) })} />
-              <TextField label={a.max} type="number" value={draft.validation.max ?? ''} onChange={(event) => setValidation({ max: num(event.target.value) })} />
-              {draft.type === 'Decimal' && (
-                <TextField label={a.scale} type="number" value={draft.validation.scale ?? ''} onChange={(event) => setValidation({ scale: num(event.target.value) })} />
-              )}
-            </Stack>
-          )}
+        {textTypes.includes(draft.type) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label={a.minLength} type="number" value={draft.validation.minLength ?? ''} onChange={(event) => setValidation({ minLength: num(event.target.value) })} />
+            <TextField label={a.maxLength} type="number" value={draft.validation.maxLength ?? ''} onChange={(event) => setValidation({ maxLength: num(event.target.value) })} />
+            <TextField
+              label={a.pattern}
+              value={draft.validation.pattern ?? ''}
+              onChange={(event) => setValidation({ pattern: event.target.value || null })}
+              dir="ltr"
+            />
+            <TextField
+              label={a.patternMessage}
+              value={draft.validation.patternMessage?.fa ?? ''}
+              onChange={(event) => setValidation({ patternMessage: event.target.value ? { fa: event.target.value } : null })}
+            />
+          </div>
+        )}
 
-          {draft.type === 'Date' && (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-              <TextField label={a.minDate} value={draft.validation.minDate ?? ''} onChange={(event) => setValidation({ minDate: event.target.value || null })} slotProps={{ htmlInput: { dir: 'ltr' } }} />
-              <TextField label={a.maxDate} value={draft.validation.maxDate ?? ''} onChange={(event) => setValidation({ maxDate: event.target.value || null })} slotProps={{ htmlInput: { dir: 'ltr' } }} />
-            </Stack>
-          )}
+        {numberTypes.includes(draft.type) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label={a.min} type="number" value={draft.validation.min ?? ''} onChange={(event) => setValidation({ min: num(event.target.value) })} />
+            <TextField label={a.max} type="number" value={draft.validation.max ?? ''} onChange={(event) => setValidation({ max: num(event.target.value) })} />
+            {draft.type === 'Decimal' && (
+              <TextField label={a.scale} type="number" value={draft.validation.scale ?? ''} onChange={(event) => setValidation({ scale: num(event.target.value) })} />
+            )}
+          </div>
+        )}
 
-          {choiceTypes.includes(draft.type) && (
-            <OptionsEditor options={draft.options} onChange={(options) => set({ options })} />
-          )}
-          {draft.type === 'MultiSelect' && (
-            <TextField label={a.maxItems} type="number" value={draft.validation.maxItems ?? ''} onChange={(event) => setValidation({ maxItems: num(event.target.value) })} />
-          )}
+        {draft.type === 'Date' && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField label={a.minDate} value={draft.validation.minDate ?? ''} onChange={(event) => setValidation({ minDate: event.target.value || null })} dir="ltr" />
+            <TextField label={a.maxDate} value={draft.validation.maxDate ?? ''} onChange={(event) => setValidation({ maxDate: event.target.value || null })} dir="ltr" />
+          </div>
+        )}
 
-          <TextField
-            label={a.defaultValue}
-            value={defaultText}
-            onChange={(event) => setDefaultText(event.target.value)}
-            error={defaultError}
-            helperText={defaultError ? a.invalidJson : 'مثال: "north" یا 10 یا true'}
-            fullWidth
-            slotProps={{ htmlInput: { dir: 'ltr' } }}
-          />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{a.cancel}</Button>
-        <Button variant="contained" onClick={save} disabled={!draft.label.fa.trim() || !draft.code || defaultError}>
-          {a.save}
-        </Button>
-      </DialogActions>
+        {choiceTypes.includes(draft.type) && (
+          <OptionsEditor options={draft.options} onChange={(options) => set({ options })} />
+        )}
+        {draft.type === 'MultiSelect' && (
+          <TextField label={a.maxItems} type="number" value={draft.validation.maxItems ?? ''} onChange={(event) => setValidation({ maxItems: num(event.target.value) })} />
+        )}
+
+        <TextField
+          label={a.defaultValue}
+          value={defaultText}
+          onChange={(event) => setDefaultText(event.target.value)}
+          error={defaultError}
+          helperText={defaultError ? a.invalidJson : 'مثال: "north" یا 10 یا true'}
+          dir="ltr"
+        />
+      </div>
     </Dialog>
   );
 }
@@ -655,24 +648,32 @@ function OptionsEditor({ options, onChange }: { options: FieldOption[]; onChange
     onChange(options.map((option, at) => (at === index ? { ...option, ...patch } : option)));
 
   return (
-    <Stack spacing={1}>
-      <Typography variant="subtitle2">{a.options}</Typography>
-      {options.map((option, index) => (
-        <Stack key={index} direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ alignItems: { sm: 'center' } }}>
-          <TextField size="small" label={a.optionValue} value={option.value} onChange={(event) => update(index, { value: event.target.value })} slotProps={{ htmlInput: { dir: 'ltr' } }} />
-          <TextField size="small" label={a.optionLabel} value={option.label.fa} onChange={(event) => update(index, { label: { ...option.label, fa: event.target.value } })} fullWidth />
-          <FormControlLabel control={<Switch size="small" checked={option.isActive} onChange={(event) => update(index, { isActive: event.target.checked })} />} label={a.fieldActive} />
-          <Button size="small" color="error" onClick={() => onChange(options.filter((_, at) => at !== index))}>
-            {a.remove}
-          </Button>
-        </Stack>
-      ))}
-      <Box>
-        <Button size="small" onClick={() => onChange([...options, { value: '', label: { fa: '' }, displayOrder: options.length, isActive: true }])}>
-          {a.addOption}
-        </Button>
-      </Box>
-    </Stack>
+    <div className="space-y-2">
+      <p className="text-sm font-semibold text-slate-800">{a.options}</p>
+      <div className="space-y-3">
+        {options.map((option, index) => (
+          <div key={index} className="grid gap-2 sm:grid-cols-2">
+            <TextField
+              size="sm"
+              label={a.optionValue}
+              value={option.value}
+              onChange={(event) => update(index, { value: event.target.value })}
+              dir="ltr"
+            />
+            <TextField size="sm" label={a.optionLabel} value={option.label.fa} onChange={(event) => update(index, { label: { ...option.label, fa: event.target.value } })} />
+            <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
+              <Switch label={a.fieldActive} checked={option.isActive} onChange={(event) => update(index, { isActive: event.target.checked })} />
+              <Button size="sm" variant="danger" onClick={() => onChange(options.filter((_, at) => at !== index))}>
+                {a.remove}
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <Button size="sm" variant="ghost" onClick={() => onChange([...options, { value: '', label: { fa: '' }, displayOrder: options.length, isActive: true }])}>
+        {a.addOption}
+      </Button>
+    </div>
   );
 }
 
@@ -688,51 +689,59 @@ function RuleEditor({
   onRemove: () => void;
 }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2 }}>
-      <Stack spacing={2}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField
-            select
-            label={a.ruleKind}
-            value={rule.kind}
-            onChange={(event) => {
-              const kind = event.target.value as RuleKind;
-              onChange({ ...rule, kind, assertion: kind === 'Validate' ? rule.assertion : undefined });
-            }}
-            sx={{ minWidth: 180 }}
-          >
-            {(Object.keys(ruleKindLabels) as RuleKind[]).map((kind) => (
-              <MenuItem key={kind} value={kind}>
-                {ruleKindLabels[kind]}
-              </MenuItem>
+    <Card className="space-y-4">
+      <div className="grid items-end gap-4 sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
+        <Select
+          label={a.ruleKind}
+          value={rule.kind}
+          onChange={(event) => {
+            const kind = event.target.value as RuleKind;
+            onChange({ ...rule, kind, assertion: kind === 'Validate' ? rule.assertion : undefined });
+          }}
+        >
+          {(Object.keys(ruleKindLabels) as RuleKind[]).map((kind) => (
+            <option key={kind} value={kind}>
+              {ruleKindLabels[kind]}
+            </option>
+          ))}
+        </Select>
+        <div className="w-full">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">{a.targets}</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 shadow-sm">
+            {codes.length === 0 && <span className="text-sm text-slate-400">—</span>}
+            {codes.map((code) => (
+              <Checkbox
+                key={code}
+                label={<span dir="ltr">{code}</span>}
+                checked={rule.targets.includes(code)}
+                onChange={(event) =>
+                  onChange({
+                    ...rule,
+                    targets: event.target.checked
+                      ? [...rule.targets, code]
+                      : rule.targets.filter((target) => target !== code),
+                  })
+                }
+              />
             ))}
-          </TextField>
-          <Autocomplete
-            multiple
-            fullWidth
-            options={codes}
-            value={rule.targets}
-            onChange={(_, targets) => onChange({ ...rule, targets })}
-            renderInput={(params) => <TextField {...params} label={a.targets} />}
+          </div>
+        </div>
+        <Button variant="danger" onClick={onRemove}>
+          {a.remove}
+        </Button>
+      </div>
+      <ExpressionField label={a.condition} value={rule.condition} codes={codes} onChange={(condition) => onChange({ ...rule, condition })} />
+      {rule.kind === 'Validate' && (
+        <>
+          <ExpressionField label={a.assertion} value={rule.assertion} codes={codes} onChange={(assertion) => onChange({ ...rule, assertion })} />
+          <TextField
+            label={a.message}
+            value={rule.message?.fa ?? ''}
+            onChange={(event) => onChange({ ...rule, message: event.target.value ? { fa: event.target.value } : null })}
           />
-          <Button color="error" onClick={onRemove}>
-            {a.remove}
-          </Button>
-        </Stack>
-        <ExpressionField label={a.condition} value={rule.condition} codes={codes} onChange={(condition) => onChange({ ...rule, condition })} />
-        {rule.kind === 'Validate' && (
-          <>
-            <ExpressionField label={a.assertion} value={rule.assertion} codes={codes} onChange={(assertion) => onChange({ ...rule, assertion })} />
-            <TextField
-              label={a.message}
-              value={rule.message?.fa ?? ''}
-              onChange={(event) => onChange({ ...rule, message: event.target.value ? { fa: event.target.value } : null })}
-              fullWidth
-            />
-          </>
-        )}
-      </Stack>
-    </Paper>
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -761,7 +770,7 @@ function ExpressionField({
   }, [text, codes]);
 
   return (
-    <TextField
+    <TextArea
       label={label}
       value={text}
       onChange={(event) => {
@@ -772,10 +781,9 @@ function ExpressionField({
       }}
       error={!!problem}
       helperText={problem ?? a.conditionHelp}
-      multiline
-      minRows={2}
-      fullWidth
-      slotProps={{ htmlInput: { dir: 'ltr', style: { fontFamily: 'monospace' } } }}
+      rows={2}
+      dir="ltr"
+      style={{ fontFamily: 'monospace' }}
     />
   );
 }

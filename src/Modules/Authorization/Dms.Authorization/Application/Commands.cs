@@ -26,6 +26,8 @@ public sealed record AssignRoleCommand(Guid UserId, Guid RoleId) : ICommand<Resu
 
 public sealed record UnassignRoleCommand(Guid UserId, Guid RoleId) : ICommand<Result>;
 
+public sealed record UpdateRoleCommand(Guid RoleId, string Name, string? Description) : ICommand<Result>;
+
 internal static class AuthorizationErrors
 {
     public static readonly Error Unauthenticated =
@@ -40,7 +42,7 @@ internal static class AuthorizationErrors
 }
 
 public sealed class GrantResourcePermissionHandler(
-    IDmsAuthorizer authorizer,
+    AclAdministration administration,
     IResourcePermissionRepository repository,
     IAuditWriter audit,
     ICurrentUser currentUser,
@@ -56,11 +58,7 @@ public sealed class GrantResourcePermissionHandler(
         }
 
         var resource = new ResourceRef(command.ResourceType, command.ResourceId);
-        var decision = await authorizer.AuthorizeAsync(
-            PermissionCodes.DocumentManagePermission,
-            resource,
-            cancellationToken);
-
+        var decision = await administration.RequireManageAsync(resource, "grant", cancellationToken);
         if (!decision.Allowed)
         {
             await audit.WriteAsync(
@@ -79,20 +77,6 @@ public sealed class GrantResourcePermissionHandler(
                 cancellationToken);
 
             return Result.Failure<Guid>(AuthorizationErrors.Forbidden(decision.Explanation));
-        }
-
-        // Decision D5: administrators reaching a resource through the bypass leave a trace.
-        if (decision.Reason == DecisionReason.AllowedBySystemAdministrator)
-        {
-            await audit.WriteAsync(
-                new AuditRecord
-                {
-                    Action = AuditActions.AdminPermissionOverride,
-                    EntityType = command.ResourceType.ToString(),
-                    EntityId = command.ResourceId,
-                    Metadata = new Dictionary<string, object?> { ["operation"] = "grant" },
-                },
-                cancellationToken);
         }
 
         var now = timeProvider.GetUtcNow();
@@ -161,7 +145,7 @@ public sealed class GrantResourcePermissionHandler(
 }
 
 public sealed class RevokeResourcePermissionHandler(
-    IDmsAuthorizer authorizer,
+    AclAdministration administration,
     IResourcePermissionRepository repository,
     IAuditWriter audit) : ICommandHandler<RevokeResourcePermissionCommand, Result>
 {
@@ -175,9 +159,10 @@ public sealed class RevokeResourcePermissionHandler(
             return Result.Failure(AuthorizationErrors.EntryNotFound);
         }
 
-        var decision = await authorizer.AuthorizeAsync(
-            PermissionCodes.DocumentManagePermission,
+        // Decision D5: the bypass is audited on a revoke as it is on a grant (phase 1 review).
+        var decision = await administration.RequireManageAsync(
             new ResourceRef(entry.ResourceType, entry.ResourceId),
+            "revoke",
             cancellationToken);
 
         if (!decision.Allowed)
@@ -246,6 +231,7 @@ public sealed class CreateRoleHandler(
 
 public sealed class SetRolePermissionsHandler(
     IDmsAuthorizer authorizer,
+    RoleEscalationGuard escalation,
     IRoleRepository repository,
     IAuditWriter audit) : ICommandHandler<SetRolePermissionsCommand, Result>
 {
@@ -263,7 +249,14 @@ public sealed class SetRolePermissionsHandler(
             return Result.Failure(AuthorizationErrors.RoleNotFound);
         }
 
-        foreach (var existing in role.Permissions.Select(permission => permission.PermissionCode).ToList())
+        var current = role.Permissions.Select(permission => permission.PermissionCode).ToHashSet();
+        var missing = await escalation.MissingAsync(command.PermissionCodes.Where(code => !current.Contains(code)), cancellationToken);
+        if (missing.Count > 0)
+        {
+            return Result.Failure(RoleEscalationGuard.Exceeds(missing));
+        }
+
+        foreach (var existing in current)
         {
             role.Revoke(existing);
         }
@@ -293,6 +286,7 @@ public sealed class SetRolePermissionsHandler(
 
 public sealed class AssignRoleHandler(
     IDmsAuthorizer authorizer,
+    RoleEscalationGuard escalation,
     IRoleRepository roles,
     IUserRoleRepository userRoles,
     IAuditWriter audit,
@@ -313,9 +307,15 @@ public sealed class AssignRoleHandler(
         }
 
         var roleId = new RoleId(command.RoleId);
-        if (await roles.FindAsync(roleId, cancellationToken) is null)
+        if (await roles.FindAsync(roleId, cancellationToken) is not { } role)
         {
             return Result.Failure(AuthorizationErrors.RoleNotFound);
+        }
+
+        var missing = await escalation.MissingAsync(role.Permissions.Select(permission => permission.PermissionCode), cancellationToken);
+        if (missing.Count > 0)
+        {
+            return Result.Failure(RoleEscalationGuard.Exceeds(missing));
         }
 
         var userId = new UserId(command.UserId);
@@ -370,6 +370,44 @@ public sealed class UnassignRoleHandler(
                 EntityType = "User",
                 EntityId = command.UserId,
                 Metadata = new Dictionary<string, object?> { ["roleId"] = command.RoleId },
+            },
+            cancellationToken);
+
+        return Result.Success();
+    }
+}
+
+public sealed class UpdateRoleHandler(
+    IDmsAuthorizer authorizer,
+    IRoleRepository roles,
+    IAuditWriter audit) : ICommandHandler<UpdateRoleCommand, Result>
+{
+    public async Task<Result> HandleAsync(UpdateRoleCommand command, CancellationToken cancellationToken)
+    {
+        var decision = await authorizer.AuthorizeSystemAsync(PermissionCodes.AdminManageRoles, cancellationToken);
+        if (!decision.Allowed)
+        {
+            return Result.Failure(AuthorizationErrors.Forbidden(decision.Explanation));
+        }
+
+        if (await roles.FindAsync(new RoleId(command.RoleId), cancellationToken) is not { } role)
+        {
+            return Result.Failure(AuthorizationErrors.RoleNotFound);
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Name))
+        {
+            return Result.Failure(Error.Validation("role.required", "A role name is required."));
+        }
+
+        role.Rename(command.Name, string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim());
+        await audit.WriteAsync(
+            new AuditRecord
+            {
+                Action = AuditActions.RoleUpdated,
+                EntityType = "Role",
+                EntityId = command.RoleId,
+                Metadata = new Dictionary<string, object?> { ["name"] = role.Name },
             },
             cancellationToken);
 

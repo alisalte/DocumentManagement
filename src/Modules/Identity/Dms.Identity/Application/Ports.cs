@@ -15,6 +15,9 @@ public interface IUserRepository
 
     Task<IReadOnlyList<User>> FindManyAsync(IReadOnlyCollection<UserId> userIds, CancellationToken cancellationToken);
 
+    /// <summary>Active system administrators; there must always be one left.</summary>
+    Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
+
     void Add(User user);
 }
 
@@ -34,6 +37,12 @@ public interface IMembershipRepository
     Task<UserGroupMembership?> FindAsync(UserId userId, GroupId groupId, CancellationToken cancellationToken);
 
     Task<IReadOnlySet<GroupId>> GetGroupIdsAsync(UserId userId, CancellationToken cancellationToken);
+
+    /// <summary>Every group the user belongs to, active or not (for administration).</summary>
+    Task<IReadOnlyList<GroupId>> ListGroupIdsAsync(UserId userId, CancellationToken cancellationToken);
+
+    /// <summary>Every member of the group, active or not (for administration).</summary>
+    Task<IReadOnlyList<UserId>> ListMemberIdsAsync(GroupId groupId, CancellationToken cancellationToken);
 
     void Add(UserGroupMembership membership);
 

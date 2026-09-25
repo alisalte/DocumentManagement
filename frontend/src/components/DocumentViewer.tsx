@@ -1,8 +1,8 @@
-import { Alert, Box, Button, CircularProgress, LinearProgress, Paper, Stack, Typography } from '@mui/material';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api, ApiError, type PreviewInfo } from '../lib/api';
 import { describeError, t } from '../strings';
+import { Alert, Button, Card, ProgressBar, Spinner } from './ui';
 
 /**
  * The in-app viewer (section 7.4): page images rendered by the server, watermarked with the
@@ -79,86 +79,88 @@ export function DocumentViewer({
     preview.error instanceof ApiError && preview.error.status === 403 && preview.error.code === 'auth.forbidden';
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 1.5, sm: 2 } }}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1, flexWrap: 'wrap', rowGap: 1 }}>
-        <Typography variant="h6" component="h2" sx={{ flexGrow: 1 }}>
+    <Card>
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="min-w-0 flex-1 text-base font-semibold text-slate-800">
           {t.preview}
           {info && (
-            <Typography component="span" variant="body2" color="text.secondary" dir="ltr" sx={{ mx: 1 }}>
+            <span dir="ltr" className="ms-2 text-sm font-normal text-slate-500">
               {info.label}
-            </Typography>
+            </span>
           )}
-        </Typography>
+        </h2>
         {info?.status === 'Ready' && info.canPrint && (
-          <Button size="small" variant="outlined" onClick={print} disabled={printing}>
+          <Button size="sm" variant="outline" onClick={print} disabled={printing}>
             {printing ? t.preparingPrint : t.print}
           </Button>
         )}
-      </Stack>
+      </div>
 
-      {preview.isLoading && <LinearProgress />}
+      {preview.isLoading && <ProgressBar className="mb-3" />}
       {preview.isError && (
-        <Alert severity={scanBlocked ? 'warning' : 'error'}>{scanBlocked ? t.previewScan : describeError(preview.error)}</Alert>
+        <Alert severity={scanBlocked ? 'warning' : 'error'} className="mb-3">
+          {scanBlocked ? t.previewScan : describeError(preview.error)}
+        </Alert>
       )}
-      {message && <Alert severity="info" sx={{ mb: 1 }}>{message}</Alert>}
+      {message && (
+        <Alert severity="info" className="mb-3">
+          {message}
+        </Alert>
+      )}
 
       {info?.status === 'Pending' && (
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', py: 2 }}>
-          <CircularProgress size={20} />
-          <Typography color="text.secondary">{t.previewPending}</Typography>
-        </Stack>
+        <div className="flex items-center gap-2 py-3 text-sm text-slate-500">
+          <Spinner size="sm" />
+          <span>{t.previewPending}</span>
+        </div>
       )}
       {info?.status === 'NotSupported' && <Alert severity="info">{t.previewNotSupported}</Alert>}
       {info?.status === 'Failed' && (
         <Alert
           severity="warning"
-          action={canReprocess ? <Button color="inherit" size="small" onClick={reprocess}>{t.reprocess}</Button> : undefined}
+          action={
+            canReprocess ? (
+              <Button size="sm" variant="outline" onClick={reprocess}>
+                {t.reprocess}
+              </Button>
+            ) : undefined
+          }
         >
           {t.previewFailed}
         </Alert>
       )}
 
       {info?.status === 'Ready' && info.pageCount > 0 && (
-        <Stack spacing={1}>
-          <Box
-            sx={{
-              bgcolor: 'grey.100',
-              borderRadius: 1,
-              minHeight: 240,
-              display: 'grid',
-              placeItems: 'center',
-              overflow: 'hidden',
-            }}
-          >
-            {image.isLoading && <CircularProgress />}
+        <div className="space-y-3">
+          <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-slate-100">
+            {image.isLoading && <Spinner size="lg" />}
             {image.isError && <Alert severity="error">{describeError(image.error)}</Alert>}
             {image.data && (
-              <Box
-                component="img"
+              <img
                 src={image.data}
                 alt={`${t.page} ${page}`}
                 // Right-click "save image" would still give only a watermarked page image.
                 onContextMenu={(event) => event.preventDefault()}
-                sx={{ width: '100%', height: 'auto', display: 'block', userSelect: 'none' }}
+                className="block w-full select-none"
               />
             )}
-          </Box>
+          </div>
           {info.pageCount > 1 && (
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Button size="small" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t.previous}
               </Button>
-              <Typography variant="body2">
+              <span className="text-sm text-slate-700">
                 {t.page} {page.toLocaleString('fa-IR')} {t.of} {info.pageCount.toLocaleString('fa-IR')}
-              </Typography>
-              <Button size="small" disabled={page >= info.pageCount} onClick={() => setPage(page + 1)}>
+              </span>
+              <Button size="sm" variant="outline" disabled={page >= info.pageCount} onClick={() => setPage(page + 1)}>
                 {t.next}
               </Button>
-            </Stack>
+            </div>
           )}
-        </Stack>
+        </div>
       )}
-    </Paper>
+    </Card>
   );
 }
 

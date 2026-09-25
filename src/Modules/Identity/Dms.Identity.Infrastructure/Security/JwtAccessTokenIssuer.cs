@@ -38,6 +38,7 @@ public sealed class JwtAccessTokenIssuer(
                 new Claim("sid", sessionId.Value.ToString()),
                 new Claim("name", user.DisplayName),
                 new Claim("username", user.Username),
+                .. user.MustChangePassword ? [new Claim(PasswordChangeGate.ClaimType, "true")] : Array.Empty<Claim>(),
             ]),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(Encoding.UTF8.GetBytes(settings.SigningKey)),

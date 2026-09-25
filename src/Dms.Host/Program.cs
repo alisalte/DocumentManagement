@@ -11,6 +11,7 @@ using Dms.Workflow.Infrastructure;
 using Dms.Host;
 using Dms.Identity.Application;
 using Dms.Identity.Infrastructure;
+using Dms.Identity.Infrastructure.Security;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Jobs;
 using Dms.Notifications.Infrastructure;
@@ -188,6 +189,7 @@ if (corsOrigins.Length > 0)
 }
 
 app.UseAuthentication();
+app.UsePasswordChangeGate();
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())

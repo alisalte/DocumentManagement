@@ -1,13 +1,4 @@
-import {
-  Alert,
-  Button,
-  Link,
-  MenuItem,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from '@mui/material';
+import { Alert, Button, Card, Select, TextArea, TextField } from '../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
@@ -120,120 +111,117 @@ export function NewDocumentPage() {
   }
 
   return (
-    <Paper component="form" onSubmit={submit} variant="outlined" sx={{ p: { xs: 2, sm: 3 }, maxWidth: 720, mx: 'auto' }}>
-      <Stack spacing={2}>
-        <Typography variant="h5" component="h1">
-          {t.newDocument}
-        </Typography>
+    <div className="mx-auto w-full max-w-[720px] space-y-4 sm:space-y-5">
+      <form onSubmit={submit}>
+        <Card className="space-y-4">
+          <h1 className="text-xl font-bold text-slate-800">{t.newDocument}</h1>
 
-        <FilePicker
-          file={file}
-          onChange={(next) => {
-            setFile(next);
-            setDuplicates([]);
-            if (next && !title) setTitle(next.name.replace(/\.[^.]+$/, ''));
-          }}
-          progress={progress}
-          disabled={busy}
-        />
+          <FilePicker
+            file={file}
+            onChange={(next) => {
+              setFile(next);
+              setDuplicates([]);
+              if (next && !title) setTitle(next.name.replace(/\.[^.]+$/, ''));
+            }}
+            progress={progress}
+            disabled={busy}
+          />
 
-        {duplicates.length > 0 && (
-          <Alert severity="warning">
-            {t.duplicateNotice}{' '}
-            {duplicates.map((duplicate, index) => (
-              <span key={duplicate.documentId}>
-                {index > 0 && '، '}
-                <Link component={RouterLink} to={`/documents/${duplicate.documentId}`}>
-                  {duplicate.title}
-                </Link>
-              </span>
-            ))}
-          </Alert>
-        )}
+          {duplicates.length > 0 && (
+            <Alert severity="warning">
+              {t.duplicateNotice}{' '}
+              {duplicates.map((duplicate, index) => (
+                <span key={duplicate.documentId}>
+                  {index > 0 && '، '}
+                  <RouterLink to={`/documents/${duplicate.documentId}`} className="text-brand-700 hover:underline">
+                    {duplicate.title}
+                  </RouterLink>
+                </span>
+              ))}
+            </Alert>
+          )}
 
-        <TextField
-          label={t.title}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          required
-          fullWidth
-          slotProps={{ htmlInput: { maxLength: 500 } }}
-        />
-
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-          <TextField
-            select
-            label={t.category}
-            value={selectedCategory}
-            onChange={(event) => setCategoryId(event.target.value)}
-            required
-            fullWidth
-          >
-            {creatable.map((category) => (
-              <MenuItem key={category.id} value={category.id} sx={{ paddingInlineStart: 2 + category.depth }}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            label={t.documentType}
-            value={selectedType}
-            onChange={(event) => setDocumentTypeId(event.target.value)}
-            required
-            fullWidth
-          >
-            {(types.data ?? []).map((type) => (
-              <MenuItem key={type.id} value={type.id} disabled={!type.latestPublishedVersionId}>
-                {type.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Stack>
-
-        <TextField
-          label={t.description}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          multiline
-          minRows={3}
-          fullWidth
-          slotProps={{ htmlInput: { maxLength: 4000 } }}
-        />
-
-        <TagInput value={tags} onChange={setTags} disabled={busy} />
-
-        {schema.data && schema.data.fields.length > 0 && (
-          <>
-            <Typography variant="subtitle1" component="h2" sx={{ pt: 1 }}>
-              {t.metadata}
-            </Typography>
-            <DynamicForm
-              schema={schema.data}
-              value={metadata}
-              onChange={setMetadata}
-              errors={fieldErrors}
-              disabled={busy}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              label={t.title}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              required
+              maxLength={500}
+              className="sm:col-span-2"
             />
-          </>
-        )}
 
-        {error && <Alert severity="error">{error}</Alert>}
+            <Select
+              label={t.category}
+              value={selectedCategory}
+              onChange={(event) => setCategoryId(event.target.value)}
+              required
+            >
+              {creatable.map((category) => (
+                <option
+                  key={category.id}
+                  value={category.id}
+                  style={{ paddingInlineStart: `${16 + category.depth * 8}px` }}
+                >
+                  {category.name}
+                </option>
+              ))}
+            </Select>
 
-        <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => navigate(-1)} disabled={busy}>
-            {t.cancel}
-          </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={busy || !file || !selectedCategory || !selectedType || !title.trim()}
-          >
-            {busy ? t.saving : t.submit}
-          </Button>
-        </Stack>
-      </Stack>
-    </Paper>
+            <Select
+              label={t.documentType}
+              value={selectedType}
+              onChange={(event) => setDocumentTypeId(event.target.value)}
+              required
+            >
+              {(types.data ?? []).map((type) => (
+                <option key={type.id} value={type.id} disabled={!type.latestPublishedVersionId}>
+                  {type.name}
+                </option>
+              ))}
+            </Select>
+
+            <TextArea
+              label={t.description}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={3}
+              maxLength={4000}
+              className="sm:col-span-2"
+            />
+          </div>
+
+          <TagInput value={tags} onChange={setTags} disabled={busy} />
+
+          {schema.data && schema.data.fields.length > 0 && (
+            <div className="space-y-3 pt-1">
+              <h2 className="text-base font-semibold text-slate-800">{t.metadata}</h2>
+              <DynamicForm
+                schema={schema.data}
+                value={metadata}
+                onChange={setMetadata}
+                errors={fieldErrors}
+                disabled={busy}
+              />
+            </div>
+          )}
+
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button variant="ghost" onClick={() => navigate(-1)} disabled={busy}>
+              {t.cancel}
+            </Button>
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={busy || !file || !selectedCategory || !selectedType || !title.trim()}
+            >
+              {busy ? t.saving : t.submit}
+            </Button>
+          </div>
+        </Card>
+      </form>
+    </div>
   );
 }

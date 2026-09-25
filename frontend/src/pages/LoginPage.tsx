@@ -1,5 +1,5 @@
-import { Alert, Box, Button, Paper, Stack, TextField, Typography } from '@mui/material';
 import { useState, type FormEvent } from 'react';
+import { Alert, Button, Card, TextField } from '../components/ui';
 import { useSession } from '../session';
 import { describeError, t } from '../strings';
 
@@ -24,12 +24,10 @@ export function LoginPage() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 2, bgcolor: 'grey.100' }}>
-      <Paper component="form" onSubmit={submit} elevation={2} sx={{ p: { xs: 2, sm: 4 }, width: '100%', maxWidth: 400 }}>
-        <Stack spacing={2}>
-          <Typography variant="h5" component="h1" sx={{ textAlign: 'center' }}>
-            {t.appTitle}
-          </Typography>
+    <div className="grid min-h-screen place-items-center bg-slate-100 p-4">
+      <Card className="w-full max-w-sm">
+        <form onSubmit={submit} className="space-y-4">
+          <h1 className="text-center text-xl font-bold text-slate-800">{t.appTitle}</h1>
           <TextField
             label={t.username}
             value={username}
@@ -37,7 +35,6 @@ export function LoginPage() {
             autoComplete="username"
             autoFocus
             required
-            fullWidth
           />
           <TextField
             label={t.password}
@@ -46,14 +43,13 @@ export function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
             autoComplete="current-password"
             required
-            fullWidth
           />
           {error && <Alert severity="error">{error}</Alert>}
-          <Button type="submit" variant="contained" size="large" disabled={busy}>
+          <Button type="submit" size="lg" fullWidth loading={busy}>
             {t.signIn}
           </Button>
-        </Stack>
-      </Paper>
-    </Box>
+        </form>
+      </Card>
+    </div>
   );
 }

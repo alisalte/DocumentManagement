@@ -308,10 +308,87 @@ export interface WorkflowAdmin {
   draft: WorkflowStep[] | null;
 }
 
-export interface RoleSummary {
+export interface AdminUser {
+  id: string;
+  username: string;
+  displayName: string;
+  email: string | null;
+  isActive: boolean;
+  isSystemAdmin: boolean;
+  createdAt: string;
+  mustChangePassword: boolean;
+  managerId: string | null;
+  lastLoginAt: string | null;
+}
+
+export interface AdminGroup {
   id: string;
   code: string;
   name: string;
+  kind: string;
+  isActive: boolean;
+}
+
+export interface AdminUserDetails {
+  user: AdminUser;
+  managerName: string | null;
+  groups: AdminGroup[];
+}
+
+export interface Member {
+  id: string;
+  username: string;
+  displayName: string;
+  isActive: boolean;
+}
+
+export interface AdminRole {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  permissions: string[];
+}
+
+export interface PermissionDefinition {
+  code: string;
+  scope: 'System' | 'Resource' | 'Both';
+  requiresView: boolean;
+  description: string;
+}
+
+export type AclResourceType = 'Category' | 'Document';
+export type SubjectType = 'User' | 'Group' | 'Role';
+
+export interface AclEntry {
+  id: string;
+  resourceType: AclResourceType;
+  resourceId: string;
+  subjectType: SubjectType;
+  subjectId: string;
+  subjectName: string | null;
+  permissionCode: string;
+  effect: 'Allow' | 'Deny';
+  inherit: boolean;
+  reason: string | null;
+  createdAt: string;
+  isInherited: boolean;
+}
+
+export interface EffectivePermission {
+  permissionCode: string;
+  allowed: boolean;
+  reason: string;
+  explanation: string;
+  source: {
+    resourceType: AclResourceType;
+    resourceId: string;
+    subjectType: SubjectType;
+    subjectId: string;
+    subjectName: string | null;
+    effect: 'Allow' | 'Deny';
+  } | null;
 }
 
 export interface DirectoryEntry {
@@ -933,7 +1010,54 @@ export const api = {
   },
 
   admin: {
-    roles: () => request<RoleSummary[]>('/api/v1/admin/roles'),
+    roles: (userId?: string) => request<AdminRole[]>(`/api/v1/admin/roles${query({ userId })}`),
+    createRole: (body: { code: string; name: string; description: string | null }) =>
+      request<{ id: string }>('/api/v1/admin/roles', { method: 'POST', body: JSON.stringify(body) }),
+    updateRole: (id: string, body: { name: string; description: string | null }) =>
+      request<void>(`/api/v1/admin/roles/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    setRolePermissions: (id: string, permissionCodes: string[]) =>
+      request<void>(`/api/v1/admin/roles/${id}/permissions`, { method: 'PUT', body: JSON.stringify({ permissionCodes }) }),
+    roleUsers: (id: string) => request<Member[]>(`/api/v1/admin/roles/${id}/users`),
+    assignRole: (roleId: string, userId: string) => request<void>(`/api/v1/admin/roles/${roleId}/users/${userId}`, { method: 'PUT' }),
+    unassignRole: (roleId: string, userId: string) => request<void>(`/api/v1/admin/roles/${roleId}/users/${userId}`, { method: 'DELETE' }),
+
+    users: (params: { search?: string; skip?: number; take?: number }) => request<AdminUser[]>(`/api/v1/admin/users${query(params)}`),
+    user: (id: string) => request<AdminUserDetails>(`/api/v1/admin/users/${id}`),
+    createUser: (body: {
+      username: string;
+      displayName: string;
+      email: string | null;
+      password: string;
+      isSystemAdmin: boolean;
+      mustChangePassword: boolean;
+    }) => request<{ id: string }>('/api/v1/admin/users', { method: 'POST', body: JSON.stringify(body) }),
+    updateUser: (id: string, body: { displayName: string; email: string | null }) =>
+      request<void>(`/api/v1/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    setUserActive: (id: string, isActive: boolean) =>
+      request<void>(`/api/v1/admin/users/${id}/active`, { method: 'POST', body: JSON.stringify({ isActive }) }),
+    setUserAdmin: (id: string, isSystemAdmin: boolean) =>
+      request<void>(`/api/v1/admin/users/${id}/admin`, { method: 'PUT', body: JSON.stringify({ isSystemAdmin }) }),
+    setManager: (id: string, managerId: string | null) =>
+      request<void>(`/api/v1/admin/users/${id}/manager`, { method: 'PUT', body: JSON.stringify({ managerId }) }),
+    resetPassword: (id: string, newPassword: string, mustChangePassword: boolean) =>
+      request<void>(`/api/v1/admin/users/${id}/password`, { method: 'POST', body: JSON.stringify({ newPassword, mustChangePassword }) }),
+
+    groups: () => request<AdminGroup[]>('/api/v1/admin/groups'),
+    createGroup: (body: { code: string; name: string }) =>
+      request<{ id: string }>('/api/v1/admin/groups', { method: 'POST', body: JSON.stringify(body) }),
+    updateGroup: (id: string, body: { name: string; isActive: boolean }) =>
+      request<void>(`/api/v1/admin/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    groupMembers: (id: string) => request<Member[]>(`/api/v1/admin/groups/${id}/members`),
+    addMember: (groupId: string, userId: string) => request<void>(`/api/v1/admin/groups/${groupId}/members/${userId}`, { method: 'PUT' }),
+    removeMember: (groupId: string, userId: string) =>
+      request<void>(`/api/v1/admin/groups/${groupId}/members/${userId}`, { method: 'DELETE' }),
+
+    createCategory: (body: { parentId: string | null; name: string; code: string; description: string | null }) =>
+      request<{ id: string }>('/api/v1/admin/categories', { method: 'POST', body: JSON.stringify(body) }),
+    updateCategory: (id: string, body: { name: string; description: string | null; isActive: boolean; sortOrder: number }) =>
+      request<void>(`/api/v1/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    moveCategory: (id: string, newParentId: string | null) =>
+      request<void>(`/api/v1/admin/categories/${id}/move`, { method: 'POST', body: JSON.stringify({ newParentId }) }),
 
     workflow: (id: string) => request<WorkflowAdmin>(`/api/v1/admin/workflows/${id}`),
 
@@ -1089,6 +1213,28 @@ export const api = {
     status: () => request<SearchStatus>('/api/v1/admin/search/status'),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
+  },
+
+  /** Access control lists: DOCUMENT_MANAGE_PERMISSION on the resource (or the audited administrator bypass). */
+  acl: {
+    catalog: () => request<PermissionDefinition[]>('/api/v1/permissions/catalog'),
+    list: (resourceType: AclResourceType, resourceId: string, includeInherited = true) =>
+      request<AclEntry[]>(`/api/v1/resources/${resourceType}/${resourceId}/permissions${query({ includeInherited })}`),
+    grant: (
+      resourceType: AclResourceType,
+      resourceId: string,
+      body: { subjectType: SubjectType; subjectId: string; permissionCode: string; effect: 'Allow' | 'Deny'; inherit: boolean; reason: string | null },
+    ) => request<{ id: string }>(`/api/v1/resources/${resourceType}/${resourceId}/permissions`, { method: 'POST', body: JSON.stringify(body) }),
+    revoke: (entryId: string) => request<void>(`/api/v1/permissions/${entryId}`, { method: 'DELETE' }),
+    explain: (userId: string, resourceType: AclResourceType, resourceId: string) =>
+      request<EffectivePermission[]>(`/api/v1/permissions/explain${query({ userId, resourceType, resourceId })}`),
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await request<void>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
   },
 
   notifications: {

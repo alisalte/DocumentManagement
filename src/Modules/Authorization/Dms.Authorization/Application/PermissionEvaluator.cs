@@ -127,7 +127,8 @@ public static class PermissionEvaluator
             {
                 return AuthorizationDecision.Deny(
                     DecisionReason.DeniedRequiresView,
-                    $"'{permissionCode}' also requires DOCUMENT_VIEW, which resolved to deny: {view.Explanation}");
+                    $"'{permissionCode}' also requires DOCUMENT_VIEW, which resolved to deny: {view.Explanation}",
+                    view.Source);
             }
         }
 
@@ -192,7 +193,8 @@ public static class PermissionEvaluator
                 return AuthorizationDecision.Deny(
                     DecisionReason.DeniedByExplicitDeny,
                     $"An explicit DENY of '{permissionCode}' applies from {entry.Resource} " +
-                    $"for {entry.SubjectType}:{entry.SubjectId}.");
+                    $"for {entry.SubjectType}:{entry.SubjectId}.",
+                    SourceOf(entry));
             }
 
             if (applicability == Applicability.Direct)
@@ -210,7 +212,8 @@ public static class PermissionEvaluator
             return AuthorizationDecision.Allow(
                 DecisionReason.AllowedByAcl,
                 $"ALLOW of '{permissionCode}' on {directAllow.Resource} for " +
-                $"{directAllow.SubjectType}:{directAllow.SubjectId}.");
+                $"{directAllow.SubjectType}:{directAllow.SubjectId}.",
+                SourceOf(directAllow));
         }
 
         if (inheritedAllow is not null)
@@ -218,7 +221,8 @@ public static class PermissionEvaluator
             return AuthorizationDecision.Allow(
                 DecisionReason.AllowedByInheritedAcl,
                 $"Inherited ALLOW of '{permissionCode}' from {inheritedAllow.Resource} for " +
-                $"{inheritedAllow.SubjectType}:{inheritedAllow.SubjectId}.");
+                $"{inheritedAllow.SubjectType}:{inheritedAllow.SubjectId}.",
+                SourceOf(inheritedAllow));
         }
 
         foreach (var grant in grants)
@@ -250,6 +254,9 @@ public static class PermissionEvaluator
             DecisionReason.DeniedByDefault,
             $"No rule grants '{permissionCode}' on {resource.Resource}.");
     }
+
+    private static DecisionSource SourceOf(AclEntry entry) =>
+        new(entry.Resource, entry.SubjectType, entry.SubjectId, entry.Effect);
 
     /// <summary>Decision D6: who may see a version that has not been published yet.</summary>
     private static AuthorizationDecision? EvaluateDraftGate(

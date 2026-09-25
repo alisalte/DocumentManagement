@@ -1,7 +1,7 @@
-import { List, ListItemButton, ListItemText } from '@mui/material';
 import { useMemo } from 'react';
 import type { CategoryNode } from '../lib/api';
 import { t } from '../strings';
+import { cx } from './ui';
 
 interface Props {
   categories: CategoryNode[];
@@ -16,31 +16,33 @@ interface Props {
 export function CategoryTree({ categories, selectedId, onSelect }: Props) {
   const ordered = useMemo(() => flatten(categories), [categories]);
 
+  const rowClasses = (selected: boolean, muted: boolean) =>
+    cx(
+      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-sm transition-colors',
+      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
+      selected ? 'bg-brand-50 font-semibold text-brand-800' : 'text-slate-700 hover:bg-slate-100',
+      muted && !selected && 'text-slate-400',
+    );
+
   return (
-    <List dense component="nav" aria-label={t.categories}>
-      <ListItemButton selected={selectedId === null} onClick={() => onSelect(null)}>
-        <ListItemText primary={t.allDocuments} />
-      </ListItemButton>
+    <nav aria-label={t.categories} className="space-y-0.5">
+      <button type="button" onClick={() => onSelect(null)} className={rowClasses(selectedId === null, false)}>
+        {t.allDocuments}
+      </button>
       {ordered.map((category) => (
-        <ListItemButton
+        <button
           key={category.id}
-          selected={selectedId === category.id}
+          type="button"
           onClick={() => onSelect(category.id)}
           // paddingInlineStart follows the reading direction, so nesting indents from the right.
-          sx={{ paddingInlineStart: 2 + category.depth * 2 }}
+          style={{ paddingInlineStart: 0.625 + category.depth * 0.875 + 'rem' }}
+          className={rowClasses(selectedId === category.id, !category.canView)}
+          title={category.name}
         >
-          <ListItemText
-            primary={category.name}
-            slotProps={{
-              primary: {
-                noWrap: true,
-                color: category.canView ? 'text.primary' : 'text.disabled',
-              },
-            }}
-          />
-        </ListItemButton>
+          <span className="truncate">{category.name}</span>
+        </button>
       ))}
-    </List>
+    </nav>
   );
 }
 

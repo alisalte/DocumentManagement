@@ -33,6 +33,14 @@ public static class IdentityEndpoints
 
     public sealed record CreateGroupRequest(string Code, string Name, GroupKind Kind = GroupKind.Other);
 
+    public sealed record UpdateUserRequest(string DisplayName, string? Email);
+
+    public sealed record ResetPasswordRequest(string NewPassword, bool MustChangePassword = true);
+
+    public sealed record SetAdminRequest(bool IsSystemAdmin);
+
+    public sealed record UpdateGroupRequest(string Name, bool IsActive = true);
+
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var auth = endpoints.MapGroup("/api/v1/auth").WithTags("Authentication");
@@ -111,6 +119,22 @@ public static class IdentityEndpoints
             return result.ToHttpResult(id => Results.Created($"/api/v1/admin/users/{id}", new { id }));
         });
 
+        users.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetUserQuery(id), ct)).ToHttpResult())
+            .WithSummary("One user with their manager and groups.");
+
+        users.MapPut("/{id:guid}", async (Guid id, UpdateUserRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new UpdateUserCommand(id, request.DisplayName, request.Email), ct)).ToHttpResult())
+            .WithSummary("Change a user's display name and email.");
+
+        users.MapPost("/{id:guid}/password", async (Guid id, ResetPasswordRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new ResetUserPasswordCommand(id, request.NewPassword, request.MustChangePassword), ct)).ToHttpResult())
+            .WithSummary("Set a new password for someone else; their sessions end. Not for your own account.");
+
+        users.MapPut("/{id:guid}/admin", async (Guid id, SetAdminRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new SetUserAdminCommand(id, request.IsSystemAdmin), ct)).ToHttpResult())
+            .WithSummary("Make or unmake a system administrator (system administrators only; never the last one).");
+
         users.MapPut("/{id:guid}/manager", async (Guid id, SetManagerRequest request, IDispatcher dispatcher, CancellationToken ct) =>
             (await dispatcher.SendAsync(new SetUserManagerCommand(id, request.ManagerId), ct)).ToHttpResult());
 
@@ -143,6 +167,14 @@ public static class IdentityEndpoints
 
             return result.ToHttpResult(id => Results.Created($"/api/v1/admin/groups/{id}", new { id }));
         });
+
+        groups.MapPut("/{groupId:guid}", async (Guid groupId, UpdateGroupRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new UpdateGroupCommand(groupId, request.Name, request.IsActive), ct)).ToHttpResult())
+            .WithSummary("Rename a group, or switch it off (its members lose what it grants).");
+
+        groups.MapGet("/{groupId:guid}/members", async (Guid groupId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListGroupMembersQuery(groupId), ct)).ToHttpResult())
+            .WithSummary("Every member of the group, active or not.");
 
         groups.MapPut("/{groupId:guid}/members/{userId:guid}", async (
             Guid groupId,

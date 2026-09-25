@@ -38,6 +38,9 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     /// <summary>The owner's connection, for tests that arrange or inspect rows directly.</summary>
     public string ConnectionString { get; private set; } = string.Empty;
 
+    /// <summary>What the seeder set, before the factory cleared it for the rest of the suite.</summary>
+    public bool BootstrapAdminHadToChangePassword { get; private set; }
+
     /// <summary>The runtime role's connection, which the host uses.</summary>
     public string AppConnectionString { get; private set; } = string.Empty;
 
@@ -98,6 +101,22 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
             await initializer.MigrateAsync(CancellationToken.None);
             await initializer.SeedAsync(CancellationToken.None);
             await initializer.GrantRuntimeAccessAsync(CancellationToken.None);
+        }
+
+        // The seeded administrator must change the password at first sign-in, and the server
+        // enforces it. Tests stand for an installation where that has happened; the gate itself
+        // is covered by its own test.
+        await using (var connection = await OpenConnectionAsync())
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                UPDATE identity.users u SET must_change_password = false
+                  FROM identity.users before
+                 WHERE u.id = before.id AND u.normalized_username = @admin
+                RETURNING before.must_change_password
+                """;
+            command.Parameters.AddWithValue("admin", AdminUsername.ToUpperInvariant());
+            BootstrapAdminHadToChangePassword = (bool)(await command.ExecuteScalarAsync())!;
         }
 
         Environment.SetEnvironmentVariable("ConnectionStrings__Dms", AppConnectionString);

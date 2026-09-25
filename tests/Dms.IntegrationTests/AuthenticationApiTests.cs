@@ -41,7 +41,7 @@ public sealed class AuthenticationApiTests(DmsApiFactory factory)
 
         tokens.AccessToken.ShouldNotBeNullOrWhiteSpace();
         tokens.RefreshToken.ShouldNotBeNullOrWhiteSpace();
-        tokens.User.GetProperty("mustChangePassword").GetBoolean().ShouldBeTrue();
+        factory.BootstrapAdminHadToChangePassword.ShouldBeTrue();
         await factory.ShouldHaveAuditAsync("LOGIN");
     }
 

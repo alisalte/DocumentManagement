@@ -1,7 +1,7 @@
-import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { Combobox } from '../ui';
 
 export type EntityKind = 'User' | 'Group' | 'DocumentReference';
 
@@ -70,36 +70,17 @@ export function EntityPicker({ kind, label, value, onChange, required, error, he
   const selected: Option | null = value ? { id: value, label: current.data ?? '…' } : null;
 
   return (
-    <Autocomplete
-      disabled={disabled}
-      options={options.data ?? []}
+    <Combobox
+      label={label}
       value={selected}
-      isOptionEqualToValue={(option, candidate) => option.id === candidate.id}
-      getOptionLabel={(option) => option.label}
-      filterOptions={(items) => items}
-      onInputChange={(_, next, reason) => reason === 'input' && setInput(next)}
-      onChange={(_, next) => onChange(next?.id ?? null)}
+      onChange={(option) => onChange(option?.id ?? null)}
+      options={options.data ?? []}
+      onInputChange={setInput}
       loading={options.isFetching}
-      renderInput={(params) => (
-        <TextField
-          {...params}
-          label={label}
-          required={required}
-          error={!!error}
-          helperText={error ?? helperText}
-          slotProps={{
-            input: {
-              ...params.InputProps,
-              endAdornment: (
-                <>
-                  {options.isFetching && <CircularProgress size={16} />}
-                  {params.InputProps.endAdornment}
-                </>
-              ),
-            },
-          }}
-        />
-      )}
+      required={required}
+      error={!!error}
+      helperText={error ?? helperText}
+      disabled={disabled}
     />
   );
 }

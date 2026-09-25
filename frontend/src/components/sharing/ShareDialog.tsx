@@ -1,27 +1,9 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
-  FormGroup,
-  FormLabel,
-  MenuItem,
-  Stack,
-  Tab,
-  Tabs,
-  TextField,
-  Typography,
-} from '@mui/material';
 import { useState, type FocusEvent } from 'react';
 import { api, type DocumentVersion, type SharePermission } from '../../lib/api';
 import { normalizeDigits } from '../../lib/dates';
 import { describeError, t } from '../../strings';
 import { EntityPicker } from '../metadata/EntityPicker';
+import { Alert, Button, Checkbox, Dialog, Select, Tab, Tabs, TextArea, TextField } from '../ui';
 import { permissionLabels, s } from './sharingStrings';
 
 const shareDurations = [0, 1, 7, 30, 90];
@@ -121,25 +103,31 @@ export function ShareDialog({
 
   if (createdUrl) {
     return (
-      <Dialog open onClose={() => onShared(s.linkCreated)} fullWidth maxWidth="sm">
-        <DialogTitle>{s.linkCreated}</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Alert severity="warning">{s.linkShownOnce}</Alert>
-            <TextField
-              value={createdUrl}
-              fullWidth
-              slotProps={{ htmlInput: { readOnly: true, dir: 'ltr', onFocus: (event: FocusEvent<HTMLInputElement>) => event.target.select() } }}
-            />
-            {copied && <Typography color="success.main">{s.copied}</Typography>}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={copy} variant="contained">
-            {s.copy}
-          </Button>
-          <Button onClick={() => onShared(s.linkCreated)}>{s.close}</Button>
-        </DialogActions>
+      <Dialog
+        open
+        onClose={() => onShared(s.linkCreated)}
+        title={s.linkCreated}
+        maxWidth="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => onShared(s.linkCreated)}>
+              {s.close}
+            </Button>
+            <Button onClick={copy}>{s.copy}</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Alert severity="warning">{s.linkShownOnce}</Alert>
+          <TextField
+            value={createdUrl}
+            readOnly
+            dir="ltr"
+            style={{ fontFamily: 'monospace' }}
+            onFocus={(event: FocusEvent<HTMLInputElement>) => event.target.select()}
+          />
+          {copied && <p className="text-sm text-emerald-600">{s.copied}</p>}
+        </div>
       </Dialog>
     );
   }
@@ -147,113 +135,111 @@ export function ShareDialog({
   const ready = !!versionId && (tab === 'link' || !!recipientId);
 
   return (
-    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>{s.share}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ pt: 1 }}>
-          {canShare && canShareExternal && (
-            <Tabs value={tab} onChange={(_, next) => setTab(next)} variant="fullWidth">
-              <Tab value="internal" label={s.withColleague} />
-              <Tab value="link" label={s.externalLink} />
-            </Tabs>
-          )}
+    <Dialog
+      open
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+      title={s.share}
+      maxWidth="sm"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {t.cancel}
+          </Button>
+          <Button onClick={submit} loading={busy} disabled={busy || !ready}>
+            {busy ? t.saving : tab === 'internal' ? s.shareAction : s.createLink}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        {canShare && canShareExternal && (
+          <Tabs value={tab} onChange={(value) => setTab(value as 'internal' | 'link')} variant="fullWidth">
+            <Tab value="internal" label={s.withColleague} />
+            <Tab value="link" label={s.externalLink} />
+          </Tabs>
+        )}
 
-          {versions.length === 0 ? (
-            <Alert severity="info">{s.onlyPublished}</Alert>
-          ) : (
+        {versions.length === 0 ? (
+          <Alert severity="info">{s.onlyPublished}</Alert>
+        ) : (
+          <Select
+            label={s.version}
+            value={versionId}
+            dir="ltr"
+            onChange={(event) => setVersionId(event.target.value)}
+            helperText={s.versionHelp}
+          >
+            {versions.map((version) => (
+              <option key={version.id} value={version.id}>
+                {`${version.label} — ${version.fileName}`}
+              </option>
+            ))}
+          </Select>
+        )}
+
+        {tab === 'internal' && (
+          <EntityPicker kind="User" label={s.recipient} value={recipientId} onChange={setRecipientId} required disabled={busy} />
+        )}
+
+        <div>
+          <p className="mb-2 text-sm font-medium text-slate-700">{s.permissions}</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {offered.map((permission) => (
+              <Checkbox
+                key={permission}
+                label={permissionLabels[permission]}
+                checked={permissions.includes(permission)}
+                onChange={() => toggle(permission)}
+                // Nothing works without viewing, so it is always part of a share.
+                disabled={permission === 'View' || busy}
+              />
+            ))}
+          </div>
+        </div>
+
+        {tab === 'internal' ? (
+          <>
+            <Select label={s.expiry} value={shareDays} onChange={(event) => setShareDays(Number(event.target.value))}>
+              {shareDurations.map((days) => (
+                <option key={days} value={days}>
+                  {days === 0 ? s.noExpiry : s.days(days)}
+                </option>
+              ))}
+            </Select>
+            <TextArea label={s.message} value={message} onChange={(event) => setMessage(event.target.value)} rows={2} />
+          </>
+        ) : (
+          <>
+            <Select label={s.expiry} value={linkDays} onChange={(event) => setLinkDays(Number(event.target.value))}>
+              {linkDurations.map((days) => (
+                <option key={days} value={days}>
+                  {s.days(days)}
+                </option>
+              ))}
+            </Select>
             <TextField
-              select
-              label={s.version}
-              value={versionId}
-              onChange={(event) => setVersionId(event.target.value)}
-              helperText={s.versionHelp}
-              fullWidth
-            >
-              {versions.map((version) => (
-                <MenuItem key={version.id} value={version.id}>
-                  <Box component="span" dir="ltr">{version.label}</Box>
-                  <Box component="span" sx={{ mx: 1, color: 'text.secondary' }}>{version.fileName}</Box>
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
+              label={s.maxOpenings}
+              value={maxOpenings}
+              onChange={(event) => setMaxOpenings(event.target.value)}
+              helperText={s.maxOpeningsHelp}
+              inputMode="numeric"
+            />
+            <TextField
+              label={s.linkPassword}
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              helperText={s.linkPasswordHelp}
+              autoComplete="new-password"
+            />
+            <TextField label={s.linkLabel} value={label} onChange={(event) => setLabel(event.target.value)} />
+          </>
+        )}
 
-          {tab === 'internal' && (
-            <EntityPicker kind="User" label={s.recipient} value={recipientId} onChange={setRecipientId} required disabled={busy} />
-          )}
-
-          <Box>
-            <FormLabel component="legend">{s.permissions}</FormLabel>
-            <FormGroup row>
-              {offered.map((permission) => (
-                <FormControlLabel
-                  key={permission}
-                  control={
-                    <Checkbox
-                      checked={permissions.includes(permission)}
-                      onChange={() => toggle(permission)}
-                      // Nothing works without viewing, so it is always part of a share.
-                      disabled={permission === 'View' || busy}
-                    />
-                  }
-                  label={permissionLabels[permission]}
-                />
-              ))}
-            </FormGroup>
-          </Box>
-
-          {tab === 'internal' ? (
-            <>
-              <TextField select label={s.expiry} value={shareDays} onChange={(event) => setShareDays(Number(event.target.value))} fullWidth>
-                {shareDurations.map((days) => (
-                  <MenuItem key={days} value={days}>
-                    {days === 0 ? s.noExpiry : s.days(days)}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField label={s.message} value={message} onChange={(event) => setMessage(event.target.value)} multiline minRows={2} fullWidth />
-            </>
-          ) : (
-            <>
-              <TextField select label={s.expiry} value={linkDays} onChange={(event) => setLinkDays(Number(event.target.value))} fullWidth>
-                {linkDurations.map((days) => (
-                  <MenuItem key={days} value={days}>
-                    {s.days(days)}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label={s.maxOpenings}
-                value={maxOpenings}
-                onChange={(event) => setMaxOpenings(event.target.value)}
-                helperText={s.maxOpeningsHelp}
-                slotProps={{ htmlInput: { inputMode: 'numeric' } }}
-                fullWidth
-              />
-              <TextField
-                label={s.linkPassword}
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                helperText={s.linkPasswordHelp}
-                autoComplete="new-password"
-                fullWidth
-              />
-              <TextField label={s.linkLabel} value={label} onChange={(event) => setLabel(event.target.value)} fullWidth />
-            </>
-          )}
-
-          {error && <Alert severity="error">{error}</Alert>}
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={busy}>
-          {t.cancel}
-        </Button>
-        <Button variant="contained" onClick={submit} disabled={busy || !ready}>
-          {busy ? t.saving : tab === 'internal' ? s.shareAction : s.createLink}
-        </Button>
-      </DialogActions>
+        {error && <Alert severity="error">{error}</Alert>}
+      </div>
     </Dialog>
   );
 }

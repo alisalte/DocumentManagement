@@ -1,8 +1,8 @@
-import { Autocomplete, Chip, TextField } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { t } from '../strings';
+import { ChipsInput } from './ui';
 
 interface Props {
   value: string[];
@@ -27,22 +27,15 @@ export function TagInput({ value, onChange, disabled }: Props) {
   });
 
   return (
-    <Autocomplete
-      multiple
-      freeSolo
-      disabled={disabled}
-      options={(suggestions.data ?? []).map((tag) => tag.name)}
+    <ChipsInput
+      label={t.tags}
+      helperText={t.tagsHelp}
       value={value}
-      inputValue={input}
-      onInputChange={(_, next) => setInput(next)}
-      onChange={(_, next) => onChange(next.map((tag) => tag.trim()).filter(Boolean))}
-      renderValue={(selected, getItemProps) =>
-        selected.map((tag, index) => {
-          const { key, ...itemProps } = getItemProps({ index });
-          return <Chip key={key} label={tag} size="small" {...itemProps} />;
-        })
-      }
-      renderInput={(params) => <TextField {...params} label={t.tags} helperText={t.tagsHelp} />}
+      onChange={(next) => onChange(next.map((tag) => tag.trim()).filter(Boolean))}
+      suggestions={(suggestions.data ?? []).map((tag) => tag.name)}
+      onInputChange={setInput}
+      loading={suggestions.isFetching}
+      disabled={disabled}
     />
   );
 }

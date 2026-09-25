@@ -116,11 +116,18 @@ public static class AuditActions
     public const string UserDeactivated = "USER_DEACTIVATED";
     public const string UserPasswordChanged = "USER_PASSWORD_CHANGED";
 
+    /// <summary>An administrator set someone else's password.</summary>
+    public const string UserPasswordReset = "USER_PASSWORD_RESET";
+    public const string UserAdminGranted = "USER_ADMIN_GRANTED";
+    public const string UserAdminRevoked = "USER_ADMIN_REVOKED";
+
     public const string GroupCreated = "GROUP_CREATED";
+    public const string GroupUpdated = "GROUP_UPDATED";
     public const string GroupMemberAdded = "GROUP_MEMBER_ADDED";
     public const string GroupMemberRemoved = "GROUP_MEMBER_REMOVED";
 
     public const string RoleCreated = "ROLE_CREATED";
+    public const string RoleUpdated = "ROLE_UPDATED";
     public const string RolePermissionsChanged = "ROLE_PERMISSIONS_CHANGED";
     public const string RoleAssigned = "ROLE_ASSIGNED";
     public const string RoleUnassigned = "ROLE_UNASSIGNED";
