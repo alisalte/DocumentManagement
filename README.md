@@ -79,8 +79,20 @@ Existing entries (ALLOW or DENY) are left untouched; `--help` lists the options.
 
 ### Previews, OCR and search (optional services)
 
-Everything works without them: PDFs and images still get previews, and search falls back to
-titles. To switch them on locally:
+**Local OCR (default when Tika is not set).** Install Tesseract with Persian + English and
+Poppler on the API/worker host:
+
+```bash
+sudo apt-get install -y tesseract-ocr tesseract-ocr-fas tesseract-ocr-eng poppler-utils
+# Scanned images and thin PDFs are OCR'd by the worker (Dms:Search:Tesseract:Enabled=true).
+./scripts/dev-api.sh
+```
+
+The backend image already bundles those packages. Disable with `Dms__Search__Tesseract__Enabled=false`.
+
+**Tika + OpenSearch (optional, richer extraction for Office files).** Everything works without
+them: PDFs and images still get previews, OCR still runs locally, and search falls back to
+titles when OpenSearch is off.
 
 ```bash
 docker run -d --name dms-opensearch -p 9200:9200 -e discovery.type=single-node \
@@ -90,6 +102,7 @@ docker build -t dms-tika deploy/tika && docker run -d --name dms-tika -p 9998:99
 Dms__Search__OpenSearchUrl=http://localhost:9200 Dms__Search__TikaUrl=http://localhost:9998 ./scripts/dev-api.sh
 ```
 
+When `Dms__Search__TikaUrl` is set, Tika owns text extraction and OCR; local Tesseract is unused.
 ClamAV (`Dms__Storage__Scanning__Enabled=true`) and Gotenberg for Office previews
 (`Dms__Storage__Renditions__GotenbergUrl`) work the same way. Administrators see the index and
 extraction status, rebuild the index and retry failed extractions under **جستجو و نمایه**.

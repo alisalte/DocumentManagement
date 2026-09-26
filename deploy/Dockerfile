@@ -18,8 +18,12 @@ WORKDIR /app
 # Skia (page images, watermarks) needs fontconfig and a font with Latin and Persian glyphs;
 # PDFium ships inside the PDFtoImage package. Npgsql probes for the Kerberos library at startup
 # and logs an error without it, although GSS is never used.
+# Tesseract fas+eng + poppler: local OCR when Tika is not configured (worker role).
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libfontconfig1 fonts-dejavu-core libgssapi-krb5-2 \
+ && apt-get install -y --no-install-recommends \
+      libfontconfig1 fonts-dejavu-core libgssapi-krb5-2 \
+      tesseract-ocr tesseract-ocr-fas tesseract-ocr-eng \
+      poppler-utils \
  && rm -rf /var/lib/apt/lists/*
 
 # Never run as root. The object directory is created here, owned by dms, so a fresh named volume

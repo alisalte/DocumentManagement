@@ -973,11 +973,13 @@ Every phase needs explicit approval before it starts.
   (`POST …/preview`), `DOCUMENT_PRINTED` when printing starts; single pages are not audited.
 - **Derived objects** (page images, extracted text) record the file they came from
   (`derived_from_id`), and purging a document deletes them with the original.
-- **Text** comes from Tika Server with Tesseract `fas+eng` (the image is `deploy/tika`; the stock
-  one has no Persian). A PDF is read for its text layer first and only OCR'd when that is thin.
-  The text is stored gzip'd as a derived object, keyed by file (`search.content_extractions`), so
-  a metadata revision reuses it and a rebuild never OCRs again. Failed extractions are retried
-  hourly, three times, then wait for an administrator.
+- **Text / OCR.** Prefer Tika Server with Tesseract `fas+eng` when `Dms:Search:TikaUrl` is set
+  (`deploy/tika`; the stock image has no Persian). When Tika is unset, the worker uses a local
+  `IOcrEngine` (`TesseractCliOcrEngine` + `LocalTextExtractor`: `pdftotext` for digital PDFs,
+  `pdftoppm` + `tesseract fas+eng` for scans and images). A PDF is read for its text layer first
+  and only OCR'd when that is thin. The text is stored gzip'd as a derived object, keyed by file
+  (`search.content_extractions`), so a metadata revision reuses it and a rebuild never OCRs again.
+  Failed extractions are retried hourly, three times, then wait for an administrator.
 - **Index**: one search document per version-revision, with `is_current`, `is_effective`,
   `is_published`, `created_by`, the category ancestor list, typed metadata under
   `meta.{TYPE}.{field}__{num|date|bool|txt|kw}` (numbers are indexed as doubles, so decimals

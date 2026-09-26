@@ -9,8 +9,8 @@ namespace Dms.Search.Infrastructure.Extraction;
 /// <summary>
 /// Text through Apache Tika Server, with Tesseract behind it for scans (section 8.1, steps 2
 /// and 3). A PDF is read for its text layer first; only when that is empty or too thin to be real
-/// text is it sent again for OCR, which is slow. Images always go to OCR. The OCR engine never
-/// appears outside this class.
+/// text is it sent again for OCR, which is slow. Images always go to OCR. When Tika is not
+/// configured, <see cref="LocalTextExtractor"/> + <see cref="TesseractCliOcrEngine"/> take over.
 /// </summary>
 public sealed class TikaTextExtractor(HttpClient http, IOptions<SearchOptions> options) : ITextExtractor
 {
