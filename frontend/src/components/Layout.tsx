@@ -80,29 +80,10 @@ export function Layout({ children }: { children: ReactNode }) {
         : 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
     );
 
-  const tree = (
-    <div className="space-y-6">
-      <div>
-        <p className="section-label pb-2.5">{t.categories}</p>
-        <CategoryTree categories={categories.data ?? []} selectedId={selectedCategory} onSelect={selectCategory} />
-      </div>
-      {adminLinks.length > 0 && (
-        <div>
-          <p className="section-label pb-2.5">{directory.administration}</p>
-          <nav className="space-y-0.5">
-            {adminLinks.map((link) => (
-              <RouterLink
-                key={link.to}
-                to={link.to}
-                onClick={() => setOpen(false)}
-                className={cx(navLink(isActive(link.to)), 'w-full justify-start')}
-              >
-                {link.label}
-              </RouterLink>
-            ))}
-          </nav>
-        </div>
-      )}
+  const folderTree = (
+    <div>
+      <p className="section-label pb-2.5">{t.categories}</p>
+      <CategoryTree categories={categories.data ?? []} selectedId={selectedCategory} onSelect={selectCategory} />
     </div>
   );
 
@@ -259,7 +240,7 @@ export function Layout({ children }: { children: ReactNode }) {
           className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
           style={{ width: drawerWidth }}
         >
-          {tree}
+          {folderTree}
         </aside>
 
         <main className="page-enter min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-7">{children}</main>
@@ -318,7 +299,25 @@ export function Layout({ children }: { children: ReactNode }) {
                 </RouterLink>
               </nav>
 
-              <div className="border-t border-paper-100 pt-4">{tree}</div>
+              {adminLinks.length > 0 && (
+                <div className="border-t border-paper-100 pt-4">
+                  <p className="section-label pb-2">{directory.administration}</p>
+                  <nav className="space-y-0.5">
+                    {adminLinks.map((link) => (
+                      <RouterLink
+                        key={link.to}
+                        to={link.to}
+                        onClick={() => setOpen(false)}
+                        className={cx(navLink(isActive(link.to)), 'w-full justify-start')}
+                      >
+                        {link.label}
+                      </RouterLink>
+                    ))}
+                  </nav>
+                </div>
+              )}
+
+              <div className="border-t border-paper-100 pt-4">{folderTree}</div>
 
               <div className="space-y-0.5 border-t border-paper-100 pt-4">
                 <p className="section-label pb-2">{user?.displayName}</p>
