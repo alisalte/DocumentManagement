@@ -37,7 +37,12 @@ export function NewDocumentPage() {
   const { user } = useSession();
   const [params] = useSearchParams();
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  const categories = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories,
+    // ACL grants change canCreate; never keep a stale empty list after the admin editor.
+    refetchOnMount: 'always',
+  });
   const types = useQuery({ queryKey: ['document-types'], queryFn: api.documentTypes });
 
   const creatable = useMemo(
@@ -132,7 +137,7 @@ export function NewDocumentPage() {
         canManageAcl={canManageAcl}
         userId={user?.id}
         onGranted={async () => {
-          await queryClient.invalidateQueries({ queryKey: ['categories'] });
+          await queryClient.refetchQueries({ queryKey: ['categories'] });
         }}
       />
     );

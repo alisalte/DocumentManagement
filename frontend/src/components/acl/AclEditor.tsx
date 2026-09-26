@@ -69,11 +69,18 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
   const categoryName = useCategoryNames();
   const [error, setError] = useState<string | null>(null);
 
+  const refreshAccess = async () => {
+    await queryClient.invalidateQueries({ queryKey: key });
+    // canCreate / canView on the folder tree come from this query — without it the "ثبت سند"
+    // screen stays empty after a grant until a full reload.
+    await queryClient.invalidateQueries({ queryKey: ['categories'] });
+  };
+
   const revoke = async (entry: AclEntry) => {
     setError(null);
     try {
       await api.acl.revoke(entry.id);
-      await queryClient.invalidateQueries({ queryKey: key });
+      await refreshAccess();
     } catch (caught) {
       setError(describeError(caught));
     }
@@ -127,22 +134,36 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
         ))}
       </div>
 
-      <GrantForm resourceType={resourceType} resourceId={resourceId} onGranted={() => queryClient.invalidateQueries({ queryKey: key })} />
+      <GrantForm resourceType={resourceType} resourceId={resourceId} onGranted={refreshAccess} />
     </div>
   );
 }
 
-function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclResourceType; resourceId: string; onGranted: () => void }) {
+/** Minimum ACL pair the filing UI requires (see ListCategoriesHandler.CanCreate). */
+const filingPair = ['DOCUMENT_VIEW', 'DOCUMENT_CREATE'] as const;
+
+function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclResourceType; resourceId: string; onGranted: () => void | Promise<void> }) {
   const permissions = useGrantablePermissions();
   const roles = useQuery({ queryKey: ['admin-roles'], queryFn: () => api.admin.roles(), retry: false });
   const [subjectType, setSubjectType] = useState<SubjectType>('User');
   const [subjectId, setSubjectId] = useState<string | null>(null);
-  const [permissionCode, setPermissionCode] = useState('DOCUMENT_VIEW');
+  const [permissionCode, setPermissionCode] = useState('DOCUMENT_CREATE');
   const [effect, setEffect] = useState<'Allow' | 'Deny'>('Allow');
   const [inherit, setInherit] = useState(true);
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const grantOne = async (code: string) => {
+    await api.acl.grant(resourceType, resourceId, {
+      subjectType,
+      subjectId: subjectId!,
+      permissionCode: code,
+      effect,
+      inherit: resourceType === 'Category' ? inherit : false,
+      reason: reason.trim() || null,
+    });
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -150,17 +171,34 @@ function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclR
     setBusy(true);
     setError(null);
     try {
-      await api.acl.grant(resourceType, resourceId, {
-        subjectType,
-        subjectId,
-        permissionCode,
-        effect,
-        inherit: resourceType === 'Category' ? inherit : false,
-        reason: reason.trim() || null,
-      });
+      await grantOne(permissionCode);
       setSubjectId(null);
       setReason('');
-      onGranted();
+      await onGranted();
+    } catch (caught) {
+      setError(describeError(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const grantFiling = async () => {
+    if (!subjectId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const existing = await api.acl.list(resourceType, resourceId, false);
+      const mine = new Set(
+        existing
+          .filter((entry) => entry.subjectType === subjectType && entry.subjectId === subjectId && entry.effect === 'Allow')
+          .map((entry) => entry.permissionCode),
+      );
+      for (const code of filingPair) {
+        if (!mine.has(code)) await grantOne(code);
+      }
+      setSubjectId(null);
+      setReason('');
+      await onGranted();
     } catch (caught) {
       setError(describeError(caught));
     } finally {
@@ -172,6 +210,7 @@ function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclR
     <form onSubmit={submit} className="rounded-xl border border-paper-200 bg-paper-50/70 p-4">
       <div className="space-y-4">
         <h3 className="text-sm font-semibold text-ink-800">{d.grant}</h3>
+        {resourceType === 'Category' && <p className="text-xs text-paper-500">{d.filingNeedsViewAndCreate}</p>}
         <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
           <Select
             label={d.subjectType}
@@ -226,6 +265,11 @@ function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclR
         <TextField label={d.reason} value={reason} onChange={(event) => setReason(event.target.value)} />
         {error && <Alert severity="error">{error}</Alert>}
         <div className="flex flex-wrap justify-end gap-2">
+          {resourceType === 'Category' && effect === 'Allow' && (
+            <Button type="button" variant="outline" loading={busy} disabled={busy || !subjectId} onClick={grantFiling}>
+              {d.grantFilingAccess}
+            </Button>
+          )}
           <Button type="submit" loading={busy} disabled={busy || !subjectId}>
             {d.grant}
           </Button>
