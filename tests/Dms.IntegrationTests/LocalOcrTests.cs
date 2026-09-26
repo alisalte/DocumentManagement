@@ -47,4 +47,26 @@ public sealed class LocalOcrTests
 
         ocr.IsEnabled.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task Plain_text_files_are_read_without_Tika()
+    {
+        Assert.SkipUnless(TesseractAvailable, "tesseract is not installed.");
+
+        var options = Options.Create(new SearchOptions
+        {
+            Tesseract = new TesseractOptions { Enabled = true, Command = "tesseract" },
+        });
+        var ocr = new TesseractCliOcrEngine(options, NullLogger<TesseractCliOcrEngine>.Instance);
+        var extractor = new LocalTextExtractor(ocr, options, NullLogger<LocalTextExtractor>.Instance);
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes("zxplain کتابخانه مرکزی");
+        await using var stream = new MemoryStream(bytes);
+        var extracted = await extractor.ExtractAsync(stream, "note.txt", "text/plain", CancellationToken.None);
+
+        extracted.Method.ShouldBe(ExtractionMethod.TextLayer);
+        extracted.Engine.ShouldBe("utf8");
+        extracted.Text.ShouldContain("zxplain");
+        extracted.Text.ShouldContain("کتابخانه");
+    }
 }

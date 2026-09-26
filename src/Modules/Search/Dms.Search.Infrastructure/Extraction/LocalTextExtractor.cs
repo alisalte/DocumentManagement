@@ -7,8 +7,9 @@ using Microsoft.Extensions.Options;
 namespace Dms.Search.Infrastructure.Extraction;
 
 /// <summary>
-/// Text extraction without Tika: digital PDFs via <c>pdftotext</c>, scans and images via
-/// <see cref="IOcrEngine"/> (local Tesseract). Used when <c>Dms:Search:TikaUrl</c> is empty.
+/// Text extraction without Tika: plain text as UTF-8, digital PDFs via <c>pdftotext</c>,
+/// scans and images via <see cref="IOcrEngine"/> (local Tesseract). Used when
+/// <c>Dms:Search:TikaUrl</c> is empty.
 /// </summary>
 public sealed class LocalTextExtractor(
     IOcrEngine ocr,
@@ -37,6 +38,14 @@ public sealed class LocalTextExtractor(
             return new ExtractedText(string.Empty, ExtractionMethod.None, "none");
         }
 
+        // Plain / structured text: read as UTF-8 so .txt and similar are searchable without Tika.
+        if (IsPlainText(mimeType, fileName))
+        {
+            using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+            var text = await reader.ReadToEndAsync(cancellationToken);
+            return new ExtractedText(Trim(text), ExtractionMethod.TextLayer, "utf8");
+        }
+
         if (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
         {
             var text = await ocr.RecogniseAsync(content, mimeType, cancellationToken);
@@ -51,6 +60,30 @@ public sealed class LocalTextExtractor(
         // Office and other types need Tika/Gotenberg; without them there is nothing useful to OCR.
         logger.LogDebug("Local extractor skips {Mime} ({File}); configure Tika for this type.", mimeType, fileName);
         return new ExtractedText(string.Empty, ExtractionMethod.None, "none");
+    }
+
+    private static bool IsPlainText(string mimeType, string fileName)
+    {
+        if (mimeType.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (mimeType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+            || mimeType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            || mimeType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+            || mimeType.Equals("application/x-javascript", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var extension = Path.GetExtension(fileName);
+        return extension.Equals(".txt", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".csv", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".md", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".json", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".xml", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".log", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<ExtractedText> ExtractPdfAsync(Stream content, CancellationToken cancellationToken)

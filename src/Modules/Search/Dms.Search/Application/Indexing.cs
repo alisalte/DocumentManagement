@@ -226,7 +226,16 @@ public sealed class ExtractTextJob(
             extractions.Add(extraction);
         }
 
-        if (extraction.Status is ExtractionStatus.Pending or ExtractionStatus.Failed)
+        // Re-run empty "None" results too: the local extractor may have gained plain-text / OCR
+        // support after an earlier pass that stored nothing.
+        var needsExtract = extraction.Status is ExtractionStatus.Pending
+            or ExtractionStatus.Failed
+            or ExtractionStatus.Skipped
+            || (extraction.Status == ExtractionStatus.Completed
+                && extraction.Method == ExtractionMethod.None
+                && extraction.CharCount == 0);
+
+        if (needsExtract)
         {
             await ExtractAsync(extraction, file, cancellationToken);
         }
