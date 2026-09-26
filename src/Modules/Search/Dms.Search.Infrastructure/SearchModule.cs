@@ -44,14 +44,21 @@ public static class SearchModule
             services.AddHttpClient<ISearchEngine, OpenSearchEngine>(client => client.Timeout = TimeSpan.FromSeconds(30));
         }
 
-        if (string.IsNullOrWhiteSpace(options.TikaUrl))
+        if (!string.IsNullOrWhiteSpace(options.TikaUrl))
         {
-            services.AddSingleton<ITextExtractor, NullTextExtractor>();
+            // Preferred path: Tika Server with Tesseract fas+eng (deploy/tika). OCR of a long scan
+            // takes minutes.
+            services.AddHttpClient<ITextExtractor, TikaTextExtractor>(client => client.Timeout = TimeSpan.FromMinutes(20));
+        }
+        else if (options.Tesseract.Enabled && TesseractCliOcrEngine.CommandExists(options.Tesseract.Command))
+        {
+            // Local fallback: tesseract + poppler on the worker host (no Tika container required).
+            services.AddSingleton<IOcrEngine, TesseractCliOcrEngine>();
+            services.AddSingleton<ITextExtractor, LocalTextExtractor>();
         }
         else
         {
-            // OCR of a long scan takes minutes.
-            services.AddHttpClient<ITextExtractor, TikaTextExtractor>(client => client.Timeout = TimeSpan.FromMinutes(20));
+            services.AddSingleton<ITextExtractor, NullTextExtractor>();
         }
 
         services.AddScoped<DocumentIndexer>();

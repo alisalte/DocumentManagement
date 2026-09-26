@@ -5,12 +5,24 @@ namespace Dms.Search.Application;
 
 public sealed record ExtractedText(string Text, ExtractionMethod Method, string Engine);
 
-/// <summary>Text from a file (Tika, with Tesseract OCR for scans). Infrastructure only.</summary>
+/// <summary>Text from a file (Tika and/or local Tesseract OCR for scans). Infrastructure only.</summary>
 public interface ITextExtractor
 {
     bool IsEnabled { get; }
 
     Task<ExtractedText> ExtractAsync(Stream content, string fileName, string mimeType, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// OCR of a single raster page or image (section 8.1 / R2). Tika can own OCR when configured;
+/// otherwise <c>TesseractCliOcrEngine</c> shells out to the local <c>tesseract</c> binary.
+/// </summary>
+public interface IOcrEngine
+{
+    bool IsEnabled { get; }
+
+    /// <summary>Recognise text in an image stream (PNG/JPEG/WebP/TIFF). Languages come from options.</summary>
+    Task<string> RecogniseAsync(Stream image, string mimeType, CancellationToken cancellationToken);
 }
 
 /// <summary>A search request already reduced to engine terms: the query JSON and where to send it.</summary>
@@ -74,7 +86,7 @@ public sealed class SearchOptions
     /// <summary>"wait_for" makes writes visible before the call returns; tests need it, production does not.</summary>
     public string Refresh { get; set; } = "false";
 
-    /// <summary>Tika server URL; empty switches text extraction and OCR off.</summary>
+    /// <summary>Tika server URL; empty falls back to local Tesseract when available.</summary>
     public string? TikaUrl { get; set; }
 
     /// <summary>Tesseract languages for scans. Persian first: most scans are Persian with some Latin.</summary>
@@ -85,4 +97,34 @@ public sealed class SearchOptions
 
     /// <summary>How much of the text goes into the index; the rest stays in storage.</summary>
     public int MaxIndexedChars { get; set; } = 1_000_000;
+
+    /// <summary>Local CLI OCR used when <see cref="TikaUrl"/> is empty.</summary>
+    public TesseractOptions Tesseract { get; set; } = new();
+}
+
+public sealed class TesseractOptions
+{
+    /// <summary>
+    /// When true (default), the worker uses <c>tesseract</c> on PATH if Tika is not configured.
+    /// Set false to force metadata-only search without OCR.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Executable name or absolute path. Default resolves via PATH.</summary>
+    public string Command { get; set; } = "tesseract";
+
+    /// <summary><c>pdftotext</c> for digital PDFs; empty disables the text-layer shortcut.</summary>
+    public string PdfToTextCommand { get; set; } = "pdftotext";
+
+    /// <summary><c>pdftoppm</c> to rasterise scanned PDFs before OCR.</summary>
+    public string PdfToPpmCommand { get; set; } = "pdftoppm";
+
+    /// <summary>DPI when rasterising PDF pages for OCR.</summary>
+    public int PdfDpi { get; set; } = 200;
+
+    /// <summary>Hard cap on pages OCR'd from one PDF (defence against huge scans).</summary>
+    public int MaxPdfPages { get; set; } = 50;
+
+    /// <summary>Per-process timeout for tesseract / poppler.</summary>
+    public int TimeoutSeconds { get; set; } = 120;
 }
