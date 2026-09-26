@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phases 1–7 done.** Phases 8–9 not started. |
+| **Status** | Approved. **Phases 1–8 done.** Phase 9 not started. |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -860,7 +860,7 @@ Every phase needs explicit approval before it starts.
 | **5 Processing + Search** **(done)** | ClamAV, Tika, OCR, renditions/preview/print, OpenSearch, secured search UI | Search authorization (no title/metadata/facet leaks); version-aware hits; OCR of a scanned Persian sample; reindex |
 | **6 Sharing** **(done)** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
 | **7 Audit hardening + notifications** **(done)** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
-| **8 Admin UI completion** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
+| **8 Admin UI completion** **(done)** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
 | **9 Hardening** | Security test suite, load tests (k6), pen-test checklist, backup/restore drill | Performance targets based on the sizing answers (D11) |
 
 **Phase 2 as built: where it differs from the plan above, and what it leaves for later.**
@@ -1107,6 +1107,36 @@ Every phase needs explicit approval before it starts.
   external anchor for the seal chain (for example sending the latest seal hash to a timestamping
   service or a write-once store), which would also cover the newest-seals limit above.
 
+**Phase 8 as built.**
+
+- **Administration screens.** Users, groups, roles and categories under **مدیریت**, gated by the
+  matching `ADMIN_MANAGE_*` system permissions (or `is_system_admin`). The audit viewer and search
+  admin from earlier phases stay in the same menu. On a desktop the menu is a header dropdown; on
+  a phone it lives in the drawer, separate from the folder tree.
+- **Users.** Create, edit display name/email, activate/deactivate, reset password (forces change
+  at next sign-in), assign groups and roles, and grant or revoke system administration. The server
+  refuses privilege escalation through `ADMIN_MANAGE_USERS`, blocks touching another administrator
+  without being one, and never lets the last administrator demote or deactivate themselves
+  (`AdministrationApiTests`).
+- **Forced password change.** Midware on the API refuses everything except change-password and
+  sign-out until `mustChangePassword` is cleared; the browser shows only that form.
+- **Groups and roles.** Rename, deactivate, membership. Role permissions are limited to what the
+  actor already holds (`role.exceeds_rights`). System roles from the seeder stay protected.
+- **Categories.** Create, edit, move, and open the ACL editor on each folder. The folder browser
+  in the shell is only for navigation and filing; administration of the tree is this screen.
+- **ACL editor.** List (own and inherited), grant/revoke with Allow/Deny and inherit, subject
+  picker for user/group/role, and a **چرا؟** tab that calls `GET /permissions/explain`. Every use
+  of the administrator's D5 bypass is audited as `ADMIN_PERMISSION_OVERRIDE` with the operation
+  (list, grant, revoke, explain).
+- **Frontend stack note.** The admin UI (and the rest of the app) uses React + TypeScript + Vite
+  + Tailwind, not MUI; the Playwright suite targets roles and labels, not component-library
+  class names.
+- **Exit tests.** `AdministrationApiTests` on the server; `frontend/e2e/administration.spec.ts`
+  through `scripts/e2e.sh` on phone and desktop viewports (create user + forced password change,
+  group membership, category ACL + why?, role permissions + holder).
+- **Not in phase 8:** email invites, directory sync (OIDC/AD seams from D2), bulk import of
+  users, and field-level security (§5.10).
+
 **Test stack:**
 
 - xUnit v3, Shouldly, NSubstitute;
@@ -1125,6 +1155,7 @@ Every phase needs explicit approval before it starts.
 | Search authorization | 5 |
 | Share expiration and revocation | 6 |
 | Append-only at the role level, seal verification, export, audit completeness, notifications | 7 |
+| Admin users/groups/roles/categories, ACL editor and why?, forced password change, no privilege escalation | 8 |
 
 ---
 
@@ -1155,7 +1186,7 @@ All of these are settled. The two that remain open are inputs from the business,
 |---|---|---|
 | D1 | .NET 10 toolchain | **SDK installed user-locally in `~/.dotnet`.** The Docker daemon on the dev machine cannot reach mcr.microsoft.com, so the container build route is unavailable there. The Dockerfile still builds from `mcr.microsoft.com/dotnet/sdk:10.0` wherever the registry is reachable. |
 | D2 | Authentication | **Local accounts now.** Users, groups and memberships live in our own schema, so authorization never depends on an external directory. `auth_source` and `external_id` on users and groups are the seams for OIDC or AD later; adding them changes no authorization code. Tokens: short-lived JWT access token plus a rotating refresh token whose SHA-256 is stored, with reuse detection. |
-| D3 | Frontend | **React + TypeScript + Vite + MUI.** Phase 1 ships only a sign-in shell; no existing frontend was replaced because there was none. |
+| D3 | Frontend | **React + TypeScript + Vite + Tailwind.** Originally planned with MUI; the shipped UI uses a small Tailwind component kit instead. Phase 1 shipped only a sign-in shell; no existing frontend was replaced because there was none. |
 | D4 | Localisation | **Persian first, RTL, Jalali display.** Presentation only: `timestamptz` in UTC in the database, ISO-8601 on the wire, Jalali rendered in the browser via `Intl`. |
 | D5 | Administrator access | **Administrators do not get document content.** `is_system_admin` grants every system permission and the single ACL bypass for `DOCUMENT_MANAGE_PERMISSION` (so nobody can be locked out); every use of that bypass writes an `ADMIN_PERMISSION_OVERRIDE` audit record. Content access goes through the ordinary ACL. |
 | D6 | Draft visibility | **Author, assigned reviewer, or `DOCUMENT_VIEW_DRAFT`.** Everyone else is refused, in listings and in search as well as on direct access. |

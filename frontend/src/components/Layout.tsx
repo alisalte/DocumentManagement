@@ -177,7 +177,13 @@ export function Layout({ children }: { children: ReactNode }) {
                 </button>
                 <Menu anchor={adminMenu} onClose={() => setAdminMenu(null)}>
                   {adminLinks.map((link) => (
-                    <RouterLink key={link.to} to={link.to} onClick={() => setAdminMenu(null)} className={menuItemClasses()}>
+                    <RouterLink
+                      key={link.to}
+                      to={link.to}
+                      role="menuitem"
+                      onClick={() => setAdminMenu(null)}
+                      className={menuItemClasses()}
+                    >
                       {link.label}
                     </RouterLink>
                   ))}

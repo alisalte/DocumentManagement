@@ -69,7 +69,7 @@ test.describe('administration', () => {
     await page.getByRole('dialog').getByLabel('کد').fill(unique('C').toUpperCase().slice(0, 20));
     await page.getByRole('dialog').getByRole('button', { name: 'ایجاد' }).click();
 
-    const row = page.locator('.MuiPaper-root', { hasText: categoryName }).first();
+    const row = page.getByRole('row', { name: new RegExp(categoryName) });
     await row.getByRole('button', { name: 'دسترسی‌ها' }).click();
     const acl = page.getByRole('dialog');
     await pick(page, 'دارنده', username, new RegExp(username.replace(/\./g, '\\.')));
@@ -78,7 +78,7 @@ test.describe('administration', () => {
 
     await acl.getByRole('tab', { name: 'چرا؟' }).click();
     await pick(page, 'کاربران', username, new RegExp(username.replace(/\./g, '\\.')));
-    const view = acl.locator('.MuiPaper-root', { hasText: 'دیدن سند' }).first();
+    const view = acl.locator('div').filter({ hasText: 'دیدن سند' }).filter({ hasText: 'مجاز' }).first();
     await expect(view.getByText('مجاز', { exact: true })).toBeVisible();
     await expect(view.getByText('اجازه‌ی مستقیم')).toBeVisible();
     await expect(view.getByText(`«خواننده ${username}»`)).toBeVisible();
