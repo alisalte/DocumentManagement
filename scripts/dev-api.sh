@@ -25,6 +25,24 @@ if [[ -z "${Dms__Bootstrap__AdminPassword:-}" ]]; then
     exit 1
 fi
 
+# Full-text search needs OpenSearch. Development defaults to http://localhost:9200
+# (appsettings.Development.json). Start it with ./scripts/dev-search.sh when missing.
+# DMS_AUTO_SEARCH=1 starts it from here; DMS_SKIP_SEARCH_CHECK=1 silences the warning.
+OPENSEARCH_URL="${Dms__Search__OpenSearchUrl:-http://localhost:9200}"
+if [[ "${DMS_SKIP_SEARCH_CHECK:-0}" != "1" ]]; then
+    if curl -sf --max-time 2 "${OPENSEARCH_URL}" >/dev/null 2>&1; then
+        echo "OpenSearch reachable at ${OPENSEARCH_URL}."
+    elif [[ "${DMS_AUTO_SEARCH:-0}" == "1" ]]; then
+        echo "OpenSearch not reachable; starting via scripts/dev-search.sh …"
+        ./scripts/dev-search.sh
+    else
+        echo "Warning: OpenSearch is not reachable at ${OPENSEARCH_URL}." >&2
+        echo "  Full-text search will fall back to title/description/file name until it is up." >&2
+        echo "  Start it with: ./scripts/dev-search.sh" >&2
+        echo "  Or auto-start: DMS_AUTO_SEARCH=1 $0" >&2
+    fi
+fi
+
 echo "Applying migrations..."
 dotnet run --project src/Dms.Migrator -v q --nologo
 
