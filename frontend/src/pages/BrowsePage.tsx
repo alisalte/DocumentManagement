@@ -42,6 +42,10 @@ export function BrowsePage() {
   const category = categories.data?.find((item) => item.id === categoryId);
   const heading = category?.name ?? t.allDocuments;
   const pages = documents.data ? Math.max(1, Math.ceil(documents.data.total / pageSize)) : 1;
+  const filingTarget =
+    category?.canCreate
+      ? category.id
+      : categories.data?.find((item) => item.canCreate)?.id;
 
   return (
     <div className="space-y-5">
@@ -52,8 +56,8 @@ export function BrowsePage() {
             <span className="ms-2 text-sm font-normal text-paper-400">({formatNumber(documents.data.total)})</span>
           )}
         </h1>
-        {category?.canCreate && (
-          <Button as={RouterLink} to={`/new?category=${category.id}`}>
+        {filingTarget && (
+          <Button as={RouterLink} to={`/new?category=${filingTarget}`}>
             {t.newDocument}
           </Button>
         )}
