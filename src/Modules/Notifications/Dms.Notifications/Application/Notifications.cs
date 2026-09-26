@@ -43,7 +43,8 @@ public sealed class NotificationSender(
     INotificationRepository notifications,
     IUserDirectory users,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : INotificationSender
+    TimeProvider timeProvider,
+    IEnumerable<INotificationChannel> channels) : INotificationSender
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -66,6 +67,10 @@ public sealed class NotificationSender(
         foreach (var recipient in active)
         {
             notifications.Add(Notification.Create(recipient, message.Type, actor, message.DocumentId, message.VersionId, payload, now));
+            foreach (var channel in channels)
+            {
+                await channel.DeliverAsync(message, recipient, cancellationToken);
+            }
         }
     }
 }

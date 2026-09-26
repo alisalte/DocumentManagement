@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -213,6 +214,24 @@ app.MapGet("/health/ready", async (NpgsqlDataSource dataSource, CancellationToke
         {
             return Results.Problem("The database is not reachable.", statusCode: StatusCodes.Status503ServiceUnavailable);
         }
+    })
+    .AllowAnonymous()
+    .ExcludeFromDescription();
+
+// Phase 10: build identity for operators and release checklists (no secrets).
+app.MapGet("/version", () =>
+    {
+        var assembly = typeof(Program).Assembly;
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "0";
+        return Results.Ok(new
+        {
+            name = "dms",
+            version,
+            environment = app.Environment.EnvironmentName,
+            role,
+        });
     })
     .AllowAnonymous()
     .ExcludeFromDescription();

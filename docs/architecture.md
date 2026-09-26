@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phases 1–8 done.** **Phase 9 (hardening) in progress.** |
+| **Status** | Approved. **Phases 1–8 done.** **Phases 9–10 in progress** (hardening + production cutover / deferred seams). |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -862,6 +862,7 @@ Every phase needs explicit approval before it starts.
 | **7 Audit hardening + notifications** **(done)** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** **(done)** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
 | **9 Hardening** **(in progress)** | Security headers + `SecuritySuiteTests`, load tests (k6), pen-test checklist, backup/restore drill — see [`docs/hardening/`](hardening/) | Green security suite; k6 against [performance targets](hardening/performance-targets.md); signed [pen-test checklist](hardening/pen-test-checklist.md); successful [backup/restore drill](hardening/backup-restore.md) |
+| **10 Production cutover & deferred seams** **(in progress)** | Go-live / release runbooks, `GET /version`, retention settings + purge wait (D12), notification channel port, legacy-import manifest (D11) — see [`docs/operations/`](operations/) | Signed go-live checklist; retention enforced on purge; import dry-run green; email channel replaceable without touching callers |
 
 **Phase 2 as built: where it differs from the plan above, and what it leaves for later.**
 
@@ -1137,6 +1138,22 @@ Every phase needs explicit approval before it starts.
 - **Not in phase 8:** email invites, directory sync (OIDC/AD seams from D2), bulk import of
   users, and field-level security (§5.10).
 
+**Phase 10 as built (opening).**
+
+- **Ops docs** under [`docs/operations/`](operations/): go-live runbook, release checklist,
+  retention notes. Hardening artefacts stay in [`docs/hardening/`](hardening/).
+- **`GET /version`** returns assembly informational version, environment and process role
+  (`api` / `worker` / `all`) with no secrets (`OperationsSuiteTests`).
+- **Retention seam (D12).** `DocumentTypeSettings.RetentionDaysAfterDelete` and
+  `SupportsLegalHold` (JSONB). `PurgeDocumentHandler` refuses with `purge.retention` until the
+  wait elapses. Per-document legal-hold column and APIs are next.
+- **Email channel port.** `INotificationChannel` + `NullNotificationChannel`; `NotificationSender`
+  fans out after the in-app row. SMTP (or another provider) plugs in without changing callers.
+- **Legacy import (D11).** Manifest schema and `scripts/legacy-import.sh` dry-run only; upload
+  through the normal API is the next increment.
+- **Not yet in phase 10:** document-level legal hold, SMTP delivery, full importer, OIDC/AD
+  sync (D2), field-level security (§5.10), retention auto-propose job.
+
 **Test stack:**
 
 - xUnit v3, Shouldly, NSubstitute;
@@ -1156,6 +1173,7 @@ Every phase needs explicit approval before it starts.
 | Share expiration and revocation | 6 |
 | Append-only at the role level, seal verification, export, audit completeness, notifications | 7 |
 | Admin users/groups/roles/categories, ACL editor and why?, forced password change, no privilege escalation | 8 |
+| Version endpoint; purge respects type retention days | 10 |
 
 ---
 
@@ -1194,8 +1212,8 @@ All of these are settled. The two that remain open are inputs from the business,
 | D8 | Share links | **Re-validated on every access** against the sharer's current authorization, the document state and the link's own expiry, count and revocation. Links stay pinned to one version. |
 | D9 | Malware scanning | **Quarantine until clean.** View, download, print and share are all refused while the scan is pending, failed or positive, including for the uploader, who can still see the scan status. Implemented in the evaluator now, enforced end to end when uploads land in phase 2. |
 | D10 | Nested groups | **Flat groups in v1.** |
-| D11 | Legacy archive import | **Deferred.** No import code; the storage and metadata model leaves room for a bulk importer. |
-| D12 | Retention and legal hold | **Deferred.** No retention code; `DocumentType.settings` and the purge path are where it will attach. |
+| D11 | Legacy archive import | **Phase 10 opening:** manifest + dry-run script (`docs/legacy-import/`, `scripts/legacy-import.sh`). Full API importer still deferred. |
+| D12 | Retention and legal hold | **Phase 10 opening:** `RetentionDaysAfterDelete` / `SupportsLegalHold` on type settings; purge waits. Per-document legal hold still deferred. |
 | D13 | Root namespace | **`Dms.*`** |
 | D14 | Audit of repeated views | **Log every view.** Monthly partitions absorb the volume. |
 

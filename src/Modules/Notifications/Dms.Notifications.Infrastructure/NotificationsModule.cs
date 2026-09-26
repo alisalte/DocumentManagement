@@ -26,6 +26,8 @@ public static class NotificationsModule
 
         services.AddScoped<INotificationRepository, NotificationRepository>();
         services.AddScoped<INotificationSender, NotificationSender>();
+        // Phase 10: replace or add a real SMTP channel; Null keeps in-app-only behaviour.
+        services.AddSingleton<INotificationChannel, NullNotificationChannel>();
 
         services.AddScoped<IQueryHandler<ListNotificationsQuery, Result<NotificationPageDto>>, ListNotificationsHandler>();
         services.AddScoped<IQueryHandler<CountUnreadNotificationsQuery, Result<int>>, CountUnreadNotificationsHandler>();

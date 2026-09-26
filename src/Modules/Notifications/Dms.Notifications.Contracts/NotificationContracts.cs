@@ -35,9 +35,30 @@ public sealed record NotificationMessage(
 /// <summary>
 /// Writes in-app notifications in the caller's transaction, so a notification exists exactly when
 /// the change it announces committed. Whoever caused the event is not told about it, and inactive
-/// users get nothing. Email can later be another channel behind the same call.
+/// users get nothing. Additional channels (email) run after the in-app write via
+/// <see cref="INotificationChannel"/>.
 /// </summary>
 public interface INotificationSender
 {
     Task SendAsync(NotificationMessage message, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Phase 10: optional delivery channel (email today). Implementations must not throw for
+/// transient failures in a way that rolls back the business transaction; log and retry outside.
+/// </summary>
+public interface INotificationChannel
+{
+    string Name { get; }
+
+    Task DeliverAsync(NotificationMessage message, UserId recipient, CancellationToken cancellationToken);
+}
+
+/// <summary>Default: no external delivery until SMTP (or another provider) is configured.</summary>
+public sealed class NullNotificationChannel : INotificationChannel
+{
+    public string Name => "null";
+
+    public Task DeliverAsync(NotificationMessage message, UserId recipient, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 }

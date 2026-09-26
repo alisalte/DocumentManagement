@@ -488,6 +488,33 @@ function SettingsPanel({
             })
           }
         />
+        <TextField
+          label={a.retentionDays}
+          type="number"
+          value={form.settings.retentionDaysAfterDelete ?? ''}
+          helperText={a.retentionDaysHelp}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              settings: {
+                ...form.settings,
+                retentionDaysAfterDelete: event.target.value ? Number(event.target.value) : null,
+              },
+            })
+          }
+        />
+        <div className="flex items-end">
+          <Switch
+            label={a.supportsLegalHold}
+            checked={!!form.settings.supportsLegalHold}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                settings: { ...form.settings, supportsLegalHold: event.target.checked },
+              })
+            }
+          />
+        </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <Switch label={a.active} checked={form.isActive} onChange={(event) => setForm({ ...form, isActive: event.target.checked })} />
