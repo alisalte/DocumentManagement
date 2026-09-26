@@ -16,6 +16,11 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next, IHostEnviron
             headers.TryAdd("Referrer-Policy", "no-referrer");
             headers.TryAdd("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
             headers.TryAdd("X-Permitted-Cross-Domain-Policies", "none");
+            // API responses are JSON/streams, not HTML documents — lock down script sources and framing.
+            headers.TryAdd(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
+            headers.TryAdd("Cross-Origin-Opener-Policy", "same-origin");
             if (!environment.IsDevelopment())
             {
                 headers.TryAdd("Strict-Transport-Security", "max-age=31536000; includeSubDomains");

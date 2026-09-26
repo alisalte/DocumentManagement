@@ -362,16 +362,31 @@ public static class DocumentEndpoints
 
         var content = result.Value;
 
-        // Always an attachment and never sniffed: an uploaded HTML file must not run on our origin.
+        // Always an attachment and never sniffed: an uploaded HTML/SVG file must not run on our origin.
         http.Response.Headers.XContentTypeOptions = "nosniff";
         http.Response.Headers.CacheControl = "private, no-store";
 
         return Results.Stream(
             content.Content,
-            content.MimeType,
+            DownloadContentType(content.MimeType),
             content.FileName,
             enableRangeProcessing: content.Content.CanSeek);
     }
+
+    /// <summary>
+    /// Phase 9: browser-executable types are remapped so a crafted upload cannot execute on our
+    /// origin even if a client ignores Content-Disposition.
+    /// </summary>
+    internal static string DownloadContentType(string mimeType) =>
+        mimeType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("application/xhtml", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("image/svg", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("text/javascript", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("text/xml", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            ? "application/octet-stream"
+            : mimeType;
 
     private static Task<IResult> PageAsync(GetPreviewPageQuery query, IDispatcher dispatcher, HttpContext http, CancellationToken ct) =>
         ImageAsync(dispatcher.QueryAsync(query, ct), http);

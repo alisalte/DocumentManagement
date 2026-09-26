@@ -17,11 +17,13 @@ even when the rows are intact.
 ## Automated drill
 
 ```bash
-# Needs Docker and a running Postgres (scripts/dev-db.sh or compose).
+# Docker container from scripts/dev-db.sh (default), or a local Postgres:
+#   DMS_DRILL_MODE=local PGHOST=localhost PGPORT=5432 ./scripts/backup-restore-drill.sh
 ./scripts/backup-restore-drill.sh
 ```
 
-The script:
+The script auto-selects `docker` when `dms-postgres` is running, otherwise `local` when
+`pg_isready` succeeds.
 
 1. Creates a throwaway database and a marker table row (or uses `DMS_DRILL_DATABASE`).
 2. `pg_dump` → temporary directory.

@@ -13,6 +13,18 @@ this phase proves it can be defended, measured and recovered.
 
 ## Status
 
-**In progress.** Baseline security headers and the security suite ship with this phase opening.
-Full exit criteria (green load run against agreed targets, signed pen-test checklist, successful
-drill on a production-like stack) close the phase.
+**Nearly closed — staging sign-off remains.**
+
+Done in-repo / verified here:
+
+- Baseline security headers (incl. CSP `frame-ancestors 'none'`, COOP) + `SecuritySuiteTests` green (8/8)
+- Dangerous download MIME types remapped to `application/octet-stream`
+- Pen-test checklist mapped to automated coverage; most rows checked via suite + drill + k6
+- Backup/restore drill passed (local Postgres + object-store sentinel)
+- k6 `health.js` thresholds green; `login-abuse.js` observed HTTP 429 under stuffing
+
+Still required to mark the phase **done**:
+
+1. Staging TLS + HSTS + CORS origin review (sign the remaining environment-only rows)
+2. Full authenticated k6 browse/search suite against agreed [performance targets](performance-targets.md)
+3. Share-link open 429 confirmation on staging

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using Shouldly;
 
 namespace Dms.IntegrationTests;
@@ -20,8 +22,25 @@ public sealed class SecuritySuiteTests(DmsApiFactory factory)
         response.Headers.GetValues("X-Frame-Options").Single().ShouldBe("DENY");
         response.Headers.GetValues("Referrer-Policy").Single().ShouldBe("no-referrer");
         response.Headers.GetValues("Permissions-Policy").Single().ShouldContain("camera=()");
+        response.Headers.GetValues("Content-Security-Policy").Single().ShouldContain("frame-ancestors 'none'");
+        response.Headers.GetValues("Cross-Origin-Opener-Policy").Single().ShouldBe("same-origin");
         // Development keeps HTTP usable: HSTS is for deployed TLS hosts.
         response.Headers.Contains("Strict-Transport-Security").ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Health_and_version_do_not_leak_secrets_or_connection_strings()
+    {
+        var client = factory.CreateClient();
+        foreach (var path in new[] { "/health/live", "/health/ready", "/version" })
+        {
+            var body = await (await client.GetAsync(path)).Content.ReadAsStringAsync();
+            body.ToLowerInvariant().ShouldNotContain("password");
+            body.ToLowerInvariant().ShouldNotContain("signingkey");
+            body.ToLowerInvariant().ShouldNotContain("sealkey");
+            body.ShouldNotContain("Host=");
+            body.ShouldNotContain("postgres://");
+        }
     }
 
     [Fact]
@@ -33,6 +52,18 @@ public sealed class SecuritySuiteTests(DmsApiFactory factory)
         (await client.GetAsync("/api/v1/documents")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await client.GetAsync("/api/v1/audit")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         (await client.GetAsync($"/api/v1/documents/{Guid.NewGuid()}")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task A_forged_bearer_token_is_rejected()
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYWtlIn0.signature");
+
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await client.GetAsync("/api/v1/documents")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -70,5 +101,55 @@ public sealed class SecuritySuiteTests(DmsApiFactory factory)
         search.StatusCode.ShouldBe(HttpStatusCode.OK);
         var payload = await search.Content.ReadAsStringAsync();
         payload.ShouldNotContain(secret);
+    }
+
+    [Fact]
+    public async Task View_without_download_cannot_fetch_the_original_file()
+    {
+        var admin = await factory.AdminAsync();
+        var categoryId = await admin.CreateCategoryAsync();
+        var (owner, ownerId) = await factory.CreateUserAsync("sec.dl.owner");
+        await admin.GrantManyAsync("Category", categoryId, ownerId, "DOCUMENT_VIEW", "DOCUMENT_CREATE");
+
+        var (documentId, _) = await owner.CreateDocumentAsync(categoryId, title: "فقط مشاهده");
+
+        var (viewer, viewerId) = await factory.CreateUserAsync("sec.dl.viewer");
+        await admin.GrantManyAsync("Category", categoryId, viewerId, "DOCUMENT_VIEW");
+
+        (await viewer.GetAsync($"/api/v1/documents/{documentId}")).StatusCode.ShouldBe(HttpStatusCode.OK);
+        var download = await viewer.GetAsync($"/api/v1/documents/{documentId}/content");
+        download.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Uploaded_html_downloads_as_attachment_with_declared_type_not_executable_html()
+    {
+        var admin = await factory.AdminAsync();
+        var categoryId = await admin.CreateCategoryAsync();
+        var (owner, ownerId) = await factory.CreateUserAsync("sec.html.owner");
+        await admin.GrantManyAsync("Category", categoryId, ownerId, "DOCUMENT_VIEW", "DOCUMENT_CREATE", "DOCUMENT_DOWNLOAD");
+
+        var html = System.Text.Encoding.UTF8.GetBytes("<!doctype html><script>alert(1)</script>");
+        var upload = await owner.UploadAsync(html, "note.html");
+        var filed = await owner.PostAsJsonAsync("/api/v1/documents", new
+        {
+            title = "html upload",
+            description = (string?)null,
+            categoryId,
+            documentTypeId = await owner.GeneralTypeIdAsync(),
+            uploadId = upload.GetProperty("uploadId").GetGuid(),
+            tags = Array.Empty<string>(),
+            changeDescription = "n1",
+        });
+        filed.StatusCode.ShouldBe(HttpStatusCode.Created, await filed.Content.ReadAsStringAsync());
+        var documentId = (await filed.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>())
+            .GetProperty("documentId").GetGuid();
+
+        var response = await owner.GetAsync($"/api/v1/documents/{documentId}/content");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        response.Content.Headers.ContentDisposition!.DispositionType.ShouldBe("attachment");
+        // Sniffed/stored type must not be served as text/html on our origin.
+        response.Content.Headers.ContentType!.MediaType.ShouldNotBe("text/html");
+        response.Headers.GetValues("X-Content-Type-Options").ShouldContain("nosniff");
     }
 }
