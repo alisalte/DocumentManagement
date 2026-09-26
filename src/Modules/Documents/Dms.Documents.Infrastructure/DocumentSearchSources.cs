@@ -96,7 +96,7 @@ public sealed class DocumentIndexSource(DocumentsDbContext context) : IDocumentI
     }
 }
 
-/// <summary>Degraded search over titles, with exactly the browser's access rules.</summary>
+/// <summary>Degraded search over title, description, and file name, with the browser's access rules.</summary>
 public sealed class DocumentTitleSearch(IDispatcher dispatcher) : IDocumentTitleSearch
 {
     public async Task<(IReadOnlyList<TitleHit> Hits, int Total)> SearchAsync(string? text, int page, int pageSize, CancellationToken cancellationToken)

@@ -51,8 +51,12 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
 
         if (filter.Search is { } search)
         {
+            // Degraded path (no OpenSearch): match title, description, and any version file name.
             var pattern = $"%{EscapeLike(search)}%";
-            query = query.Where(document => EF.Functions.ILike(document.Title, pattern, "\\"));
+            query = query.Where(document =>
+                EF.Functions.ILike(document.Title, pattern, "\\")
+                || (document.Description != null && EF.Functions.ILike(document.Description, pattern, "\\"))
+                || document.Versions.Any(version => EF.Functions.ILike(version.FileName, pattern, "\\")));
         }
 
         if (filter.TagId is { } tagId)
