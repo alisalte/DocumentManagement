@@ -9,7 +9,15 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 /** The standard surface: page sections, panels and forms sit on a card. */
 export function Card({ flush, className, children, ...rest }: CardProps) {
   return (
-    <div {...rest} className={cx('rounded-xl border border-slate-200 bg-white shadow-sm', !flush && 'p-4 sm:p-5', className)}>
+    <div
+      {...rest}
+      className={cx(
+        'rounded-2xl border border-paper-200/90 bg-white/90 backdrop-blur-sm',
+        'shadow-[0_1px_2px_rgb(12_32_52/0.04),0_8px_24px_rgb(12_32_52/0.06)]',
+        !flush && 'p-4 sm:p-5',
+        className,
+      )}
+    >
       {children}
     </div>
   );

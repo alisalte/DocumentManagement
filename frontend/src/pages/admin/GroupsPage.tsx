@@ -29,9 +29,9 @@ export function GroupsPage() {
   const [selected, setSelected] = useState<AdminGroup | null>(null);
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{d.groups}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.groups}</h1>
         <Button onClick={() => setCreating(true)}>{d.newGroup}</Button>
       </div>
 
@@ -43,7 +43,7 @@ export function GroupsPage() {
           </div>
         )}
         {groups.isSuccess && groups.data.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">{d.empty}</p>
+          <p className="py-10 text-center text-sm text-paper-500">{d.empty}</p>
         )}
         {groups.data && groups.data.length > 0 && (
           <Table dense>
@@ -65,10 +65,10 @@ export function GroupsPage() {
                   onKeyDown={(event) => event.key === 'Enter' && setSelected(group)}
                 >
                   <TD>
-                    <span className="font-semibold text-slate-800">{group.name}</span>
+                    <span className="font-semibold text-ink-800">{group.name}</span>
                   </TD>
                   <TD>
-                    <span dir="ltr" className="text-slate-500">
+                    <span dir="ltr" className="text-paper-500">
                       {group.code}
                     </span>
                   </TD>
@@ -176,7 +176,7 @@ function GroupDialog({ group, onClose }: { group: AdminGroup; onClose: () => voi
       title={
         <>
           {group.name}{' '}
-          <span dir="ltr" className="text-slate-500">
+          <span dir="ltr" className="text-paper-500">
             {group.code}
           </span>
         </>
@@ -188,7 +188,7 @@ function GroupDialog({ group, onClose }: { group: AdminGroup; onClose: () => voi
         </Button>
       }
     >
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-5">
         <form
           onSubmit={(event: FormEvent) => {
             event.preventDefault();
@@ -207,19 +207,19 @@ function GroupDialog({ group, onClose }: { group: AdminGroup; onClose: () => voi
         </form>
 
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">{d.members}</h2>
+          <h2 className="text-sm font-semibold text-ink-800">{d.members}</h2>
           {members.isPending && <ProgressBar className="rounded-full" />}
           {members.isError && <Alert severity="error">{describeError(members.error)}</Alert>}
 
           <div className="space-y-1">
             {members.isSuccess && members.data.length === 0 && (
-              <p className="py-6 text-center text-sm text-slate-500">{d.empty}</p>
+              <p className="py-6 text-center text-sm text-paper-500">{d.empty}</p>
             )}
             {(members.data ?? []).map((member) => (
-              <div key={member.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50">
+              <div key={member.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-paper-50">
                 <span className={`min-w-0 flex-1 text-sm ${member.isActive ? '' : 'opacity-60'}`}>
                   {member.displayName}{' '}
-                  <span dir="ltr" className="text-xs text-slate-500">
+                  <span dir="ltr" className="text-xs text-paper-500">
                     {member.username}
                   </span>
                 </span>

@@ -77,7 +77,7 @@ export function ChipsInput({
   return (
     <div ref={rootRef} className={cx('relative w-full', className)}>
       {label !== undefined && (
-        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-ink-800">
           {label}
           {required && <span className="text-rose-500"> *</span>}
         </label>
@@ -86,9 +86,9 @@ export function ChipsInput({
         onClick={() => inputRef.current?.focus()}
         className={cx(
           'flex min-h-10 w-full cursor-text flex-wrap items-center gap-1.5 rounded-lg border bg-white px-2 py-1.5 shadow-sm transition-colors',
-          'focus-within:ring-2 focus-within:ring-brand-500/20',
-          error ? 'border-rose-400 focus-within:border-rose-500' : 'border-slate-300 focus-within:border-brand-500',
-          disabled && 'cursor-not-allowed bg-slate-100 opacity-60',
+          'focus-within:ring-2 focus-within:ring-ink-500/20',
+          error ? 'border-rose-400 focus-within:border-rose-500' : 'border-paper-300 focus-within:border-ink-500',
+          disabled && 'cursor-not-allowed bg-paper-100 opacity-60',
         )}
       >
         {value.map((tag) => (
@@ -108,13 +108,13 @@ export function ChipsInput({
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setOpen(true)}
-          className="h-6 min-w-24 flex-1 bg-transparent text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
+          className="h-6 min-w-24 flex-1 bg-transparent text-sm text-ink-900 placeholder:text-paper-400 focus:outline-none disabled:cursor-not-allowed"
         />
         {loading && <Spinner size="sm" />}
       </div>
       {visible && (
-        <ul className="absolute z-40 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
-          {loading && !suggestions.length && <li className="px-3 py-2 text-sm text-slate-400">در حال جستجو…</li>}
+        <ul className="absolute z-40 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-paper-200 bg-white py-1 shadow-xl">
+          {loading && !suggestions.length && <li className="px-3 py-2 text-sm text-paper-400">در حال جستجو…</li>}
           {suggestions
             .filter((item) => !value.includes(item) && item.includes(text.trim()))
             .map((item) => (
@@ -126,7 +126,7 @@ export function ChipsInput({
                     add(item);
                     setOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-start text-sm text-slate-700 hover:bg-brand-50 hover:text-brand-800"
+                  className="w-full px-3 py-2 text-start text-sm text-ink-800 hover:bg-ink-50 hover:text-ink-800"
                 >
                   {item}
                 </button>
@@ -134,7 +134,7 @@ export function ChipsInput({
             ))}
         </ul>
       )}
-      {helperText != null && <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>}
+      {helperText != null && <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-paper-500')}>{helperText}</p>}
     </div>
   );
 }

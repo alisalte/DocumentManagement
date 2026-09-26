@@ -61,9 +61,17 @@ export function PublicLinkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-3 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto w-full max-w-4xl space-y-4">
-        <p className="text-sm font-semibold text-slate-500">{t.appTitle}</p>
+    <div className="min-h-screen px-3 py-8 sm:px-6 sm:py-14">
+      <div className="mx-auto w-full max-w-4xl space-y-5 page-enter">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-xl bg-ink-800 text-sm font-bold text-white shadow-md">
+            ب
+          </span>
+          <div>
+            <p className="text-[11px] font-semibold tracking-[0.16em] text-paper-500 uppercase">{t.appTitle}</p>
+            <p className="text-sm text-paper-600">سند اشتراکی</p>
+          </div>
+        </div>
 
         {!opened && info.isPending && <CenteredSpinner />}
         {!opened && info.isError && <Alert severity="error">{describeError(info.error)}</Alert>}
@@ -71,10 +79,10 @@ export function PublicLinkPage() {
         {info.data && !opened && (
           <Card>
             <form onSubmit={open} className="space-y-4">
-              <h1 className="text-xl font-bold text-slate-800">{s.linkTitle}</h1>
+              <h1 className="text-xl font-bold tracking-tight text-ink-900">{s.linkTitle}</h1>
               {info.data.requiresPassword && (
                 <>
-                  <p className="text-sm text-slate-600">{s.linkNeedsPassword}</p>
+                  <p className="text-sm text-paper-600">{s.linkNeedsPassword}</p>
                   <TextField
                     type="password"
                     label={t.password}
@@ -87,7 +95,7 @@ export function PublicLinkPage() {
               )}
               {info.data.lockedUntil && <Alert severity="warning">{s.linkLocked}</Alert>}
               {error && <Alert severity="error">{error}</Alert>}
-              <p className="text-sm text-slate-500">{s.linkOpenHelp}</p>
+              <p className="text-sm text-paper-500">{s.linkOpenHelp}</p>
               <Button
                 type="submit"
                 fullWidth
@@ -182,8 +190,8 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
       <div className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold break-words text-slate-800">{link.title}</h1>
-            <p className="mt-1 text-sm break-words text-slate-500">
+            <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{link.title}</h1>
+            <p className="mt-1 text-sm break-words text-paper-500">
               <span dir="ltr">{link.versionLabel}</span> · {link.fileName} · {formatBytes(link.fileSize)}
             </p>
           </div>
@@ -217,7 +225,7 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
 
         {ready && (
           <>
-            <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-slate-100">
+            <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-paper-100">
               {image.isLoading && <Spinner />}
               {image.data && (
                 <img
@@ -233,7 +241,7 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
                 <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                   {t.previous}
                 </Button>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-paper-600">
                   {t.page} {formatNumber(page)} {t.of} {formatNumber(link.pageCount)}
                 </p>
                 <Button size="sm" variant="ghost" disabled={page >= link.pageCount} onClick={() => setPage(page + 1)}>
@@ -243,7 +251,7 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
             )}
           </>
         )}
-        <p className="text-xs text-slate-500">{s.linkWatermark}</p>
+        <p className="text-xs text-paper-500">{s.linkWatermark}</p>
       </div>
     </Card>
   );

@@ -81,10 +81,10 @@ export function DocumentViewer({
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h2 className="min-w-0 flex-1 text-base font-semibold text-slate-800">
+        <h2 className="min-w-0 flex-1 text-base font-semibold text-ink-800">
           {t.preview}
           {info && (
-            <span dir="ltr" className="ms-2 text-sm font-normal text-slate-500">
+            <span dir="ltr" className="ms-2 text-sm font-normal text-paper-500">
               {info.label}
             </span>
           )}
@@ -109,7 +109,7 @@ export function DocumentViewer({
       )}
 
       {info?.status === 'Pending' && (
-        <div className="flex items-center gap-2 py-3 text-sm text-slate-500">
+        <div className="flex items-center gap-2 py-3 text-sm text-paper-500">
           <Spinner size="sm" />
           <span>{t.previewPending}</span>
         </div>
@@ -132,7 +132,7 @@ export function DocumentViewer({
 
       {info?.status === 'Ready' && info.pageCount > 0 && (
         <div className="space-y-3">
-          <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-slate-100">
+          <div className="grid min-h-60 place-items-center overflow-hidden rounded-lg bg-paper-100">
             {image.isLoading && <Spinner size="lg" />}
             {image.isError && <Alert severity="error">{describeError(image.error)}</Alert>}
             {image.data && (
@@ -150,7 +150,7 @@ export function DocumentViewer({
               <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
                 {t.previous}
               </Button>
-              <span className="text-sm text-slate-700">
+              <span className="text-sm text-ink-800">
                 {t.page} {page.toLocaleString('fa-IR')} {t.of} {info.pageCount.toLocaleString('fa-IR')}
               </span>
               <Button size="sm" variant="outline" disabled={page >= info.pageCount} onClick={() => setPage(page + 1)}>

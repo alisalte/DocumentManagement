@@ -85,7 +85,7 @@ function FieldInput({ field, value, onChange, required, error, disabled }: Field
             disabled={disabled}
           />
           {helperText && (
-            <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>
+            <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-paper-500')}>{helperText}</p>
           )}
         </div>
       );
@@ -192,11 +192,11 @@ function MultiSelectField({
 }) {
   return (
     <div className="w-full">
-      <label className="mb-1.5 block text-sm font-medium text-slate-700">
+      <label className="mb-1.5 block text-sm font-medium text-ink-800">
         {label}
         {required && <span className="text-rose-500"> *</span>}
       </label>
-      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 shadow-sm">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-white px-3.5 py-2.5 shadow-sm">
         {options.map((option) => (
           <Checkbox
             key={option.value}
@@ -214,7 +214,7 @@ function MultiSelectField({
         ))}
       </div>
       {helperText && (
-        <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>
+        <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-paper-500')}>{helperText}</p>
       )}
     </div>
   );

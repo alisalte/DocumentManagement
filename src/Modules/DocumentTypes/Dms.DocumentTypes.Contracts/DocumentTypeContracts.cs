@@ -61,6 +61,17 @@ public sealed record DocumentTypeSettings
     public MetadataEditPolicy MetadataEditPolicy { get; init; } = MetadataEditPolicy.NewRevision;
 
     public bool AllowExternalSharing { get; init; } = true;
+
+    /// <summary>
+    /// Phase 10 (D12): days a soft-deleted document must stay in the recycle bin before purge.
+    /// Null or ≤ 0 means purge may happen immediately after soft-delete.
+    /// </summary>
+    public int? RetentionDaysAfterDelete { get; init; }
+
+    /// <summary>
+    /// Phase 10 (D12): type may use legal hold. Per-document hold storage and APIs follow.
+    /// </summary>
+    public bool SupportsLegalHold { get; init; }
 }
 
 public sealed record DocumentTypeSummary(

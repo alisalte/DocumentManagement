@@ -210,6 +210,10 @@ export interface DocumentTypeSettings {
   maxUploadBytes: number | null;
   metadataEditPolicy: MetadataEditPolicy;
   allowExternalSharing: boolean;
+  /** Days soft-deleted docs must wait before purge; null = no wait. */
+  retentionDaysAfterDelete?: number | null;
+  /** Type may use legal hold once per-document APIs land. */
+  supportsLegalHold?: boolean;
 }
 
 export interface DocumentTypeAdmin {

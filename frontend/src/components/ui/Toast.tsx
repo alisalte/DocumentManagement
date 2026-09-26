@@ -34,9 +34,10 @@ export function Toast({ open, message, onClose, autoHideDuration = 4000, severit
       <div
         className={cx(
           'pointer-events-auto flex max-w-md items-center gap-4 rounded-xl px-4 py-3 text-sm text-white shadow-lg',
+          'animate-[fade-in_0.25s_ease-out]',
           severity === 'success' && 'bg-emerald-700',
           severity === 'error' && 'bg-rose-700',
-          severity === 'neutral' && 'bg-slate-900',
+          severity === 'neutral' && 'bg-ink-900',
         )}
       >
         <span className="min-w-0 flex-1">{message}</span>

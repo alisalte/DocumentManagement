@@ -90,7 +90,7 @@ export function Combobox({
   return (
     <div ref={rootRef} className={cx('relative w-full', className)}>
       {label !== undefined && (
-        <label htmlFor={listId} className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label htmlFor={listId} className="mb-1.5 block text-sm font-medium text-ink-800">
           {label}
           {required && <span className="text-rose-500"> *</span>}
         </label>
@@ -117,21 +117,21 @@ export function Combobox({
           }}
           onKeyDown={onKeyDown}
           className={cx(
-            'h-10 w-full rounded-lg border bg-white pe-9 ps-3.5 text-sm text-slate-900 shadow-sm transition-colors',
-            'placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
-            'disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500',
-            error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : 'border-slate-300 focus:border-brand-500',
+            'h-10 w-full rounded-xl border bg-white pe-9 ps-3.5 text-sm text-ink-900 shadow-sm transition-colors',
+            'placeholder:text-paper-400 focus:outline-none focus:ring-2 focus:ring-ink-500/20',
+            'disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500',
+            error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : 'border-paper-300 focus:border-ink-500',
           )}
         />
         <span className="absolute inset-y-0 end-3 flex items-center">
-          {loading ? <Spinner size="sm" /> : <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4 text-slate-400"><path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" /></svg>}
+          {loading ? <Spinner size="sm" /> : <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4 text-paper-400"><path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" /></svg>}
         </span>
         {value && !disabled && (
           <button
             type="button"
             aria-label="پاک کردن"
             onClick={() => commit(null)}
-            className="absolute inset-y-0 start-2 my-auto size-5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="absolute inset-y-0 start-2 my-auto size-5 rounded-md text-paper-400 hover:bg-ink-50 hover:text-paper-600"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="mx-auto size-3.5">
               <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -143,9 +143,9 @@ export function Combobox({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-40 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+          className="absolute z-40 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-paper-200 bg-white py-1 shadow-xl"
         >
-          {options.length === 0 && !loading && <li className="px-3 py-2 text-sm text-slate-400">{emptyText}</li>}
+          {options.length === 0 && !loading && <li className="px-3 py-2 text-sm text-paper-400">{emptyText}</li>}
           {options.map((option, index) => (
             <li key={option.id} role="option" aria-selected={value?.id === option.id}>
               <button
@@ -155,7 +155,7 @@ export function Combobox({
                 onClick={() => commit(option)}
                 className={cx(
                   'flex w-full items-center px-3 py-2 text-start text-sm',
-                  index === active ? 'bg-brand-50 text-brand-800' : 'text-slate-700',
+                  index === active ? 'bg-ink-50 text-ink-800' : 'text-ink-800',
                 )}
               >
                 <span className="truncate">{option.label}</span>
@@ -164,7 +164,7 @@ export function Combobox({
           ))}
         </ul>
       )}
-      {helperText != null && <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>}
+      {helperText != null && <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-paper-500')}>{helperText}</p>}
     </div>
   );
 }

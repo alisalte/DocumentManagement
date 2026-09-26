@@ -76,7 +76,7 @@ export function TaskActionDialog({
       }
     >
       <div className="space-y-4">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-paper-500">
           {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span>
         </p>
         {action === 'Forward' && (

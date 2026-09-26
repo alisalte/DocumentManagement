@@ -58,7 +58,11 @@ export function SearchPage() {
   const pages = result ? Math.max(1, Math.ceil(result.total / pageSize)) : 1;
 
   return (
-    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1000px] space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.searchEverything}</h1>
+        <p className="mt-1 text-sm text-paper-500">جستجو در عنوان، محتوا و فرادادهٔ اسناد قابل‌مشاهده.</p>
+      </div>
       <form onSubmit={submit}>
         <Card className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -138,14 +142,14 @@ export function SearchPage() {
       {result && (
         <div className="flex flex-col items-start gap-4 md:flex-row">
           <Card className="w-full min-w-0 flex-1">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-paper-500">
               {result.total.toLocaleString('fa-IR')} {t.searchResults}
             </p>
 
             {result.hits.length === 0 ? (
-              <p className="py-10 text-center text-sm text-slate-500">{t.searchNothing}</p>
+              <p className="py-10 text-center text-sm text-paper-500">{t.searchNothing}</p>
             ) : (
-              <ul className="-mx-2 mt-3 divide-y divide-slate-100 sm:-mx-3">
+              <ul className="-mx-2 mt-3 divide-y divide-paper-100 sm:-mx-3">
                 {result.hits.map((hit) => (
                   <li key={`${hit.documentId}-${hit.versionId}`}>
                     <HitRow hit={hit} categoryName={hit.categoryId ? categoryName(hit.categoryId) : null} />
@@ -159,7 +163,7 @@ export function SearchPage() {
                 <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => update({ page: String(page - 1) })}>
                   {t.previous}
                 </Button>
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-paper-500">
                   {page.toLocaleString('fa-IR')} {t.of} {pages.toLocaleString('fa-IR')}
                 </span>
                 <Button size="sm" variant="outline" disabled={page >= pages} onClick={() => update({ page: String(page + 1) })}>
@@ -196,13 +200,13 @@ function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | 
   return (
     <RouterLink
       to={`/documents/${hit.documentId}`}
-      className="block rounded-lg px-2 py-3 transition-colors hover:bg-slate-50 sm:px-3"
+      className="block rounded-lg px-2 py-3 transition-colors hover:bg-paper-50 sm:px-3"
     >
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="break-words font-semibold text-slate-800">{hit.title}</span>
+          <span className="break-words font-semibold text-ink-800">{hit.title}</span>
           {hit.label && (
-            <span dir="ltr" className="text-sm text-slate-500">
+            <span dir="ltr" className="text-sm text-paper-500">
               {hit.label}
             </span>
           )}
@@ -214,7 +218,7 @@ function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | 
         </div>
 
         {hit.highlights.map((fragment, index) => (
-          <p key={index} className="break-words text-sm text-slate-500">
+          <p key={index} className="break-words text-sm text-paper-500">
             {parseHighlight(fragment).map((segment, part) =>
               segment.marked ? (
                 <mark key={part} className="rounded-sm bg-amber-100 px-0.5 text-inherit">
@@ -228,7 +232,7 @@ function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | 
           </p>
         ))}
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-paper-400">
           {[categoryName, hit.fileName, hit.updatedAt ? formatDateTime(hit.updatedAt) : null].filter(Boolean).join(' · ')}
         </p>
       </div>
@@ -253,14 +257,14 @@ function Facet({
 
   return (
     <Card>
-      <h2 className="mb-2 text-sm font-semibold text-slate-800">{title}</h2>
+      <h2 className="mb-2 text-sm font-semibold text-ink-800">{title}</h2>
       <div className="flex flex-wrap gap-1.5">
         {buckets.map((bucket) => (
           <button
             key={bucket.key}
             type="button"
             onClick={() => onPick(bucket.key)}
-            className="inline-flex h-6 max-w-full items-center rounded-full bg-slate-100 px-2.5 text-xs font-medium text-slate-700 transition-colors hover:bg-brand-100 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+            className="inline-flex h-6 max-w-full items-center rounded-full bg-paper-100 px-2.5 text-xs font-medium text-ink-800 transition-colors hover:bg-ink-100 hover:text-ink-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-600"
           >
             <span className="truncate">
               {label(bucket.key)} ({bucket.count.toLocaleString('fa-IR')})

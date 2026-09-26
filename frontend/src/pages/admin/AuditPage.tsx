@@ -105,8 +105,8 @@ export function AuditPage() {
   const rows = entries.data?.pages.flat() ?? [];
 
   return (
-    <div className="space-y-4 sm:space-y-5">
-      <h1 className="text-xl font-bold text-slate-800">{a.title}</h1>
+    <div className="space-y-5">
+      <h1 className="text-2xl font-bold tracking-tight text-ink-900">{a.title}</h1>
 
       <SealPanel />
 
@@ -185,7 +185,7 @@ export function AuditPage() {
       {entries.isPending && <ProgressBar className="rounded-full" />}
       {entries.isError && <Alert severity="error">{describeError(entries.error)}</Alert>}
       {entries.isSuccess && rows.length === 0 && (
-        <p className="py-10 text-center text-sm text-slate-500">{a.empty}</p>
+        <p className="py-10 text-center text-sm text-paper-500">{a.empty}</p>
       )}
 
       <div className="space-y-2">
@@ -224,8 +224,8 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
         onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && setOpen(!open)}
         className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 md:grid-cols-[11rem_1fr_7rem_12rem_10rem]"
       >
-        <span className="min-w-0 text-sm text-slate-500">{formatDateTime(entry.occurredAt)}</span>
-        <span dir="ltr" className="col-start-1 row-start-2 min-w-0 font-mono text-sm break-all text-slate-700 md:col-auto md:row-auto">
+        <span className="min-w-0 text-sm text-paper-500">{formatDateTime(entry.occurredAt)}</span>
+        <span dir="ltr" className="col-start-1 row-start-2 min-w-0 font-mono text-sm break-all text-ink-800 md:col-auto md:row-auto">
           {entry.action}
         </span>
         <span className="col-start-2 row-start-1 md:col-auto md:row-auto">
@@ -235,18 +235,18 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
             label={a.outcomes[entry.outcome] ?? entry.outcome}
           />
         </span>
-        <span className="col-start-2 row-start-2 min-w-0 truncate text-sm text-slate-800 md:col-auto md:row-auto">{actor}</span>
-        <span dir="ltr" className="hidden min-w-0 truncate font-mono text-sm text-slate-500 md:block">
+        <span className="col-start-2 row-start-2 min-w-0 truncate text-sm text-ink-800 md:col-auto md:row-auto">{actor}</span>
+        <span dir="ltr" className="hidden min-w-0 truncate font-mono text-sm text-paper-500 md:block">
           {entry.ipAddress ?? ''}
         </span>
       </div>
 
       {open && (
-        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+        <div className="mt-3 space-y-1.5 border-t border-paper-100 pt-3">
           {entry.documentId && (
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-ink-800">
               {a.document}:{' '}
-              <RouterLink to={`/documents/${entry.documentId}`} dir="ltr" className="font-mono text-brand-700 hover:underline">
+              <RouterLink to={`/documents/${entry.documentId}`} dir="ltr" className="font-mono text-ink-700 hover:underline">
                 {entry.documentId}
               </RouterLink>
             </p>
@@ -259,7 +259,7 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
           <Detail label={a.correlation} value={entry.correlationId} />
           <pre
             dir="ltr"
-            className="m-0 overflow-x-auto rounded-lg bg-slate-100 p-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words"
+            className="m-0 overflow-x-auto rounded-lg bg-paper-100 p-2 font-mono text-xs leading-5 whitespace-pre-wrap break-words"
           >
             {pretty(entry.metadata)}
           </pre>
@@ -272,9 +272,9 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
 function Detail({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
-    <p className="text-sm text-slate-700">
+    <p className="text-sm text-ink-800">
       {label}:{' '}
-      <span dir="ltr" className="font-mono break-all text-slate-600">
+      <span dir="ltr" className="font-mono break-all text-paper-600">
         {value}
       </span>
     </p>
@@ -317,7 +317,7 @@ function SealPanel() {
     <Card>
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-800">{a.seals}</h2>
+          <h2 className="text-base font-semibold text-ink-800">{a.seals}</h2>
           <Button variant="outline" onClick={verify} disabled={busy}>
             {busy ? a.verifying : a.verify(verifyDays)}
           </Button>
@@ -354,7 +354,7 @@ function SealPanel() {
                   <li key={index}>
                     {a.problemKinds[problem.kind] ?? problem.kind} — {formatDateTime(problem.periodStart)} …{' '}
                     {formatDateTime(problem.periodEnd)}{' '}
-                    <span dir="ltr" className="text-slate-500">
+                    <span dir="ltr" className="text-paper-500">
                       ({problem.detail})
                     </span>
                   </li>

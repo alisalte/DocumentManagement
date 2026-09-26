@@ -6,19 +6,22 @@ workflow, secure sharing, full-text search with OCR, and a complete audit trail.
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Versioning model: [docs/adr/0001-file-versioning-and-metadata-revisions.md](docs/adr/0001-file-versioning-and-metadata-revisions.md)
 
-**Status: phases 1–7 are done:** identity,
+**Status: phases 1–8 are done:** identity,
 authorization, audit, the job queue, documents and storage, dynamic document types with a rule
 language shared by the server and the browser, versioned approval workflows with a task inbox,
 malware scanning, watermarked previews and printing, Persian OCR and version-aware full-text
 search, and sharing: internal shares and external links, each pinned to one version, re-checked
 against the sharer's rights on every use and always overridden by an explicit DENY; a restricted
 database role that can only append to the audit log, a tamper-evident seal chain over the log,
-audit export and viewer, and in-app notifications. The admin UI (users, groups, roles, the ACL
-editor) is the next phase in the architecture document.
+audit export and viewer, in-app notifications, and the admin UI (users, groups, roles, categories,
+ACL editor with “why?”). **Phase 9 (hardening) is near close** (security suite green, drill +
+health/login-abuse k6 verified; staging TLS/CORS sign-off remains — see
+[`docs/hardening/`](docs/hardening/)). **Phase 10 is in progress**
+([`docs/operations/`](docs/operations/), retention, import dry-run, notification channel).
 
 ## Stack
 
-.NET 10 / C# 14 · ASP.NET Core 10 minimal APIs · EF Core 10 · PostgreSQL · React 19 + TypeScript + MUI.
+.NET 10 / C# 14 · ASP.NET Core 10 minimal APIs · EF Core 10 · PostgreSQL · React 19 + TypeScript + Tailwind.
 Modular monolith: DDD, clean architecture, CQRS, one schema and one DbContext per module.
 
 ## Prerequisites
@@ -131,7 +134,13 @@ API reference while the API is running in development: <http://localhost:5080/sc
 ./scripts/dev-db.sh     # integration tests need PostgreSQL
 ./scripts/test.sh
 cd frontend && npx vitest run   # rule language (shared vectors), Jalali dates, form logic, highlights
+./scripts/e2e.sh        # phase 8 admin UI: Playwright on phone and desktop (needs Chrome + Postgres)
+./scripts/load-test.sh          # phase 9: k6 against a live API (needs k6 installed)
+./scripts/backup-restore-drill.sh   # phase 9: dump/restore marker on Postgres
+./scripts/legacy-import.sh --manifest docs/legacy-import/manifest.example.json --files-root <dir>  # phase 10 dry-run
 ```
+
+Hardening notes: [`docs/hardening/`](docs/hardening/). Go-live / retention: [`docs/operations/`](docs/operations/).
 
 The search tests against real engines are skipped unless `DMS_TEST_OPENSEARCH` and
 `DMS_TEST_TIKA` point at running services (see above); the rest of the suite fakes the engine.

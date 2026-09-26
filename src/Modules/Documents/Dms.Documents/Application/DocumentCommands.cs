@@ -866,10 +866,12 @@ public sealed class RestoreDocumentHandler(
 public sealed class PurgeDocumentHandler(
     DocumentAccess access,
     IDocumentRepository documents,
+    IDocumentTypeCatalog documentTypes,
     IStorageService storage,
     IAuditWriter audit,
     DocumentChanges changes,
-    ICurrentUser currentUser) : ICommandHandler<PurgeDocumentCommand, Result>
+    ICurrentUser currentUser,
+    TimeProvider timeProvider) : ICommandHandler<PurgeDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(PurgeDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -900,6 +902,16 @@ public sealed class PurgeDocumentHandler(
             return Result.Failure(Error.Conflict(
                 "purge.not_deleted",
                 "Only documents in the recycle bin can be purged. Delete it first."));
+        }
+
+        var documentType = await documentTypes.FindAsync(document.DocumentTypeId, cancellationToken);
+        var retention = RetentionGate.EnsurePurgeAllowed(
+            document.DeletedAt,
+            documentType?.Settings.RetentionDaysAfterDelete,
+            timeProvider.GetUtcNow());
+        if (retention.IsFailure)
+        {
+            return retention;
         }
 
         // Metadata revisions share one stored file, and there is no cross-document deduplication,

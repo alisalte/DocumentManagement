@@ -194,10 +194,23 @@ public static class SharingModule
         }
 
         var content = result.Value;
+        // Phase 9: never serve browser-executable MIME types from share links on our origin.
+        var mime = DownloadContentType(content.MimeType);
         return attachment
-            ? Results.Stream(content.Content, content.MimeType, content.FileName, enableRangeProcessing: content.Content.CanSeek)
-            : Results.Stream(content.Content, content.MimeType);
+            ? Results.Stream(content.Content, mime, content.FileName, enableRangeProcessing: content.Content.CanSeek)
+            : Results.Stream(content.Content, mime);
     }
+
+    private static string DownloadContentType(string mimeType) =>
+        mimeType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("application/xhtml", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("image/svg", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("text/javascript", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("text/xml", StringComparison.OrdinalIgnoreCase)
+        || mimeType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            ? "application/octet-stream"
+            : mimeType;
 }
 
 public sealed class SharingDbContextFactory : IDesignTimeDbContextFactory<SharingDbContext>

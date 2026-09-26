@@ -5,10 +5,26 @@ import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { FilePicker } from '../components/FilePicker';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { TagInput } from '../components/TagInput';
-import { api, ApiError, type Metadata, type UploadResult } from '../lib/api';
+import { api, ApiError, type CategoryNode, type Metadata, type UploadResult } from '../lib/api';
 import { clientErrors, defaultsOf, toSubmission } from '../lib/metadata';
 import { newIdempotencyKey } from '../lib/format';
+import { useSession } from '../session';
 import { describeError, t } from '../strings';
+
+/** Same set as scripts/grant-access.sh — enough to file and work with documents under the root. */
+const filingPermissions = [
+  'DOCUMENT_VIEW',
+  'DOCUMENT_DOWNLOAD',
+  'DOCUMENT_PRINT',
+  'DOCUMENT_VIEW_DRAFT',
+  'DOCUMENT_CREATE',
+  'DOCUMENT_EDIT',
+  'DOCUMENT_CREATE_VERSION',
+  'DOCUMENT_DELETE',
+  'DOCUMENT_RESTORE',
+  'DOCUMENT_SHARE',
+  'DOCUMENT_SHARE_EXTERNAL',
+] as const;
 
 /**
  * Two steps behind one button: the file streams to staging (with progress), then the document
@@ -18,6 +34,7 @@ import { describeError, t } from '../strings';
 export function NewDocumentPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useSession();
   const [params] = useSearchParams();
 
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
@@ -27,6 +44,8 @@ export function NewDocumentPage() {
     () => (categories.data ?? []).filter((category) => category.canCreate),
     [categories.data],
   );
+  const canManageAcl =
+    !!user && (user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_CATEGORIES'));
 
   const [categoryId, setCategoryId] = useState(params.get('category') ?? '');
   const [documentTypeId, setDocumentTypeId] = useState('');
@@ -107,14 +126,23 @@ export function NewDocumentPage() {
   }
 
   if (categories.isSuccess && creatable.length === 0) {
-    return <Alert severity="info">{t.noCreatableCategory}</Alert>;
+    return (
+      <NoCreatableCategory
+        categories={categories.data ?? []}
+        canManageAcl={canManageAcl}
+        userId={user?.id}
+        onGranted={async () => {
+          await queryClient.invalidateQueries({ queryKey: ['categories'] });
+        }}
+      />
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-[720px] space-y-4 sm:space-y-5">
+    <div className="mx-auto w-full max-w-[720px] space-y-5">
       <form onSubmit={submit}>
         <Card className="space-y-4">
-          <h1 className="text-xl font-bold text-slate-800">{t.newDocument}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
 
           <FilePicker
             file={file}
@@ -133,7 +161,7 @@ export function NewDocumentPage() {
               {duplicates.map((duplicate, index) => (
                 <span key={duplicate.documentId}>
                   {index > 0 && '، '}
-                  <RouterLink to={`/documents/${duplicate.documentId}`} className="text-brand-700 hover:underline">
+                  <RouterLink to={`/documents/${duplicate.documentId}`} className="text-ink-700 hover:underline">
                     {duplicate.title}
                   </RouterLink>
                 </span>
@@ -195,7 +223,7 @@ export function NewDocumentPage() {
 
           {schema.data && schema.data.fields.length > 0 && (
             <div className="space-y-3 pt-1">
-              <h2 className="text-base font-semibold text-slate-800">{t.metadata}</h2>
+              <h2 className="text-base font-semibold text-ink-800">{t.metadata}</h2>
               <DynamicForm
                 schema={schema.data}
                 value={metadata}
@@ -222,6 +250,89 @@ export function NewDocumentPage() {
           </div>
         </Card>
       </form>
+    </div>
+  );
+}
+
+/**
+ * Filing needs DOCUMENT_CREATE on a category. System administrators deliberately do not get that
+ * from is_system_admin (decision D5); they grant it through the ACL — here, with one click on the
+ * root, or via the category permissions editor.
+ */
+function NoCreatableCategory({
+  categories,
+  canManageAcl,
+  userId,
+  onGranted,
+}: {
+  categories: CategoryNode[];
+  canManageAcl: boolean;
+  userId: string | undefined;
+  onGranted: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const root = categories.find((category) => category.parentId === null) ?? categories[0];
+
+  const grantMyself = async () => {
+    if (!userId || !root) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const existing = await api.acl.list('Category', root.id, false);
+      const mine = new Set(
+        existing
+          .filter((entry) => entry.subjectType === 'User' && entry.subjectId === userId)
+          .map((entry) => entry.permissionCode),
+      );
+      for (const permission of filingPermissions) {
+        if (mine.has(permission)) continue;
+        await api.acl.grant('Category', root.id, {
+          subjectType: 'User',
+          subjectId: userId,
+          permissionCode: permission,
+          effect: 'Allow',
+          inherit: true,
+          reason: 'self-grant from new document page',
+        });
+      }
+      setDone(true);
+      await onGranted();
+    } catch (caught) {
+      setError(describeError(caught));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-[640px] space-y-4 page-enter">
+      <Card className="space-y-4">
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
+        <Alert severity="info">
+          <p className="font-medium">{t.noCreatableCategory}</p>
+          <p className="mt-1 text-sm opacity-90">{t.noCreatableCategoryHelp}</p>
+          {canManageAcl && <p className="mt-1 text-sm opacity-90">{t.noCreatableCategoryAdminHint}</p>}
+        </Alert>
+        {done && <Alert severity="success">{t.grantMyselfCreateDone}</Alert>}
+        {error && <Alert severity="error">{error}</Alert>}
+        <div className="flex flex-wrap gap-2">
+          {canManageAcl && userId && root && !done && (
+            <Button loading={busy} onClick={grantMyself}>
+              {t.grantMyselfCreate}
+            </Button>
+          )}
+          {canManageAcl && (
+            <Button variant="outline" as={RouterLink} to="/admin/categories">
+              {t.openCategoriesAdmin}
+            </Button>
+          )}
+          <Button variant="ghost" as={RouterLink} to="/">
+            {t.back}
+          </Button>
+        </div>
+      </Card>
     </div>
   );
 }

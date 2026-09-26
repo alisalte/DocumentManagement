@@ -39,8 +39,8 @@ export function MetadataView({ schema, metadata }: { schema: DocumentTypeSchema 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="pt-1.5 text-sm text-slate-500 sm:pt-0">{label}</dt>
-      <dd className="m-0 min-w-0 text-sm text-slate-800 [overflow-wrap:anywhere]">{children}</dd>
+      <dt className="pt-1.5 text-sm text-paper-500 sm:pt-0">{label}</dt>
+      <dd className="m-0 min-w-0 text-sm text-ink-800 [overflow-wrap:anywhere]">{children}</dd>
     </>
   );
 }
@@ -77,13 +77,13 @@ function Value({ field, value }: { field: FieldSchema; value: unknown }) {
       return <EntityName kind={field.type} id={String(value)} />;
     case 'DocumentReference':
       return (
-        <RouterLink to={`/documents/${String(value)}`} className="text-brand-700 hover:underline">
+        <RouterLink to={`/documents/${String(value)}`} className="text-ink-700 hover:underline">
           <EntityName kind="DocumentReference" id={String(value)} />
         </RouterLink>
       );
     case 'Url':
       return (
-        <a href={String(value)} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-brand-700 hover:underline">
+        <a href={String(value)} target="_blank" rel="noopener noreferrer" dir="ltr" className="text-ink-700 hover:underline">
           {String(value)}
         </a>
       );

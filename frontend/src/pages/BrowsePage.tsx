@@ -44,12 +44,12 @@ export function BrowsePage() {
   const pages = documents.data ? Math.max(1, Math.ceil(documents.data.total / pageSize)) : 1;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">
           {heading}
           {documents.data && (
-            <span className="ms-2 text-sm font-normal text-slate-400">({formatNumber(documents.data.total)})</span>
+            <span className="ms-2 text-sm font-normal text-paper-400">({formatNumber(documents.data.total)})</span>
           )}
         </h1>
         {category?.canCreate && (

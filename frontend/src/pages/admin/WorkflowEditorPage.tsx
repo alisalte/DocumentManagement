@@ -124,11 +124,11 @@ export function WorkflowEditorPage() {
     change(steps.map((step, at) => (at === index ? { ...step, ...patch } : step)));
 
   return (
-    <div className="max-w-[1100px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1100px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">
           {workflow.name}{' '}
-          <span className="text-sm font-medium text-slate-500" dir="ltr">
+          <span className="text-sm font-medium text-paper-500" dir="ltr">
             ({workflow.code})
           </span>
         </h1>
@@ -140,8 +140,8 @@ export function WorkflowEditorPage() {
         <div className="space-y-5 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-slate-800">{a.steps}</h2>
-              <p className="mt-1 text-sm text-slate-500">{a.stepsHelp}</p>
+              <h2 className="text-base font-semibold text-ink-800">{a.steps}</h2>
+              <p className="mt-1 text-sm text-paper-500">{a.stepsHelp}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={save} disabled={busy || !dirty}>
@@ -172,7 +172,7 @@ export function WorkflowEditorPage() {
             <Card key={index}>
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="min-w-0 truncate text-sm font-semibold text-slate-800">
+                  <h3 className="min-w-0 truncate text-sm font-semibold text-ink-800">
                     {step.name || <span dir="ltr">{step.code}</span>}
                   </h3>
                   <Button size="sm" variant="danger" onClick={() => change(steps.filter((_, at) => at !== index))}>
@@ -290,10 +290,10 @@ export function WorkflowEditorPage() {
       </Card>
 
       <Card>
-        <h2 className="text-base font-semibold text-slate-800">{a.versions}</h2>
+        <h2 className="text-base font-semibold text-ink-800">{a.versions}</h2>
         <div className="mt-2 space-y-1">
           {versions.map((version) => (
-            <p key={version.id} className="text-sm text-slate-600">
+            <p key={version.id} className="text-sm text-paper-600">
               <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
               {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.stepCount} {a.steps}
             </p>
@@ -315,7 +315,7 @@ export function WorkflowEditorPage() {
           </>
         }
       >
-        <p className="text-sm text-slate-600">{a.publishWorkflowConfirm}</p>
+        <p className="text-sm text-paper-600">{a.publishWorkflowConfirm}</p>
       </Dialog>
       <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} />
     </div>
@@ -342,7 +342,7 @@ function ActionsEditor({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-semibold text-slate-800">{a.allowedActions}</p>
+      <p className="text-sm font-semibold text-ink-800">{a.allowedActions}</p>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
         {allActions.map((action) => (
           <Checkbox

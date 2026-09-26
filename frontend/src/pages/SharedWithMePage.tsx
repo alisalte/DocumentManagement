@@ -31,14 +31,14 @@ export function SharedWithMePage() {
   };
 
   return (
-    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1000px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{s.sharedWithMe}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{s.sharedWithMe}</h1>
       </div>
       {received.isFetching && <ProgressBar />}
       {received.isError && <Alert severity="error">{describeError(received.error)}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
-      {received.data?.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{s.sharedWithMeEmpty}</p>}
+      {received.data?.length === 0 && <p className="py-10 text-center text-sm text-paper-500">{s.sharedWithMeEmpty}</p>}
 
       <div className="space-y-3">
         {received.data?.map((share) => (
@@ -48,21 +48,21 @@ export function SharedWithMePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <RouterLink
                     to={`/shared/${share.documentId}/${share.versionId}`}
-                    className="font-semibold break-words text-slate-800 hover:text-brand-700 hover:underline"
+                    className="font-semibold break-words text-ink-800 hover:text-ink-700 hover:underline"
                   >
                     {share.documentTitle}
                   </RouterLink>
                   <Chip variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
                 </div>
-                <p className="mt-1 text-sm break-words text-slate-600">
+                <p className="mt-1 text-sm break-words text-paper-600">
                   {share.fileName} · {formatBytes(share.fileSize)}
                 </p>
-                <p className="mt-0.5 text-sm text-slate-500">
+                <p className="mt-0.5 text-sm text-paper-500">
                   {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)} ·{' '}
                   {share.permissions.map((permission) => permissionLabels[permission]).join('، ')}
                   {share.expiresAt && <> · {s.expires} {formatDateTime(share.expiresAt)}</>}
                 </p>
-                {share.message && <p className="mt-1 text-sm break-words text-slate-600">{share.message}</p>}
+                {share.message && <p className="mt-1 text-sm break-words text-paper-600">{share.message}</p>}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" as={RouterLink} to={`/shared/${share.documentId}/${share.versionId}`}>

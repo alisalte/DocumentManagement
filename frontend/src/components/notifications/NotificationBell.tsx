@@ -56,7 +56,7 @@ export function NotificationBell() {
         title={n.notifications}
         onClick={(event) => setAnchor(event.currentTarget)}
         aria-haspopup="dialog"
-        className="relative inline-flex size-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
+        className="relative inline-flex size-9 items-center justify-center rounded-xl text-paper-500 transition-colors hover:bg-ink-50 hover:text-ink-800"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.082a23.85 23.85 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -65,8 +65,8 @@ export function NotificationBell() {
       </button>
 
       <Menu anchor={anchor} onClose={() => setAnchor(null)} className="w-[calc(100vw-1.5rem)] sm:w-96">
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-3 py-2">
-          <h2 className="text-sm font-semibold text-slate-800">{n.notifications}</h2>
+        <div className="flex items-center justify-between gap-3 border-b border-paper-100 px-3 py-2">
+          <h2 className="text-sm font-semibold text-ink-800">{n.notifications}</h2>
           {count > 0 && (
             <Button variant="ghost" size="sm" onClick={markAll}>
               {n.markAllRead}
@@ -84,7 +84,7 @@ export function NotificationBell() {
             <Alert severity="error">{describeError(pages.error)}</Alert>
           </div>
         )}
-        {pages.isSuccess && items.length === 0 && <p className="px-3 py-3 text-sm text-slate-500">{n.empty}</p>}
+        {pages.isSuccess && items.length === 0 && <p className="px-3 py-3 text-sm text-paper-500">{n.empty}</p>}
 
         {items.map((item) => (
           <button
@@ -92,17 +92,17 @@ export function NotificationBell() {
             type="button"
             onClick={() => open(item)}
             className={cx(
-              'flex w-full flex-col gap-0.5 px-3 py-2.5 text-start transition-colors hover:bg-slate-50',
-              item.readAt ? 'text-slate-600' : 'bg-brand-50/60 font-semibold text-slate-900',
+              'flex w-full flex-col gap-0.5 px-3 py-2.5 text-start transition-colors hover:bg-paper-50',
+              item.readAt ? 'text-paper-600' : 'bg-ink-50/60 font-semibold text-ink-900',
             )}
           >
             <span className="text-sm leading-6">{describeNotification(item)}</span>
-            <span className="text-xs font-normal text-slate-400">{formatDateTime(item.createdAt)}</span>
+            <span className="text-xs font-normal text-paper-400">{formatDateTime(item.createdAt)}</span>
           </button>
         ))}
 
         {pages.hasNextPage && (
-          <div className="border-t border-slate-100 p-2 text-center">
+          <div className="border-t border-paper-100 p-2 text-center">
             <Button variant="ghost" size="sm" loading={pages.isFetchingNextPage} onClick={() => pages.fetchNextPage()}>
               {n.more}
             </Button>

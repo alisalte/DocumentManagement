@@ -85,13 +85,13 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
       {entries.isPending && <ProgressBar />}
       {entries.isError && <Alert severity="error">{describeError(entries.error)}</Alert>}
       {error && <Alert severity="error">{error}</Alert>}
-      {entries.isSuccess && rows.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{d.empty}</p>}
+      {entries.isSuccess && rows.length === 0 && <p className="py-8 text-center text-sm text-paper-500">{d.empty}</p>}
 
       <div className="space-y-2">
         {rows.map((entry) => (
           <div
             key={entry.id}
-            className={cx('rounded-lg border border-slate-200 bg-white p-3', entry.isInherited && 'opacity-[0.85]')}
+            className={cx('rounded-lg border border-paper-200 bg-white p-3', entry.isInherited && 'opacity-[0.85]')}
           >
             <div className="flex flex-wrap items-center gap-2">
               <Chip
@@ -99,8 +99,8 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
                 color={entry.effect === 'Deny' ? 'error' : 'success'}
                 label={entry.effect === 'Deny' ? d.deny : d.allow}
               />
-              <span className="text-sm font-semibold text-slate-800">{permissionLabel(entry.permissionCode)}</span>
-              <span className="text-sm text-slate-500">
+              <span className="text-sm font-semibold text-ink-800">{permissionLabel(entry.permissionCode)}</span>
+              <span className="text-sm text-paper-500">
                 {d.subjectTypes[entry.subjectType]}: {entry.subjectName ?? entry.subjectId}
               </span>
               <div className="flex-1" />
@@ -122,7 +122,7 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
                 </>
               )}
             </div>
-            {entry.reason && <p className="mt-1.5 text-xs text-slate-500">{entry.reason}</p>}
+            {entry.reason && <p className="mt-1.5 text-xs text-paper-500">{entry.reason}</p>}
           </div>
         ))}
       </div>
@@ -169,9 +169,9 @@ function GrantForm({ resourceType, resourceId, onGranted }: { resourceType: AclR
   };
 
   return (
-    <form onSubmit={submit} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+    <form onSubmit={submit} className="rounded-xl border border-paper-200 bg-paper-50/70 p-4">
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-800">{d.grant}</h3>
+        <h3 className="text-sm font-semibold text-ink-800">{d.grant}</h3>
         <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
           <Select
             label={d.subjectType}
@@ -253,22 +253,22 @@ function WhyTab({ resourceType, resourceId }: { resourceType: AclResourceType; r
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">{d.whyHelp}</p>
+      <p className="text-sm text-paper-500">{d.whyHelp}</p>
       <EntityPicker kind="User" label={d.users} value={userId} onChange={setUserId} />
       {explained.isFetching && <ProgressBar />}
       {explained.isError && <Alert severity="error">{describeError(explained.error)}</Alert>}
       <div className="space-y-2">
         {(explained.data ?? []).map((item) => (
-          <div key={item.permissionCode} className="rounded-lg border border-slate-200 bg-white p-3">
+          <div key={item.permissionCode} className="rounded-lg border border-paper-200 bg-white p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Chip size="small" color={item.allowed ? 'success' : 'default'} label={item.allowed ? d.allowed : d.denied} />
-              <span className="text-sm font-semibold text-slate-800">{permissionLabel(item.permissionCode)}</span>
-              <span className={cx('text-sm', item.reason === 'DeniedByExplicitDeny' ? 'text-rose-600' : 'text-slate-500')}>
+              <span className="text-sm font-semibold text-ink-800">{permissionLabel(item.permissionCode)}</span>
+              <span className={cx('text-sm', item.reason === 'DeniedByExplicitDeny' ? 'text-rose-600' : 'text-paper-500')}>
                 {reasonLabels[item.reason] ?? item.reason}
               </span>
             </div>
             {item.source && (
-              <p className="mt-1.5 text-xs text-slate-500">
+              <p className="mt-1.5 text-xs text-paper-500">
                 {d.decidedBy} {item.source.effect === 'Deny' ? d.deny : d.allow} {where(item)} {d.subjectTypes[item.source.subjectType]}{' '}
                 «{item.source.subjectName ?? item.source.subjectId}»
               </p>

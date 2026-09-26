@@ -40,7 +40,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
     }
   };
 
-  const heading = <h1 className="text-xl font-bold text-slate-800">{d.changePassword}</h1>;
+  const heading = <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.changePassword}</h1>;
 
   const form = (
     <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
@@ -102,8 +102,12 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
 
   if (forced) {
     return (
-      <div className="grid min-h-screen place-items-center bg-slate-100 p-4">
-        <Card className="w-full max-w-xl">
+      <div className="grid min-h-screen place-items-center p-4">
+        <Card className="w-full max-w-xl page-enter">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-ink-800 text-sm font-bold text-white">ب</span>
+            <p className="text-sm font-medium text-paper-500">{t.appTitle}</p>
+          </div>
           <div className="space-y-4">
             {heading}
             {form}
@@ -114,7 +118,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
   }
 
   return (
-    <div className="max-w-2xl space-y-4 sm:space-y-5">
+    <div className="max-w-2xl space-y-5 page-enter">
       <div className="flex flex-wrap items-center justify-between gap-3">{heading}</div>
       <Card>{form}</Card>
     </div>

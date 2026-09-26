@@ -77,7 +77,11 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
         left: position?.left ?? -10000,
         visibility: position ? 'visible' : 'hidden',
       }}
-      className={cx('z-50 min-w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl', className)}
+      className={cx(
+        'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-white py-1',
+        'shadow-[0_4px_12px_rgb(12_32_52/0.08),0_16px_40px_rgb(12_32_52/0.1)]',
+        className,
+      )}
     >
       {children}
     </div>,
@@ -104,9 +108,9 @@ export function MenuItem({ onClick, disabled, danger, children, className }: Men
       onClick={onClick}
       className={cx(
         'flex w-full items-center gap-2 px-3 py-2 text-start text-sm transition-colors',
-        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
+        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        danger ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100',
+        danger ? 'text-rose-600 hover:bg-rose-50' : 'text-ink-800 hover:bg-ink-50',
         className,
       )}
     >
@@ -118,8 +122,8 @@ export function MenuItem({ onClick, disabled, danger, children, className }: Men
 /** Class list for a row that is really a link (use on `RouterLink`). */
 export function menuItemClasses(className?: string): string {
   return cx(
-    'flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-slate-700 transition-colors hover:bg-slate-100',
-    'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
+    'flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-ink-800 transition-colors hover:bg-ink-50',
+    'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
     className,
   );
 }

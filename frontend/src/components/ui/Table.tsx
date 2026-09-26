@@ -18,16 +18,16 @@ export function Table({ dense, className, children, ...rest }: TableProps) {
 }
 
 export function THead({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <thead className={cx('bg-slate-50 text-slate-600', className)}>{children}</thead>;
+  return <thead className={cx('bg-paper-50/90 text-paper-600', className)}>{children}</thead>;
 }
 
 export function TBody({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <tbody className={cx('divide-y divide-slate-100', className)}>{children}</tbody>;
+  return <tbody className={cx('divide-y divide-paper-100', className)}>{children}</tbody>;
 }
 
 export function TR({ children, className, ...rest }: HTMLAttributes<HTMLTableRowElement>) {
   return (
-    <tr {...rest} className={cx('transition-colors hover:bg-slate-50/70', className)}>
+    <tr {...rest} className={cx('transition-colors hover:bg-ink-50/60', className)}>
       {children}
     </tr>
   );
@@ -38,7 +38,7 @@ export function TH({ children, className, ...rest }: ThHTMLAttributes<HTMLTableC
     <th
       {...rest}
       scope={rest.scope ?? 'col'}
-      className={cx('border-b border-slate-200 px-4 py-3 text-start font-semibold whitespace-nowrap', className)}
+      className={cx('border-b border-paper-200 px-4 py-3 text-start font-semibold whitespace-nowrap', className)}
     >
       {children}
     </th>
@@ -47,7 +47,7 @@ export function TH({ children, className, ...rest }: ThHTMLAttributes<HTMLTableC
 
 export function TD({ children, className, ...rest }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td {...rest} className={cx('px-4 py-3 align-middle text-slate-700', className)}>
+    <td {...rest} className={cx('px-4 py-3 align-middle text-ink-800', className)}>
       {children}
     </td>
   );

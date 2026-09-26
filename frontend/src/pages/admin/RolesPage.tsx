@@ -35,9 +35,9 @@ export function RolesPage() {
   const role = roles.data?.find((candidate) => candidate.id === selected) ?? null;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{d.roles}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.roles}</h1>
         <Button onClick={() => setCreating(true)}>{d.newRole}</Button>
       </div>
 
@@ -69,17 +69,17 @@ export function RolesPage() {
                 >
                   <TD>
                     <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-slate-800">{item.name}</span>
+                      <span className="font-semibold text-ink-800">{item.name}</span>
                       {item.isSystem && <Chip size="small" variant="outlined" label={d.systemRole} />}
                     </span>
                   </TD>
                   <TD>
-                    <span dir="ltr" className="text-slate-500">
+                    <span dir="ltr" className="text-paper-500">
                       {item.code}
                     </span>
                   </TD>
                   <TD className="text-end whitespace-nowrap">
-                    <span className="text-slate-500">
+                    <span className="text-paper-500">
                       {item.permissions.length.toLocaleString('fa-IR')} {d.permission}
                     </span>
                   </TD>
@@ -89,7 +89,7 @@ export function RolesPage() {
           </Table>
         )}
         {!roles.isPending && !roles.isError && (roles.data?.length ?? 0) === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">{d.empty}</p>
+          <p className="py-10 text-center text-sm text-paper-500">{d.empty}</p>
         )}
       </Card>
 
@@ -217,7 +217,7 @@ function RoleDialog({ role, onClose }: { role: AdminRole; onClose: () => void })
         </Button>
       }
     >
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-2">
           <TextField label={d.name} value={name} onChange={(event) => setName(event.target.value)} required />
           <TextArea label={d.description} value={description} onChange={(event) => setDescription(event.target.value)} rows={2} />
@@ -225,8 +225,8 @@ function RoleDialog({ role, onClose }: { role: AdminRole; onClose: () => void })
 
         <div className="space-y-2">
           <div>
-            <h2 className="text-sm font-semibold text-slate-700">{d.rolePermissions}</h2>
-            <p className="mt-1 text-sm text-slate-500">{d.rolePermissionsHelp}</p>
+            <h2 className="text-sm font-semibold text-ink-800">{d.rolePermissions}</h2>
+            <p className="mt-1 text-sm text-paper-500">{d.rolePermissionsHelp}</p>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             {systemPermissions.map((definition) => (
@@ -240,7 +240,7 @@ function RoleDialog({ role, onClose }: { role: AdminRole; onClose: () => void })
                 label={
                   <span>
                     {permissionLabel(definition.code)}{' '}
-                    <span dir="ltr" className="text-xs text-slate-400">
+                    <span dir="ltr" className="text-xs text-paper-400">
                       {definition.code}
                     </span>
                   </span>
@@ -254,14 +254,14 @@ function RoleDialog({ role, onClose }: { role: AdminRole; onClose: () => void })
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">{d.holders}</h2>
+          <h2 className="text-sm font-semibold text-ink-800">{d.holders}</h2>
           {holders.isPending && <ProgressBar className="rounded-full" />}
           <div className="space-y-1">
             {holders.isSuccess && holders.data.length === 0 && (
-              <p className="py-6 text-center text-sm text-slate-500">{d.empty}</p>
+              <p className="py-6 text-center text-sm text-paper-500">{d.empty}</p>
             )}
             {(holders.data ?? []).map((holder) => (
-              <div key={holder.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50">
+              <div key={holder.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-paper-50">
                 <span className={`min-w-0 flex-1 text-sm ${holder.isActive ? '' : 'opacity-60'}`}>{holder.displayName}</span>
                 <IconButton label={d.remove} size="sm" onClick={() => run(() => api.admin.unassignRole(role.id, holder.id))}>
                   <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-3.5">
