@@ -155,11 +155,11 @@ export function DocumentTypeEditorPage() {
   const codes = fields.map((field) => field.code);
 
   return (
-    <div className="max-w-[1100px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1100px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">
           {type.name}{' '}
-          <span className="text-sm font-medium text-slate-500" dir="ltr">
+          <span className="text-sm font-medium text-paper-500" dir="ltr">
             ({type.code})
           </span>
         </h1>
@@ -173,15 +173,15 @@ export function DocumentTypeEditorPage() {
         <div className="space-y-5 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-slate-800">
+              <h2 className="text-base font-semibold text-ink-800">
                 {a.draft}{' '}
                 {admin.data.draft && (
-                  <span className="text-sm font-medium text-slate-500" dir="ltr">
+                  <span className="text-sm font-medium text-paper-500" dir="ltr">
                     (v{admin.data.draft.versionNumber})
                   </span>
                 )}
               </h2>
-              <p className="mt-1 text-sm text-slate-500">{a.draftHelp}</p>
+              <p className="mt-1 text-sm text-paper-500">{a.draftHelp}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="ghost" onClick={saveDraft} disabled={busy || !dirty}>
@@ -202,7 +202,7 @@ export function DocumentTypeEditorPage() {
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-800">{a.fields}</h3>
+              <h3 className="text-sm font-semibold text-ink-800">{a.fields}</h3>
               <Button
                 size="sm"
                 variant="ghost"
@@ -214,14 +214,14 @@ export function DocumentTypeEditorPage() {
                 {a.addField}
               </Button>
             </div>
-            {fields.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{a.noFields}</p>}
+            {fields.length === 0 && <p className="py-8 text-center text-sm text-paper-500">{a.noFields}</p>}
             {fields.length > 0 && (
-              <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <ul className="divide-y divide-paper-100 overflow-hidden rounded-xl border border-paper-200 bg-white">
                 {fields.map((field, index) => (
                   <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-800">{field.label.fa || '—'}</p>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                      <p className="truncate text-sm font-semibold text-ink-800">{field.label.fa || '—'}</p>
+                      <p className="mt-0.5 truncate text-xs text-paper-500">
                         <span dir="ltr">{field.code}</span> · {fieldTypeLabels[field.type]}
                         {field.isRequired && ` · ${a.required}`}
                         {field.isApprovalRelevant && ` · ${a.approvalRelevant}`}
@@ -253,9 +253,9 @@ export function DocumentTypeEditorPage() {
             )}
           </section>
 
-          <section className="space-y-3 border-t border-slate-100 pt-5">
+          <section className="space-y-3 border-t border-paper-100 pt-5">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold text-slate-800">{a.rules}</h3>
+              <h3 className="text-sm font-semibold text-ink-800">{a.rules}</h3>
               <Button
                 size="sm"
                 variant="ghost"
@@ -283,8 +283,8 @@ export function DocumentTypeEditorPage() {
 
       {previewSchema && previewSchema.fields.length > 0 && (
         <Card>
-          <h2 className="text-base font-semibold text-slate-800">{a.preview}</h2>
-          <p className="mt-1 text-sm text-slate-500">{a.previewHelp}</p>
+          <h2 className="text-base font-semibold text-ink-800">{a.preview}</h2>
+          <p className="mt-1 text-sm text-paper-500">{a.previewHelp}</p>
           <div className="mt-4">
             <DynamicForm schema={previewSchema} value={preview} onChange={setPreview} />
           </div>
@@ -292,10 +292,10 @@ export function DocumentTypeEditorPage() {
       )}
 
       <Card>
-        <h2 className="text-base font-semibold text-slate-800">{a.versions}</h2>
+        <h2 className="text-base font-semibold text-ink-800">{a.versions}</h2>
         <div className="mt-2 space-y-1">
           {versions.map((version) => (
-            <p key={version.id} className="text-sm text-slate-600">
+            <p key={version.id} className="text-sm text-paper-600">
               <span dir="ltr">v{version.versionNumber}</span> · {version.status === 'Draft' ? a.draft : version.status}
               {version.publishedAt && ` · ${formatDateTime(version.publishedAt)}`} · {version.fieldCount} {a.fields}
             </p>
@@ -328,7 +328,7 @@ export function DocumentTypeEditorPage() {
           </>
         }
       >
-        <p className="text-sm text-slate-600">{a.publishConfirm}</p>
+        <p className="text-sm text-paper-600">{a.publishConfirm}</p>
       </Dialog>
 
       <Toast open={!!notice} message={notice} onClose={() => setNotice(null)} />
@@ -411,7 +411,7 @@ function SettingsPanel({
 
   return (
     <Card>
-      <h2 className="text-base font-semibold text-slate-800">{a.settings}</h2>
+      <h2 className="text-base font-semibold text-ink-800">{a.settings}</h2>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <TextField label={a.name} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         <Select
@@ -580,7 +580,7 @@ function FieldDialog({ field, onClose, onSave }: { field: FieldSchema; onClose: 
             <Switch key={key} label={label} checked={!!draft[key]} onChange={(event) => set({ [key]: event.target.checked })} />
           ))}
         </div>
-        {draft.isApprovalRelevant && <p className="text-xs text-slate-500">{a.approvalRelevantHelp}</p>}
+        {draft.isApprovalRelevant && <p className="text-xs text-paper-500">{a.approvalRelevantHelp}</p>}
 
         <TextField
           label={a.helpText}
@@ -649,7 +649,7 @@ function OptionsEditor({ options, onChange }: { options: FieldOption[]; onChange
 
   return (
     <div className="space-y-2">
-      <p className="text-sm font-semibold text-slate-800">{a.options}</p>
+      <p className="text-sm font-semibold text-ink-800">{a.options}</p>
       <div className="space-y-3">
         {options.map((option, index) => (
           <div key={index} className="grid gap-2 sm:grid-cols-2">
@@ -706,9 +706,9 @@ function RuleEditor({
           ))}
         </Select>
         <div className="w-full">
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">{a.targets}</label>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 shadow-sm">
-            {codes.length === 0 && <span className="text-sm text-slate-400">—</span>}
+          <label className="mb-1.5 block text-sm font-medium text-ink-800">{a.targets}</label>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-white px-3.5 py-2.5 shadow-sm">
+            {codes.length === 0 && <span className="text-sm text-paper-400">—</span>}
             {codes.map((code) => (
               <Checkbox
                 key={code}

@@ -33,7 +33,7 @@ export function SharedVersionPage() {
 
   if (details.isPending) {
     return (
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-5">
         <CenteredSpinner />
       </div>
     );
@@ -41,7 +41,7 @@ export function SharedVersionPage() {
 
   if (details.isError) {
     return (
-      <div className="space-y-4 sm:space-y-5">
+      <div className="space-y-5">
         <Alert
           severity="error"
           action={
@@ -67,15 +67,15 @@ export function SharedVersionPage() {
   };
 
   return (
-    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1000px] space-y-5">
       <Card>
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-bold break-words text-slate-800">{title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{title}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Chip label={s.sharedWithMe} />
-                <span className="text-sm text-slate-500" dir="ltr">
+                <span className="text-sm text-paper-500" dir="ltr">
                   {version.label}
                 </span>
               </div>
@@ -83,17 +83,17 @@ export function SharedVersionPage() {
             {allowedActions.includes('DOCUMENT_DOWNLOAD') && <Button onClick={download}>{t.download}</Button>}
           </div>
 
-          {description && <p className="text-sm break-words whitespace-pre-wrap text-slate-700">{description}</p>}
-          <p className="text-sm break-words text-slate-500">
+          {description && <p className="text-sm break-words whitespace-pre-wrap text-ink-800">{description}</p>}
+          <p className="text-sm break-words text-paper-500">
             {version.fileName} · {formatBytes(version.fileSize)} · {formatDateTime(version.createdAt)}
           </p>
           {schema.data && schema.data.fields.length > 0 && (
             <div>
-              <h2 className="mb-2 text-base font-semibold text-slate-800">{t.metadata}</h2>
+              <h2 className="mb-2 text-base font-semibold text-ink-800">{t.metadata}</h2>
               <MetadataView schema={schema.data} metadata={version.metadata} />
             </div>
           )}
-          <p className="text-xs text-slate-500">{s.versionHelp}</p>
+          <p className="text-xs text-paper-500">{s.versionHelp}</p>
           {error && <Alert severity="error">{error}</Alert>}
         </div>
       </Card>

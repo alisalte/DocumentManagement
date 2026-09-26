@@ -14,6 +14,20 @@ import { Badge, Button, Menu, MenuItem, cx, menuItemClasses } from './ui';
 
 const drawerWidth = 288;
 
+function BrandMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cx(
+        'relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-ink-800 text-base font-bold text-white shadow-[0_2px_8px_rgb(12_32_52/0.25)]',
+        className,
+      )}
+    >
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.18),transparent_55%)]" aria-hidden />
+      <span className="relative">ب</span>
+    </span>
+  );
+}
+
 /**
  * App frame. On a desktop the category tree is a permanent side panel; on a phone it is a
  * drawer behind a button, so the document list gets the full width.
@@ -59,20 +73,22 @@ export function Layout({ children }: { children: ReactNode }) {
   const isActive = (path: string) => location.pathname === path;
   const navLink = (active: boolean) =>
     cx(
-      'inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium transition-colors',
-      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
-      active ? 'bg-brand-50 text-brand-800' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+      'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-all duration-150',
+      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
+      active
+        ? 'bg-ink-100/90 text-ink-800 shadow-[inset_0_0_0_1px_rgb(30_74_117/0.12)]'
+        : 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
     );
 
   const tree = (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <p className="px-1 pb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">{t.categories}</p>
+        <p className="section-label pb-2.5">{t.categories}</p>
         <CategoryTree categories={categories.data ?? []} selectedId={selectedCategory} onSelect={selectCategory} />
       </div>
       {adminLinks.length > 0 && (
         <div>
-          <p className="px-1 pb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">{directory.administration}</p>
+          <p className="section-label pb-2.5">{directory.administration}</p>
           <nav className="space-y-0.5">
             {adminLinks.map((link) => (
               <RouterLink
@@ -92,13 +108,13 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-2 px-3 sm:px-4">
+      <header className="sticky top-0 z-40 border-b border-paper-200/80 bg-white/80 backdrop-blur-md">
+        <div className="flex h-[4.25rem] items-center gap-2 px-3 sm:px-5">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label={t.menu}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden"
+            className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-paper-600 hover:bg-ink-50 lg:hidden"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="size-5">
               <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -106,10 +122,8 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
 
           <RouterLink to="/" className="flex min-w-0 items-center gap-2.5">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-600 text-base font-bold text-white">
-              ب
-            </span>
-            <span className="truncate text-base font-bold text-slate-800 sm:text-lg">{t.appTitle}</span>
+            <BrandMark />
+            <span className="truncate text-base font-bold tracking-tight text-ink-900 sm:text-lg">{t.appTitle}</span>
           </RouterLink>
 
           <form onSubmit={submitSearch} role="search" className="mx-auto hidden w-full max-w-md sm:block">
@@ -120,7 +134,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 stroke="currentColor"
                 strokeWidth={2}
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-slate-400"
+                className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-paper-400"
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
               </svg>
@@ -130,7 +144,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 placeholder={t.searchEverything}
                 aria-label={t.searchEverything}
                 enterKeyHint="search"
-                className="h-10 w-full rounded-lg border border-transparent bg-slate-100 ps-9 pe-3 text-sm text-slate-800 transition-colors placeholder:text-slate-500 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="h-10 w-full rounded-xl border border-transparent bg-paper-100/90 ps-9 pe-3 text-sm text-ink-900 transition-all placeholder:text-paper-500 focus:border-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ink-500/15"
               />
             </div>
           </form>
@@ -139,7 +153,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <RouterLink
               to="/search"
               aria-label={t.searchEverything}
-              className="inline-flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 sm:hidden"
+              className="inline-flex size-9 items-center justify-center rounded-xl text-paper-600 hover:bg-ink-50 sm:hidden"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
@@ -153,7 +167,7 @@ export function Layout({ children }: { children: ReactNode }) {
               className={cx(navLink(isActive('/tasks')), 'h-9 gap-1.5 px-2 sm:px-3')}
               aria-label={w.inbox}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-4.5 size-5">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" />
               </svg>
               <span className="hidden sm:inline">{w.inbox}</span>
@@ -192,7 +206,9 @@ export function Layout({ children }: { children: ReactNode }) {
 
             <RouterLink
               to="/new"
-              className={cx(navLink(false), 'hidden bg-brand-600 text-white hover:bg-brand-700 hover:text-white lg:inline-flex')}
+              className={cx(
+                'hidden h-9 items-center rounded-xl bg-ink-700 px-3.5 text-sm font-medium text-white shadow-[0_1px_2px_rgb(12_32_52/0.15)] transition-colors hover:bg-ink-800 lg:inline-flex',
+              )}
             >
               {t.newDocument}
             </RouterLink>
@@ -210,9 +226,9 @@ export function Layout({ children }: { children: ReactNode }) {
                 </svg>
               </button>
               <Menu anchor={accountMenu} onClose={() => setAccountMenu(null)}>
-                <div className="border-b border-slate-100 px-3 py-2">
-                  <p className="truncate text-sm font-medium text-slate-800">{user?.displayName}</p>
-                  <p className="truncate text-xs text-slate-400" dir="ltr">
+                <div className="border-b border-paper-100 px-3 py-2.5">
+                  <p className="truncate text-sm font-medium text-ink-900">{user?.displayName}</p>
+                  <p className="truncate text-xs text-paper-400" dir="ltr">
                     {user?.username}
                   </p>
                 </div>
@@ -240,33 +256,36 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="flex flex-1">
         <aside
-          className="sticky top-16 hidden h-[calc(100vh-4rem)] w-72 shrink-0 overflow-y-auto border-e border-slate-200 bg-white p-4 lg:block"
+          className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
           style={{ width: drawerWidth }}
         >
           {tree}
         </aside>
 
-        <main className="min-w-0 flex-1 px-3 py-4 sm:px-5 sm:py-6">{children}</main>
+        <main className="page-enter min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-7">{children}</main>
       </div>
 
       {/* On a phone the bar keeps only notifications and tasks; the rest lives in the drawer. */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute inset-0 bg-ink-950/45 backdrop-blur-[2px]" onClick={() => setOpen(false)} aria-hidden />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-y-auto bg-white shadow-xl"
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-y-auto bg-white shadow-[0_16px_40px_rgb(12_32_52/0.18)] animate-[slide-in_0.28s_ease-out]"
             style={{ maxWidth: drawerWidth }}
           >
-            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4">
-              <span className="truncate text-base font-bold text-slate-800">{t.appTitle}</span>
+            <div className="flex h-[4.25rem] shrink-0 items-center justify-between gap-2 border-b border-paper-200 px-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <BrandMark className="size-8 text-sm" />
+                <span className="truncate text-base font-bold text-ink-900">{t.appTitle}</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="بستن"
-                className="size-8 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                className="size-8 rounded-xl text-paper-400 hover:bg-ink-50 hover:text-ink-800"
               >
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="mx-auto size-4">
                   <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -299,10 +318,10 @@ export function Layout({ children }: { children: ReactNode }) {
                 </RouterLink>
               </nav>
 
-              <div className="border-t border-slate-100 pt-4">{tree}</div>
+              <div className="border-t border-paper-100 pt-4">{tree}</div>
 
-              <div className="space-y-0.5 border-t border-slate-100 pt-4">
-                <p className="px-1 pb-2 text-xs font-semibold tracking-wide text-slate-400 uppercase">{user?.displayName}</p>
+              <div className="space-y-0.5 border-t border-paper-100 pt-4">
+                <p className="section-label pb-2">{user?.displayName}</p>
                 <RouterLink
                   to="/account/password"
                   onClick={() => setOpen(false)}

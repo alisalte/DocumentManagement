@@ -12,26 +12,26 @@ export function DocumentTypesPage() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="max-w-4xl space-y-4 sm:space-y-5">
+    <div className="max-w-4xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{a.documentTypes}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{a.documentTypes}</h1>
         <Button onClick={() => setCreating(true)}>{a.newType}</Button>
       </div>
 
       {types.isError && <Alert severity="error">{describeError(types.error)}</Alert>}
 
       <Card flush>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-paper-100">
           {(types.data ?? []).map((type) => (
             <button
               key={type.id}
               type="button"
               onClick={() => navigate(`/admin/document-types/${type.id}`)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-slate-50"
+              className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-paper-50"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-slate-800">{type.name}</span>
-                <span dir="ltr" className="block truncate text-start text-xs text-slate-500">
+                <span className="block truncate text-sm font-medium text-ink-800">{type.name}</span>
+                <span dir="ltr" className="block truncate text-start text-xs text-paper-500">
                   {type.code}
                 </span>
               </span>

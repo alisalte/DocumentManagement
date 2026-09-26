@@ -12,7 +12,7 @@ export function Spinner({ size = 'md', className }: SpinnerProps) {
     <span
       role="status"
       aria-label="در حال بارگذاری"
-      className={cx('inline-block animate-spin rounded-full border-slate-300 border-t-brand-600', box, className)}
+      className={cx('inline-block animate-spin rounded-full border-paper-300 border-t-ink-700', box, className)}
     />
   );
 }
@@ -27,9 +27,9 @@ export function ProgressBar({ className }: ProgressBarProps) {
     <div
       role="progressbar"
       aria-label="در حال بارگذاری"
-      className={cx('h-1 w-full overflow-hidden bg-slate-200', className)}
+      className={cx('h-1 w-full overflow-hidden rounded-full bg-paper-200', className)}
     >
-      <div className="h-full w-1/3 animate-progress rounded-full bg-brand-600" />
+      <div className="h-full w-1/3 animate-progress rounded-full bg-ink-600" />
     </div>
   );
 }

@@ -18,10 +18,12 @@ export function CategoryTree({ categories, selectedId, onSelect }: Props) {
 
   const rowClasses = (selected: boolean, muted: boolean) =>
     cx(
-      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-sm transition-colors',
-      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
-      selected ? 'bg-brand-50 font-semibold text-brand-800' : 'text-slate-700 hover:bg-slate-100',
-      muted && !selected && 'text-slate-400',
+      'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-start text-sm transition-all duration-150',
+      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
+      selected
+        ? 'bg-ink-100/90 font-semibold text-ink-800 shadow-[inset_-3px_0_0_0_rgb(30_74_117)]'
+        : 'text-ink-800 hover:bg-ink-50',
+      muted && !selected && 'text-paper-400',
     );
 
   return (

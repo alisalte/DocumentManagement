@@ -35,9 +35,9 @@ export function RecycleBinPage() {
   const pages = bin.data ? Math.max(1, Math.ceil(bin.data.total / bin.data.pageSize)) : 1;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{t.recycleBin}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.recycleBin}</h1>
       </div>
       {error && <Alert severity="error">{error}</Alert>}
       <Card flush className="overflow-hidden">

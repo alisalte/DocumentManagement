@@ -111,10 +111,10 @@ export function NewDocumentPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[720px] space-y-4 sm:space-y-5">
+    <div className="mx-auto w-full max-w-[720px] space-y-5">
       <form onSubmit={submit}>
         <Card className="space-y-4">
-          <h1 className="text-xl font-bold text-slate-800">{t.newDocument}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
 
           <FilePicker
             file={file}
@@ -133,7 +133,7 @@ export function NewDocumentPage() {
               {duplicates.map((duplicate, index) => (
                 <span key={duplicate.documentId}>
                   {index > 0 && '، '}
-                  <RouterLink to={`/documents/${duplicate.documentId}`} className="text-brand-700 hover:underline">
+                  <RouterLink to={`/documents/${duplicate.documentId}`} className="text-ink-700 hover:underline">
                     {duplicate.title}
                   </RouterLink>
                 </span>
@@ -195,7 +195,7 @@ export function NewDocumentPage() {
 
           {schema.data && schema.data.fields.length > 0 && (
             <div className="space-y-3 pt-1">
-              <h2 className="text-base font-semibold text-slate-800">{t.metadata}</h2>
+              <h2 className="text-base font-semibold text-ink-800">{t.metadata}</h2>
               <DynamicForm
                 schema={schema.data}
                 value={metadata}

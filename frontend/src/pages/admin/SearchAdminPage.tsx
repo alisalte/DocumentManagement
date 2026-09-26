@@ -34,8 +34,8 @@ export function SearchAdminPage() {
   const failed = data?.extractions.Failed ?? 0;
 
   return (
-    <div className="max-w-4xl space-y-4 sm:space-y-5">
-      <h1 className="text-xl font-bold text-slate-800">{t.searchAdmin}</h1>
+    <div className="max-w-4xl space-y-5">
+      <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.searchAdmin}</h1>
       {status.isLoading && <ProgressBar className="rounded-full" />}
       {status.isError && <Alert severity="error">{describeError(status.error)}</Alert>}
       {message && <Alert severity={message.severity}>{message.text}</Alert>}
@@ -56,12 +56,12 @@ export function SearchAdminPage() {
             {data.engineEnabled && (
               <>
                 <Row label={t.liveIndex}>
-                  <span dir="ltr" className="font-mono text-sm break-all text-slate-700">
+                  <span dir="ltr" className="font-mono text-sm break-all text-ink-800">
                     {data.index ?? '—'}
                   </span>
                 </Row>
                 <Row label={t.indexedVersions}>
-                  <span className="text-sm text-slate-700">{Math.max(data.indexedVersions, 0).toLocaleString('fa-IR')}</span>
+                  <span className="text-sm text-ink-800">{Math.max(data.indexedVersions, 0).toLocaleString('fa-IR')}</span>
                 </Row>
               </>
             )}
@@ -84,7 +84,7 @@ export function SearchAdminPage() {
 
       <Card>
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">{t.reindexHelp}</p>
+          <p className="text-sm text-paper-500">{t.reindexHelp}</p>
           <div className="flex flex-wrap gap-2">
             <Button
               disabled={busy || !data?.engineEnabled}
@@ -115,7 +115,7 @@ export function SearchAdminPage() {
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
-      <span className="shrink-0 text-sm text-slate-500 sm:w-48">{label}</span>
+      <span className="shrink-0 text-sm text-paper-500 sm:w-48">{label}</span>
       <div className="min-w-0">{children}</div>
     </div>
   );

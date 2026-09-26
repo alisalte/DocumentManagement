@@ -86,14 +86,14 @@ export function DocumentPage() {
   const current = versions.data?.find((version) => version.isCurrent) ?? null;
 
   return (
-    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1000px] space-y-5">
       <Card>
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl font-bold break-words text-slate-800">{doc.title}</h1>
-              <p className="text-sm text-slate-500">
-                <RouterLink to={`/?category=${doc.categoryId}`} className="text-brand-700 hover:underline">
+              <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{doc.title}</h1>
+              <p className="text-sm text-paper-500">
+                <RouterLink to={`/?category=${doc.categoryId}`} className="text-ink-700 hover:underline">
                   {doc.categoryName}
                 </RouterLink>
                 {current && <> · <span dir="ltr">{current.label}</span></>}
@@ -128,13 +128,13 @@ export function DocumentPage() {
           </div>
 
           {doc.description && (
-            <p className="break-words whitespace-pre-wrap text-sm text-slate-700">{doc.description}</p>
+            <p className="break-words whitespace-pre-wrap text-sm text-ink-800">{doc.description}</p>
           )}
 
           {schema.data && schema.data.fields.length > 0 && (
             <div>
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="flex-1 text-base font-semibold text-slate-800">{t.metadata}</h2>
+                <h2 className="flex-1 text-base font-semibold text-ink-800">{t.metadata}</h2>
                 {can(doc, 'DOCUMENT_EDIT') && (
                   <Button size="sm" variant="ghost" onClick={() => setDialog('metadata')}>
                     {t.editMetadata}
@@ -153,7 +153,7 @@ export function DocumentPage() {
             </div>
           )}
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-paper-400">
             {t.createdAt}: {formatDateTime(doc.createdAt)} · {t.updatedAt}: {formatDateTime(doc.updatedAt)}
           </p>
 
@@ -189,9 +189,9 @@ export function DocumentPage() {
       <Card flush>
         {versions.isFetching && <ProgressBar />}
         <div className="px-4 pt-4 sm:px-5">
-          <h2 className="text-base font-semibold text-slate-800">{t.versions}</h2>
+          <h2 className="text-base font-semibold text-ink-800">{t.versions}</h2>
         </div>
-        <ul className="mt-3 divide-y divide-slate-100">
+        <ul className="mt-3 divide-y divide-paper-100">
           {(versions.data ?? []).map((version) => (
             <VersionRow
               key={version.id}
@@ -266,7 +266,7 @@ function VersionRow({
     <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span dir="ltr" className="font-semibold text-slate-800">
+          <span dir="ltr" className="font-semibold text-ink-800">
             {version.label}
           </span>
           <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
@@ -282,15 +282,15 @@ function VersionRow({
           {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}
         </div>
 
-        <p className="mt-1 break-words text-sm text-slate-700">
+        <p className="mt-1 break-words text-sm text-ink-800">
           {version.fileName} · {formatBytes(version.fileSize)}
         </p>
 
-        {version.changeDescription && <p className="text-sm text-slate-500">{version.changeDescription}</p>}
+        {version.changeDescription && <p className="text-sm text-paper-500">{version.changeDescription}</p>}
 
-        <p className="text-xs text-slate-400">{formatDateTime(version.createdAt)}</p>
+        <p className="text-xs text-paper-400">{formatDateTime(version.createdAt)}</p>
 
-        <p dir="ltr" title={t.sha256} className="block break-all font-mono text-xs text-slate-400">
+        <p dir="ltr" title={t.sha256} className="block break-all font-mono text-xs text-paper-400">
           SHA-256 {version.sha256}
         </p>
       </div>
@@ -402,8 +402,8 @@ function MetadataDialog({
           disabled={busy}
           label={
             <span className="flex flex-col">
-              <span className="text-sm text-slate-700">{t.upgradeSchema}</span>
-              <span className="text-xs text-slate-500">{t.upgradeSchemaHelp}</span>
+              <span className="text-sm text-ink-800">{t.upgradeSchema}</span>
+              <span className="text-xs text-paper-500">{t.upgradeSchemaHelp}</span>
             </span>
           }
         />
@@ -650,7 +650,7 @@ function DeleteDialog({
       submitLabel={t.delete}
       submitColor="error"
     >
-      <p className="text-sm text-slate-700">{t.deleteConfirm}</p>
+      <p className="text-sm text-ink-800">{t.deleteConfirm}</p>
       <TextField label={t.deleteReason} value={reason} onChange={(event) => setReason(event.target.value)} />
     </FormDialog>
   );

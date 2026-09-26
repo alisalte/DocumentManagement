@@ -46,9 +46,9 @@ export function UsersPage() {
 
   const rows = users.data?.pages.flat() ?? [];
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{d.users}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.users}</h1>
         <Button onClick={() => setCreating(true)}>{d.newUser}</Button>
       </div>
 
@@ -80,10 +80,10 @@ export function UsersPage() {
           </Table>
         )}
         {!users.isPending && !users.isError && rows.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">{d.empty}</p>
+          <p className="py-10 text-center text-sm text-paper-500">{d.empty}</p>
         )}
         {users.hasNextPage && (
-          <div className="flex justify-center border-t border-slate-100 p-3">
+          <div className="flex justify-center border-t border-paper-100 p-3">
             <Button onClick={() => users.fetchNextPage()} disabled={users.isFetchingNextPage}>
               {d.more}
             </Button>
@@ -107,10 +107,10 @@ function UserRow({ user, onOpen }: { user: AdminUser; onOpen: () => void }) {
       onKeyDown={(event) => event.key === 'Enter' && onOpen()}
     >
       <TD>
-        <span className="font-semibold text-slate-800">{user.displayName}</span>
+        <span className="font-semibold text-ink-800">{user.displayName}</span>
       </TD>
       <TD>
-        <span dir="ltr" className="text-slate-500">
+        <span dir="ltr" className="text-paper-500">
           {user.username}
         </span>
       </TD>
@@ -258,7 +258,7 @@ function UserDialog({ userId, onClose }: { userId: string; onClose: () => void }
       {details.isPending && <ProgressBar className="rounded-full" />}
       {details.isError && <Alert severity="error">{describeError(details.error)}</Alert>}
       {user && details.data && (
-        <div className="space-y-4 sm:space-y-5">
+        <div className="space-y-5">
           <div className="flex flex-wrap gap-2">
             <Chip size="small" dir="ltr" label={user.username} />
             <Chip size="small" color={user.isActive ? 'success' : 'default'} label={user.isActive ? d.active : d.inactive} />
@@ -301,7 +301,7 @@ function UserDialog({ userId, onClose }: { userId: string; onClose: () => void }
             disabled={busy}
           />
 
-          <hr className="border-slate-200" />
+          <hr className="border-paper-200" />
 
           {!isMe && (
             <div className="flex flex-wrap gap-2">
@@ -340,12 +340,12 @@ function UserDialog({ userId, onClose }: { userId: string; onClose: () => void }
             </form>
           )}
 
-          <hr className="border-slate-200" />
+          <hr className="border-paper-200" />
 
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-700">{d.memberOf}</h2>
+            <h2 className="text-sm font-semibold text-ink-800">{d.memberOf}</h2>
             <div className="flex flex-wrap items-center gap-1.5">
-              {details.data.groups.length === 0 && <span className="text-sm text-slate-500">{d.none}</span>}
+              {details.data.groups.length === 0 && <span className="text-sm text-paper-500">{d.none}</span>}
               {details.data.groups.map((group) => (
                 <Chip key={group.id} label={group.name} variant={group.isActive ? 'filled' : 'outlined'} />
               ))}
@@ -354,9 +354,9 @@ function UserDialog({ userId, onClose }: { userId: string; onClose: () => void }
 
           {roles.isSuccess && (
             <div className="space-y-2">
-              <h2 className="text-sm font-semibold text-slate-700">{d.holdsRoles}</h2>
+              <h2 className="text-sm font-semibold text-ink-800">{d.holdsRoles}</h2>
               <div className="flex flex-wrap items-center gap-1.5">
-                {roles.data.length === 0 && <span className="text-sm text-slate-500">{d.none}</span>}
+                {roles.data.length === 0 && <span className="text-sm text-paper-500">{d.none}</span>}
                 {roles.data.map((role) => (
                   <Chip key={role.id} label={role.name} />
                 ))}

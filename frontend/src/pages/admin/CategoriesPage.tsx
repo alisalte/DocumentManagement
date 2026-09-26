@@ -86,9 +86,9 @@ export function CategoriesPage() {
   const minDepth = Math.min(...all.map((category) => category.depth), 0);
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{d.categories}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.categories}</h1>
         <Button onClick={() => setEditing({ kind: 'create', parent: null })}>{d.newCategory}</Button>
       </div>
 
@@ -116,12 +116,12 @@ export function CategoriesPage() {
                     style={{ '--depth': category.depth - minDepth } as CSSProperties}
                   >
                     <span className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-slate-800">{category.name}</span>
+                      <span className="font-semibold text-ink-800">{category.name}</span>
                       {!category.isActive && <Chip size="small" label={d.inactive} />}
                     </span>
                   </TD>
                   <TD>
-                    <span dir="ltr" className="text-slate-500">
+                    <span dir="ltr" className="text-paper-500">
                       {category.code}
                     </span>
                   </TD>
@@ -147,7 +147,7 @@ export function CategoriesPage() {
           </Table>
         )}
         {!categories.isPending && !categories.isError && ordered.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">{d.empty}</p>
+          <p className="py-10 text-center text-sm text-paper-500">{d.empty}</p>
         )}
       </Card>
 

@@ -7,14 +7,14 @@ const toneClasses: Record<AlertSeverity, string> = {
   error: 'border-rose-200 bg-rose-50 text-rose-800',
   success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
   warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  info: 'border-sky-200 bg-sky-50 text-sky-800',
+  info: 'border-ink-200 bg-ink-50 text-ink-800',
 };
 
 const iconClasses: Record<AlertSeverity, string> = {
   error: 'text-rose-500',
   success: 'text-emerald-500',
   warning: 'text-amber-500',
-  info: 'text-sky-500',
+  info: 'text-ink-600',
 };
 
 function Icon({ severity }: { severity: AlertSeverity }) {
@@ -41,7 +41,7 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'
 /** Inline message block. */
 export function Alert({ severity = 'info', action, className, children, ...rest }: AlertProps) {
   return (
-    <div {...rest} role="alert" className={cx('flex flex-wrap items-start gap-3 rounded-lg border px-4 py-3 text-sm', toneClasses[severity], className)}>
+    <div {...rest} role="alert" className={cx('flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm', toneClasses[severity], className)}>
       <Icon severity={severity} />
       <div className="min-w-0 flex-1">{children}</div>
       {action && <div className="flex items-center">{action}</div>}

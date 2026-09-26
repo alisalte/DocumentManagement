@@ -27,10 +27,10 @@ export function Pagination({ count, page, onChange, className }: PaginationProps
 
   const itemClasses = (options: { active?: boolean; disabled?: boolean } = {}) =>
     cx(
-      'inline-flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-sm transition-colors',
-      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
-      options.disabled ? 'cursor-not-allowed text-slate-300' : 'text-slate-600 hover:bg-slate-100',
-      options.active && !options.disabled && 'bg-brand-600 font-semibold text-white hover:bg-brand-700',
+      'inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-2 text-sm transition-colors duration-150',
+      'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-600',
+      options.disabled ? 'cursor-not-allowed text-paper-300' : 'text-paper-600 hover:bg-ink-50',
+      options.active && !options.disabled && 'bg-ink-700 font-semibold text-white hover:bg-ink-800',
     );
 
   return (
@@ -40,7 +40,7 @@ export function Pagination({ count, page, onChange, className }: PaginationProps
       </button>
       {pages.map((entry, index) =>
         entry === 'gap' ? (
-          <span key={`gap-${index}`} className="px-1 text-slate-400">
+          <span key={`gap-${index}`} className="px-1 text-paper-400">
             …
           </span>
         ) : (

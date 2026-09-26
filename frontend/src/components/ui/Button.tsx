@@ -6,10 +6,13 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'dan
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800',
-  secondary: 'bg-accent-600 text-white shadow-sm hover:bg-accent-700 active:bg-accent-800',
-  outline: 'border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50 active:bg-slate-100',
-  ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+  primary:
+    'bg-ink-700 text-white shadow-[0_1px_2px_rgb(12_32_52/0.12)] hover:bg-ink-800 active:bg-ink-900',
+  secondary:
+    'bg-copper-600 text-white shadow-[0_1px_2px_rgb(58_38_26/0.12)] hover:bg-copper-700 active:bg-copper-800',
+  outline:
+    'border border-paper-300 bg-white/90 text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
+  ghost: 'text-paper-700 hover:bg-ink-50 hover:text-ink-900',
   danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800',
 };
 
@@ -25,8 +28,8 @@ export function buttonClasses(
 ): string {
   const { variant = 'primary', size = 'md', fullWidth, className } = options;
   return cx(
-    'inline-flex select-none items-center justify-center rounded-lg font-medium transition-colors',
-    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
+    'inline-flex select-none items-center justify-center rounded-xl font-medium transition-all duration-150',
+    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-600',
     'disabled:pointer-events-none disabled:opacity-50',
     variantClasses[variant],
     sizeClasses[size],
@@ -110,10 +113,12 @@ export function IconButton({ label, variant = 'ghost', size = 'md', className, c
       aria-label={label}
       title={label}
       className={cx(
-        'inline-flex items-center justify-center rounded-lg transition-colors',
-        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600',
+        'inline-flex items-center justify-center rounded-xl transition-colors duration-150',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-600',
         'disabled:pointer-events-none disabled:opacity-50',
-        variant === 'outline' ? 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800',
+        variant === 'outline'
+          ? 'border border-paper-300 bg-white/90 text-paper-700 hover:border-ink-300 hover:bg-ink-50'
+          : 'text-paper-600 hover:bg-ink-50 hover:text-ink-800',
         size === 'sm' ? 'size-7' : 'size-9',
         className,
       )}

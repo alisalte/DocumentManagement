@@ -8,8 +8,8 @@ import type {
 import { cx } from './cx';
 
 const controlBase =
-  'w-full rounded-lg border bg-white text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500';
-const borderDefault = 'border-slate-300 focus:border-brand-500';
+  'w-full rounded-xl border bg-white/95 text-sm text-ink-900 shadow-sm transition-colors placeholder:text-paper-400 focus:outline-none focus:ring-2 focus:ring-ink-500/20 disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500';
+const borderDefault = 'border-paper-300 focus:border-ink-500';
 const borderError = 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20';
 const sizes = { sm: 'h-9 px-3', md: 'h-10 px-3.5' } as const;
 
@@ -31,14 +31,14 @@ function Shell({ id, label, helperText, error, required, control, className }: S
   return (
     <div className={cx('w-full', className)}>
       {label !== undefined && (
-        <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
+        <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-ink-800">
           {label}
           {required && <span className="text-rose-500"> *</span>}
         </label>
       )}
       {control}
       {helperText != null && (
-        <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-slate-500')}>{helperText}</p>
+        <p className={cx('mt-1.5 text-xs', error ? 'text-rose-600' : 'text-paper-500')}>{helperText}</p>
       )}
     </div>
   );
@@ -89,7 +89,7 @@ export function TextField({
             )}
           />
           {endAdornment && (
-            <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-slate-400">
+            <span className="pointer-events-none absolute inset-y-0 end-3 flex items-center text-paper-400">
               {endAdornment}
             </span>
           )}
@@ -184,7 +184,7 @@ export function Select({
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 end-3 my-auto size-4 text-slate-400"
+            className="pointer-events-none absolute inset-y-0 end-3 my-auto size-4 text-paper-400"
           >
             <path
               fillRule="evenodd"

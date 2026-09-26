@@ -8,7 +8,7 @@ import { Alert, Button, Card, Chip, ProgressBar } from '../ui';
 import { ShareDialog } from './ShareDialog';
 import { permissionLabels, s, stateLabels } from './sharingStrings';
 
-const rowClasses = 'flex flex-col gap-2 rounded-lg px-2 py-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-3';
+const rowClasses = 'flex flex-col gap-2 rounded-lg px-2 py-3 transition-colors hover:bg-paper-50 sm:flex-row sm:items-center sm:gap-3';
 
 /**
  * The shares and links of a document, with the button that makes new ones. Permission managers
@@ -66,7 +66,7 @@ export function SharesPanel({
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="grow text-base font-semibold text-slate-800">{s.shares}</h2>
+        <h2 className="grow text-base font-semibold text-ink-800">{s.shares}</h2>
         {(data.canShare || data.canShareExternal) && (
           <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
             {s.share}
@@ -82,9 +82,9 @@ export function SharesPanel({
       )}
 
       {rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">{s.noShares}</p>
+        <p className="py-8 text-center text-sm text-paper-500">{s.noShares}</p>
       ) : (
-        <ul className="mt-4 -mx-2 divide-y divide-slate-100">
+        <ul className="mt-4 -mx-2 divide-y divide-paper-100">
           {rows.map((row) =>
             row.kind === 'share' ? (
               <ShareRow
@@ -98,7 +98,7 @@ export function SharesPanel({
           )}
         </ul>
       )}
-      {!data.canManageAll && rows.length > 0 && <p className="mt-3 text-xs text-slate-500">{s.onlyYours}</p>}
+      {!data.canManageAll && rows.length > 0 && <p className="mt-3 text-xs text-paper-500">{s.onlyYours}</p>}
 
       {dialogOpen && (
         <ShareDialog
@@ -129,11 +129,11 @@ function ShareRow({ share, onRevoke }: { share: Share; onRevoke: () => void }) {
     <li className={rowClasses}>
       <div className="min-w-0 grow">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-slate-800">{share.sharedWith.displayName}</span>
+          <span className="text-sm font-semibold text-ink-800">{share.sharedWith.displayName}</span>
           <Chip size="small" variant="outlined" label={<span dir="ltr">{share.versionLabel}</span>} />
           <StateChip state={share.state} />
         </div>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-paper-500">
           <Permissions list={share.permissions} /> · {s.sharedBy} {share.sharedBy.displayName} · {formatDateTime(share.createdAt)}
           {share.expiresAt && (
             <>
@@ -142,7 +142,7 @@ function ShareRow({ share, onRevoke }: { share: Share; onRevoke: () => void }) {
             </>
           )}
         </p>
-        {share.message && <p className="mt-1 text-sm text-slate-700 [overflow-wrap:anywhere]">{share.message}</p>}
+        {share.message && <p className="mt-1 text-sm text-ink-800 [overflow-wrap:anywhere]">{share.message}</p>}
       </div>
       {share.state === 'Active' && (
         <Button variant="danger" size="sm" className="self-start sm:self-center" onClick={onRevoke}>
@@ -158,7 +158,7 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
     <li className={rowClasses}>
       <div className="min-w-0 grow">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-slate-800">
+          <span className="text-sm font-semibold text-ink-800">
             {s.externalLink}{' '}
             <span dir="ltr" className="font-mono">
               {link.tokenPrefix}…
@@ -168,8 +168,8 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
           <StateChip state={link.state} />
           {link.requiresPassword && <Chip size="small" variant="outlined" label={s.password} />}
         </div>
-        {link.label && <p className="mt-1 text-sm text-slate-700">{link.label}</p>}
-        <p className="mt-1 text-sm text-slate-500">
+        {link.label && <p className="mt-1 text-sm text-ink-800">{link.label}</p>}
+        <p className="mt-1 text-sm text-paper-500">
           <Permissions list={link.permissions} /> · {s.expires} {formatDateTime(link.expiresAt)} ·{' '}
           {formatNumber(link.accessCount)}
           {link.maxAccessCount !== null && <> / {formatNumber(link.maxAccessCount)}</>} {s.openings}
@@ -180,7 +180,7 @@ function LinkRow({ link, onRevoke }: { link: ShareLink; onRevoke: () => void }) 
             </>
           )}
         </p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-xs text-paper-500">
           {link.createdBy.displayName} · {formatDateTime(link.createdAt)}
         </p>
       </div>

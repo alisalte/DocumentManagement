@@ -184,7 +184,7 @@ export function ShareDialog({
         )}
 
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-700">{s.permissions}</p>
+          <p className="mb-2 text-sm font-medium text-ink-800">{s.permissions}</p>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {offered.map((permission) => (
               <Checkbox

@@ -22,7 +22,7 @@ export interface TabsProps {
 export function Tabs({ value, onChange, variant = 'default', children, className }: TabsProps) {
   return (
     <TabsContext.Provider value={{ value, onChange }}>
-      <div role="tablist" className={cx('flex gap-1 border-b border-slate-200', variant === 'fullWidth' && 'w-full', className)}>
+      <div role="tablist" className={cx('flex gap-1 border-b border-paper-200', variant === 'fullWidth' && 'w-full', className)}>
         {children}
       </div>
     </TabsContext.Provider>
@@ -47,10 +47,10 @@ export function Tab({ value, label, disabled }: TabProps) {
       disabled={disabled}
       onClick={() => context?.onChange(value)}
       className={cx(
-        'relative -mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
-        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-600',
+        'relative -mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors duration-150',
+        'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        active ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800',
+        active ? 'border-ink-700 text-ink-800' : 'border-transparent text-paper-500 hover:border-paper-300 hover:text-ink-800',
       )}
     >
       {label}

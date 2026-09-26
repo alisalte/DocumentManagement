@@ -16,13 +16,19 @@ export function TasksPage() {
   const [notice, setNotice] = useState<string | null>(null);
 
   return (
-    <div className="max-w-[1000px] space-y-4 sm:space-y-5">
+    <div className="max-w-[1000px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-slate-800">{w.inbox}</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{w.inbox}</h1>
       </div>
       {tasks.isFetching && <ProgressBar />}
       {tasks.isError && <Alert severity="error">{describeError(tasks.error)}</Alert>}
-      {tasks.data?.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{w.inboxEmpty}</p>}
+      {tasks.data?.length === 0 && (
+        <Card>
+          <div className="px-4 py-14 text-center">
+            <p className="text-sm font-medium text-paper-600">{w.inboxEmpty}</p>
+          </div>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {tasks.data?.map((task) => (
@@ -31,16 +37,16 @@ export function TasksPage() {
               <div className="min-w-0 sm:flex-1">
                 <RouterLink
                   to={`/documents/${task.documentId}`}
-                  className="font-semibold break-words text-slate-800 hover:text-brand-700 hover:underline"
+                  className="font-semibold break-words text-ink-800 hover:text-ink-700 hover:underline"
                 >
                   {task.documentTitle}
                 </RouterLink>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-paper-500">
                   {w.step}: {task.stepName} · {w.version} <span dir="ltr">{task.versionLabel}</span> ·{' '}
                   {formatDateTime(task.createdAt)}
                 </p>
                 {task.dueAt && (
-                  <p className={`mt-0.5 text-xs ${task.isOverdue ? 'text-rose-600' : 'text-slate-500'}`}>
+                  <p className={`mt-0.5 text-xs ${task.isOverdue ? 'text-rose-600' : 'text-paper-500'}`}>
                     {w.due}: {formatDateTime(task.dueAt)}
                   </p>
                 )}

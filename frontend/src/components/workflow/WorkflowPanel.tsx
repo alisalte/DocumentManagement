@@ -73,7 +73,7 @@ export function WorkflowPanel({
     <Card>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="grow text-base font-semibold text-slate-800">{w.workflow}</h2>
+          <h2 className="grow text-base font-semibold text-ink-800">{w.workflow}</h2>
           {startable && (
             <Button onClick={start} loading={busy} disabled={busy}>
               {w.start}
@@ -82,16 +82,16 @@ export function WorkflowPanel({
         </div>
 
         {error && <Alert severity="error">{error}</Alert>}
-        {runs.data.length === 0 && <p className="py-8 text-center text-sm text-slate-500">{w.noWorkflow}</p>}
+        {runs.data.length === 0 && <p className="py-8 text-center text-sm text-paper-500">{w.noWorkflow}</p>}
 
         {runs.data.map((run, index) => (
-          <div key={run.id} className={cx('space-y-2', index > 0 && 'border-t border-slate-100 pt-4')}>
+          <div key={run.id} className={cx('space-y-2', index > 0 && 'border-t border-paper-100 pt-4')}>
             <div className="flex flex-wrap items-center gap-2">
               <Chip size="small" color={runChipColor(statusColors[run.status])} label={statusLabels[run.status]} />
               <span className="text-sm" dir="ltr">
                 {run.versionLabel}
               </span>
-              <span className="text-xs text-slate-500">{formatDateTime(run.startedAt)}</span>
+              <span className="text-xs text-paper-500">{formatDateTime(run.startedAt)}</span>
               <div className="flex-1" />
               {run.canCancel && (
                 <Button variant="danger" size="sm" onClick={() => setCancelling(run)}>
@@ -105,14 +105,14 @@ export function WorkflowPanel({
                 {w.attention}: {run.attentionReason}
               </Alert>
             )}
-            {run.cancelReason && <p className="text-sm text-slate-500">{run.cancelReason}</p>}
+            {run.cancelReason && <p className="text-sm text-paper-500">{run.cancelReason}</p>}
 
             {run.tasks.map((task) => (
               <TaskRow key={task.id} task={task} onAct={(action) => setActing({ task, action })} />
             ))}
 
             {run.skippedSteps.length > 0 && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-paper-500">
                 {w.skipped}: {run.skippedSteps.join('، ')}
               </p>
             )}
@@ -148,10 +148,10 @@ export function WorkflowPanel({
 
 export function TaskRow({ task, onAct }: { task: WorkflowTask; onAct: (action: WorkflowAction) => void }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border-s-[3px] border-slate-200 py-1.5 ps-3 transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-3">
+    <div className="flex flex-col gap-2 rounded-lg border-s-[3px] border-paper-200 py-1.5 ps-3 transition-colors hover:bg-paper-50 sm:flex-row sm:items-center sm:gap-3">
       <div className="min-w-0 grow">
-        <p className="text-sm font-semibold text-slate-700">{task.stepName}</p>
-        <p className="text-xs text-slate-500">
+        <p className="text-sm font-semibold text-ink-800">{task.stepName}</p>
+        <p className="text-xs text-paper-500">
           <Assignee task={task} />
           {task.status === 'Completed' && task.action && <> — {actionLabels[task.action]}</>}
           {task.status === 'Cancelled' && <> — لغوشده</>}
@@ -163,7 +163,7 @@ export function TaskRow({ task, onAct }: { task: WorkflowTask; onAct: (action: W
             </>
           )}
         </p>
-        {task.comment && <p className="mt-1 text-sm whitespace-pre-wrap text-slate-700">«{task.comment}»</p>}
+        {task.comment && <p className="mt-1 text-sm whitespace-pre-wrap text-ink-800">«{task.comment}»</p>}
       </div>
       {task.isOverdue && <Chip size="small" color="error" label={w.overdue} />}
       {task.canAct && (
