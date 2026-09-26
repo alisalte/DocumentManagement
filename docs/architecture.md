@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved. **Phases 1–8 done.** Phase 9 not started. |
+| **Status** | Approved. **Phases 1–8 done.** **Phase 9 (hardening) in progress.** |
 | **Date** | 2026-09-20 |
 | **Decisions** | D1–D14 settled; see [§12](#12-decisions). Versioning is detailed in [ADR 0001](adr/0001-file-versioning-and-metadata-revisions.md). |
 | **Stack** | C# 14 · .NET 10 (`net10.0`) · ASP.NET Core 10 · EF Core 10 · PostgreSQL · S3-compatible storage · OpenSearch |
@@ -861,7 +861,7 @@ Every phase needs explicit approval before it starts.
 | **6 Sharing** **(done)** | Internal shares, external links (hashed token, password, count, expiry, rate limit) | Expiry; revocation; max count under concurrency; version pinning; share vs DENY |
 | **7 Audit hardening + notifications** **(done)** | Partition management, tamper-evident hash sealing, export, audit viewer, notifications | Append-only enforcement at the DB role level; audit completeness per operation |
 | **8 Admin UI completion** **(done)** | Users, groups, roles, ACL editor with "why?" explanations, categories | End-to-end tests (Playwright, phone and desktop viewports) |
-| **9 Hardening** | Security test suite, load tests (k6), pen-test checklist, backup/restore drill | Performance targets based on the sizing answers (D11) |
+| **9 Hardening** **(in progress)** | Security headers + `SecuritySuiteTests`, load tests (k6), pen-test checklist, backup/restore drill — see [`docs/hardening/`](hardening/) | Green security suite; k6 against [performance targets](hardening/performance-targets.md); signed [pen-test checklist](hardening/pen-test-checklist.md); successful [backup/restore drill](hardening/backup-restore.md) |
 
 **Phase 2 as built: where it differs from the plan above, and what it leaves for later.**
 

@@ -180,6 +180,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+app.UseDmsSecurityHeaders();
 app.UseExceptionHandler();
 app.UseRateLimiter();
 

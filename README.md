@@ -14,8 +14,9 @@ search, and sharing: internal shares and external links, each pinned to one vers
 against the sharer's rights on every use and always overridden by an explicit DENY; a restricted
 database role that can only append to the audit log, a tamper-evident seal chain over the log,
 audit export and viewer, in-app notifications, and the admin UI (users, groups, roles, categories,
-ACL editor with “why?”). **Phase 9 (hardening)** is next: security suite, load tests, pen-test
-checklist, backup/restore drill.
+ACL editor with “why?”). **Phase 9 (hardening) is in progress:** baseline security headers,
+[`SecuritySuiteTests`](tests/Dms.IntegrationTests/SecuritySuiteTests.cs), k6 load scripts under
+[`load/`](load/), and runbooks in [`docs/hardening/`](docs/hardening/).
 
 ## Stack
 
@@ -133,7 +134,11 @@ API reference while the API is running in development: <http://localhost:5080/sc
 ./scripts/test.sh
 cd frontend && npx vitest run   # rule language (shared vectors), Jalali dates, form logic, highlights
 ./scripts/e2e.sh        # phase 8 admin UI: Playwright on phone and desktop (needs Chrome + Postgres)
+./scripts/load-test.sh          # phase 9: k6 against a live API (needs k6 installed)
+./scripts/backup-restore-drill.sh   # phase 9: dump/restore marker on Postgres
 ```
+
+Hardening notes and the pen-test checklist live under [`docs/hardening/`](docs/hardening/).
 
 The search tests against real engines are skipped unless `DMS_TEST_OPENSEARCH` and
 `DMS_TEST_TIKA` point at running services (see above); the rest of the suite fakes the engine.
