@@ -32,6 +32,23 @@ export function SearchAdminPage() {
 
   const data = status.data;
   const failed = data?.extractions.Failed ?? 0;
+  const engineMode = data?.engineMode ?? (data?.engineEnabled ? 'OpenSearch' : 'Disabled');
+  const engineChip =
+    engineMode === 'Disabled' || !data?.engineEnabled
+      ? { color: 'default' as const, label: t.disabled }
+      : engineMode === 'Unreachable' || (data?.indexedVersions ?? 0) < 0
+        ? { color: 'error' as const, label: t.unreachable }
+        : { color: 'success' as const, label: t.enabled };
+
+  const extractorMode = data?.extractorMode;
+  const extractorHelp =
+    !data?.extractorEnabled
+      ? t.extractorDisabledHelp
+      : extractorMode === 'Tika'
+        ? t.extractorTikaHelp
+        : extractorMode === 'LocalTesseract'
+          ? t.extractorLocalHelp
+          : null;
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -44,16 +61,31 @@ export function SearchAdminPage() {
         <Card>
           <div className="space-y-3">
             <Row label={t.engine}>
+              <Chip size="small" color={engineChip.color} label={engineChip.label} />
+            </Row>
+            {(engineMode === 'Disabled' || !data.engineEnabled) && (
+              <Alert severity="info">{t.engineDisabledHelp}</Alert>
+            )}
+            {engineMode === 'Unreachable' && <Alert severity="warning">{t.engineUnreachableHelp}</Alert>}
+
+            <Row label={t.extractor}>
               <Chip
                 size="small"
-                color={!data.engineEnabled ? 'default' : data.indexedVersions < 0 ? 'error' : 'success'}
-                label={!data.engineEnabled ? t.disabled : data.indexedVersions < 0 ? t.unreachable : t.enabled}
+                color={data.extractorEnabled ? 'success' : 'default'}
+                label={
+                  data.extractorEnabled
+                    ? extractorMode === 'LocalTesseract'
+                      ? `${t.enabled} (Tesseract)`
+                      : extractorMode === 'Tika'
+                        ? `${t.enabled} (Tika)`
+                        : t.enabled
+                    : t.disabled
+                }
               />
             </Row>
-            <Row label={t.extractor}>
-              <Chip size="small" color={data.extractorEnabled ? 'success' : 'default'} label={data.extractorEnabled ? t.enabled : t.disabled} />
-            </Row>
-            {data.engineEnabled && (
+            {extractorHelp && <p className="text-sm text-paper-600">{extractorHelp}</p>}
+
+            {data.engineEnabled && engineMode !== 'Unreachable' && (
               <>
                 <Row label={t.liveIndex}>
                   <span dir="ltr" className="font-mono text-sm break-all text-ink-800">
@@ -84,24 +116,32 @@ export function SearchAdminPage() {
 
       <Card>
         <div className="space-y-3">
-          <p className="text-sm text-paper-500">{t.reindexHelp}</p>
+          {data?.engineEnabled ? (
+            <p className="text-sm text-paper-500">{t.reindexHelp}</p>
+          ) : (
+            <p className="text-sm text-paper-500">{t.engineDisabledHelp}</p>
+          )}
           <div className="flex flex-wrap gap-2">
             <Button
-              disabled={busy || !data?.engineEnabled}
-              onClick={() => run(async () => {
-                await api.searchAdmin.reindex();
-                return t.reindexQueued;
-              })}
+              disabled={busy || !data?.engineEnabled || engineMode === 'Unreachable'}
+              onClick={() =>
+                run(async () => {
+                  await api.searchAdmin.reindex();
+                  return t.reindexQueued;
+                })
+              }
             >
               {t.reindex}
             </Button>
             <Button
               variant="outline"
               disabled={busy || failed === 0}
-              onClick={() => run(async () => {
-                const { queued } = await api.searchAdmin.retryFailed();
-                return `${queued.toLocaleString('fa-IR')} ${t.retryQueued}`;
-              })}
+              onClick={() =>
+                run(async () => {
+                  const { queued } = await api.searchAdmin.retryFailed();
+                  return `${queued.toLocaleString('fa-IR')} ${t.retryQueued}`;
+                })
+              }
             >
               {t.retryFailed}
             </Button>

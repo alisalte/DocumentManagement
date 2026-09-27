@@ -480,6 +480,10 @@ export interface SearchStatus {
   /** -1 when the engine did not answer. */
   indexedVersions: number;
   extractions: Record<string, number>;
+  /** OpenSearch | Disabled | Unreachable */
+  engineMode?: string;
+  /** Tika | LocalTesseract | Disabled | Enabled */
+  extractorMode?: string;
 }
 
 export type SharePermission = 'View' | 'Download' | 'Print';

@@ -133,6 +133,13 @@ export const t = {
   reindexQueued: 'بازسازی نمایه در صف قرار گرفت.',
   retryFailed: 'تلاش دوباره برای موارد ناموفق',
   retryQueued: 'مورد دوباره در صف قرار گرفت.',
+  engineDisabledHelp:
+    'OpenSearch پیکربندی نشده است (Dms:Search:OpenSearchUrl خالی است). جستجوی عنوان/توضیح/نام فایل روی پایگاه داده همچنان کار می‌کند؛ برای جستجوی تمام‌متن، پروفایل search را بالا بیاورید و DMS_OPENSEARCH_URL=http://opensearch:9200 را تنظیم کنید.',
+  engineUnreachableHelp:
+    'آدرس OpenSearch تنظیم شده ولی سرویس پاسخ نمی‌دهد. وضعیت کانتینر opensearch و شبکه را بررسی کنید.',
+  extractorLocalHelp: 'استخراج متن با Tesseract محلی روی میزبان worker فعال است (بدون Tika).',
+  extractorTikaHelp: 'استخراج متن از طریق Tika Server انجام می‌شود.',
+  extractorDisabledHelp: 'استخراج متن و OCR خاموش است؛ فقط فراداده و نام فایل قابل جستجو خواهد بود.',
 } as const;
 
 /** Server error codes worth a friendlier sentence than the English problem detail. */
