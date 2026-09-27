@@ -71,6 +71,8 @@ export function Layout({ children }: { children: ReactNode }) {
   };
 
   const isActive = (path: string) => location.pathname === path;
+  // Full-width reading surfaces: no folder rail competing with the content.
+  const hideFolderRail = location.pathname === '/help' || location.pathname.startsWith('/help/');
   const navLink = (active: boolean) =>
     cx(
       'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-all duration-150',
@@ -161,6 +163,21 @@ export function Layout({ children }: { children: ReactNode }) {
             <RouterLink to="/recycle-bin" className={cx(navLink(isActive('/recycle-bin')), 'hidden lg:inline-flex')}>
               {t.recycleBin}
             </RouterLink>
+            <RouterLink
+              to="/help"
+              aria-label={t.userGuide}
+              title={t.userGuide}
+              className={cx(navLink(isActive('/help')), 'gap-1.5 px-2 sm:px-3')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
+                />
+              </svg>
+              <span className="hidden xl:inline">{t.userGuideShort}</span>
+            </RouterLink>
 
             {adminLinks.length > 0 && (
               <div className="hidden lg:block">
@@ -220,9 +237,16 @@ export function Layout({ children }: { children: ReactNode }) {
                   </p>
                 </div>
                 <RouterLink
-                  to="/account/password"
+                  to="/help"
                   onClick={() => setAccountMenu(null)}
                   className={menuItemClasses('mt-0.5')}
+                >
+                  {t.userGuide}
+                </RouterLink>
+                <RouterLink
+                  to="/account/password"
+                  onClick={() => setAccountMenu(null)}
+                  className={menuItemClasses()}
                 >
                   {directory.changePassword}
                 </RouterLink>
@@ -242,12 +266,14 @@ export function Layout({ children }: { children: ReactNode }) {
       </header>
 
       <div className="flex flex-1">
-        <aside
-          className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
-          style={{ width: drawerWidth }}
-        >
-          {folderTree}
-        </aside>
+        {!hideFolderRail && (
+          <aside
+            className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
+            style={{ width: drawerWidth }}
+          >
+            {folderTree}
+          </aside>
+        )}
 
         <main className="page-enter min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-7">{children}</main>
       </div>
@@ -303,6 +329,13 @@ export function Layout({ children }: { children: ReactNode }) {
                 >
                   {t.recycleBin}
                 </RouterLink>
+                <RouterLink
+                  to="/help"
+                  onClick={() => setOpen(false)}
+                  className={cx(navLink(isActive('/help')), 'w-full justify-start')}
+                >
+                  {t.userGuide}
+                </RouterLink>
               </nav>
 
               {adminLinks.length > 0 && (
@@ -327,6 +360,13 @@ export function Layout({ children }: { children: ReactNode }) {
 
               <div className="space-y-0.5 border-t border-paper-100 pt-4">
                 <p className="section-label pb-2">{user?.displayName}</p>
+                <RouterLink
+                  to="/help"
+                  onClick={() => setOpen(false)}
+                  className={cx(navLink(isActive('/help')), 'w-full justify-start')}
+                >
+                  {t.userGuide}
+                </RouterLink>
                 <RouterLink
                   to="/account/password"
                   onClick={() => setOpen(false)}

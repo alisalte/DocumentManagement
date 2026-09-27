@@ -24,6 +24,7 @@ import { DocumentTypesPage } from './pages/admin/DocumentTypesPage';
 import { SearchAdminPage } from './pages/admin/SearchAdminPage';
 import { WorkflowEditorPage } from './pages/admin/WorkflowEditorPage';
 import { WorkflowsPage } from './pages/admin/WorkflowsPage';
+import { HelpGuidePage } from './pages/HelpGuidePage';
 import { TasksPage } from './pages/TasksPage';
 import { SessionProvider, useSession } from './session';
 
@@ -109,6 +110,7 @@ function Shell() {
         <Route path="/shared" element={<SharedWithMePage />} />
         <Route path="/shared/:documentId/:versionId" element={<SharedVersionPage />} />
         <Route path="/search" element={<SearchPage />} />
+        <Route path="/help" element={<HelpGuidePage />} />
         {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
         {canViewAudit && <Route path="/admin/audit" element={<AuditPage />} />}
         {has('ADMIN_MANAGE_USERS') && <Route path="/admin/users" element={<UsersPage />} />}

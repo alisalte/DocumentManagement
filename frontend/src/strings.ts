@@ -93,6 +93,8 @@ export const t = {
   changeKindBoth: 'فایل و مشخصات',
   documentTypes: 'انواع سند',
   administration: 'مدیریت',
+  userGuide: 'راهنمای استفاده',
+  userGuideShort: 'راهنما',
 
   searchEverything: 'جستجو در اسناد',
   searchButton: 'جستجو',
