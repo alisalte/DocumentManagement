@@ -149,7 +149,17 @@ builder.Services.AddRateLimiter(options =>
         }));
 });
 
-var corsOrigins = builder.Configuration.GetSection("Dms:Cors:Origins").Get<string[]>() ?? [];
+var corsOrigins = (builder.Configuration.GetSection("Dms:Cors:Origins").Get<string[]>() ?? [])
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
+    .Select(origin => origin.Trim())
+    .Distinct(StringComparer.Ordinal)
+    .ToArray();
+if (corsOrigins.Any(origin => origin == "*"))
+{
+    throw new InvalidOperationException(
+        "Dms:Cors:Origins must not contain '*'. List explicit frontend origins, or leave empty for same-origin (nginx) deployments.");
+}
+
 if (corsOrigins.Length > 0)
 {
     builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy
@@ -160,6 +170,12 @@ if (corsOrigins.Length > 0)
 
         // Downloads carry the file name here; browsers hide it from scripts unless exposed.
         .WithExposedHeaders("Content-Disposition")));
+}
+else if (!builder.Environment.IsDevelopment())
+{
+    // Same-origin behind nginx needs no CORS. Cross-origin SPA hosts must set Dms:Cors:Origins.
+    Console.WriteLine(
+        "Dms:Cors:Origins is empty; CORS middleware is off (same-origin / gateway deployments).");
 }
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>

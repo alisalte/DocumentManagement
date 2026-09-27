@@ -25,6 +25,12 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
 
+    public DbSet<RecordClass> RecordClasses => Set<RecordClass>();
+
+    public DbSet<RecordSeries> RecordSeries => Set<RecordSeries>();
+
+    public DbSet<ManagedRecord> Records => Set<ManagedRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -223,6 +229,103 @@ public sealed class DocumentsDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_document_tags_tag");
             entity.HasIndex(link => link.TagId).HasDatabaseName("ix_document_tags_tag");
+        });
+
+        modelBuilder.Entity<RecordClass>(entity =>
+        {
+            entity.ToTable("record_classes");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(item => item.Code).IsUnique().HasDatabaseName("ux_record_classes_code");
+        });
+
+        modelBuilder.Entity<RecordSeries>(entity =>
+        {
+            entity.ToTable("record_series");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordSeriesId(value));
+            entity.Property(item => item.RecordClassId).HasColumnName("record_class_id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne<RecordClass>().WithMany()
+                .HasForeignKey(item => item.RecordClassId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_record_series_class");
+
+            entity.HasIndex(item => new { item.RecordClassId, item.Code })
+                .IsUnique().HasDatabaseName("ux_record_series_class_code");
+        });
+
+        modelBuilder.Entity<ManagedRecord>(entity =>
+        {
+            entity.ToTable("records", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_records_status",
+                    "status IN ('Active','UnderRetention','Expired','PendingDisposal','Destroyed')");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.FinalVersionId).HasColumnName("final_version_id")
+                .HasConversion(id => id.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.RecordClassId).HasColumnName("record_class_id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.RecordSeriesId).HasColumnName("record_series_id")
+                .HasConversion(id => id!.Value.Value, value => new RecordSeriesId(value));
+            entity.Property(item => item.Title).HasColumnName("title").HasMaxLength(500).IsRequired();
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.DeclaredBy).HasColumnName("declared_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.DeclaredAt).HasColumnName("declared_at");
+            entity.Property(item => item.MetadataFrozenAt).HasColumnName("metadata_frozen_at");
+            entity.Property(item => item.UpdatedBy).HasColumnName("updated_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.LastTransitionReason).HasColumnName("last_transition_reason").HasMaxLength(1000);
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_document");
+            entity.HasOne<DocumentVersion>().WithMany()
+                .HasForeignKey(item => item.FinalVersionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_final_version");
+            entity.HasOne<RecordClass>().WithMany()
+                .HasForeignKey(item => item.RecordClassId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_class");
+            entity.HasOne<RecordSeries>().WithMany()
+                .HasForeignKey(item => item.RecordSeriesId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_series");
+
+            entity.HasIndex(item => item.DocumentId).IsUnique().HasDatabaseName("ux_records_document");
+            entity.HasIndex(item => item.Status).HasDatabaseName("ix_records_status");
+            entity.HasIndex(item => item.RecordClassId).HasDatabaseName("ix_records_class");
         });
     }
 }

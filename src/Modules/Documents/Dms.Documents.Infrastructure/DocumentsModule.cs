@@ -28,6 +28,9 @@ public static class DocumentsModule
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IDocumentReadModel, DocumentReadModel>();
+        services.AddScoped<IRecordRepository, RecordRepository>();
+        services.AddScoped<IRecordReadModel, RecordReadModel>();
+        services.AddScoped<IRecordImmutabilityGuard, RecordImmutabilityGuard>();
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
@@ -62,6 +65,17 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<RestoreDocumentCommand, Result>, RestoreDocumentHandler>();
         services.AddScoped<ICommandHandler<PurgeDocumentCommand, Result>, PurgeDocumentHandler>();
         services.AddScoped<ICommandHandler<OpenContentCommand, Result<StoredContent>>, OpenContentHandler>();
+
+        services.AddScoped<ICommandHandler<CreateRecordClassCommand, Result<Guid>>, CreateRecordClassHandler>();
+        services.AddScoped<ICommandHandler<UpdateRecordClassCommand, Result>, UpdateRecordClassHandler>();
+        services.AddScoped<ICommandHandler<CreateRecordSeriesCommand, Result<Guid>>, CreateRecordSeriesHandler>();
+        services.AddScoped<ICommandHandler<UpdateRecordSeriesCommand, Result>, UpdateRecordSeriesHandler>();
+        services.AddScoped<ICommandHandler<DeclareRecordCommand, Result<Guid>>, DeclareRecordHandler>();
+        services.AddScoped<ICommandHandler<TransitionRecordCommand, Result>, TransitionRecordHandler>();
+        services.AddScoped<IQueryHandler<GetRecordByDocumentQuery, Result<RecordSummaryDto>>, GetRecordByDocumentHandler>();
+        services.AddScoped<IQueryHandler<GetRecordQuery, Result<RecordSummaryDto>>, GetRecordHandler>();
+        services.AddScoped<IQueryHandler<ListRecordClassesQuery, Result<IReadOnlyList<RecordClassDto>>>, ListRecordClassesHandler>();
+        services.AddScoped<IQueryHandler<ListRecordSeriesQuery, Result<IReadOnlyList<RecordSeriesDto>>>, ListRecordSeriesHandler>();
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
         services.AddScoped<PreviewService>();

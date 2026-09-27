@@ -133,4 +133,36 @@ public sealed class AuthenticationApiTests(DmsApiFactory factory)
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task Too_many_failed_logins_lock_the_account()
+    {
+        var admin = await factory.AdminAsync();
+        var username = $"lock.{Guid.NewGuid():N}"[..20];
+        var created = await admin.PostAsJsonAsync("/api/v1/admin/users", new
+        {
+            username,
+            displayName = username,
+            email = (string?)null,
+            password = DocumentTestKit.UserPassword,
+            isSystemAdmin = false,
+            mustChangePassword = false,
+        });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+
+        var client = factory.CreateClient();
+        for (var i = 0; i < 5; i++)
+        {
+            var failed = await client.PostAsJsonAsync(
+                "/api/v1/auth/login",
+                new { username, password = "definitely-wrong-password" });
+            failed.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
+
+        var locked = await client.PostAsJsonAsync(
+            "/api/v1/auth/login",
+            new { username, password = "definitely-wrong-password" });
+        locked.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        (await locked.Content.ReadAsStringAsync()).ShouldContain("auth.account_locked");
+    }
 }

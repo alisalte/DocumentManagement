@@ -59,6 +59,8 @@ public static class PermissionCodes
     public const string AdminManageCategories = "ADMIN_MANAGE_CATEGORIES";
     public const string DocumentPurge = "DOCUMENT_PURGE";
     public const string AdminManageSearch = "ADMIN_MANAGE_SEARCH";
+    public const string RecordDeclare = "RECORD_DECLARE";
+    public const string AdminManageRecords = "ADMIN_MANAGE_RECORDS";
 }
 
 public static class PermissionCatalog
@@ -100,6 +102,8 @@ public static class PermissionCatalog
             new(PermissionCodes.AdminManageCategories, PermissionScope.System, false, "Manage the category tree."),
             new(PermissionCodes.DocumentPurge, PermissionScope.System, false, "Permanently delete documents."),
             new(PermissionCodes.AdminManageSearch, PermissionScope.System, false, "See indexing status and rebuild the search index."),
+            new(PermissionCodes.RecordDeclare, PermissionScope.Resource, true, "Declare a document as an immutable Record."),
+            new(PermissionCodes.AdminManageRecords, PermissionScope.System, false, "Manage record classes, series and lifecycle transitions."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

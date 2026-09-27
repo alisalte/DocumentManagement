@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
+using Dms.Documents.Contracts;
 using Dms.SharedKernel;
 using Dms.Storage.Contracts;
 using Dms.Web;
@@ -52,10 +53,27 @@ public static class DocumentEndpoints
 
     public sealed record MoveCategoryRequest(Guid? NewParentId);
 
+    public sealed record CreateRecordClassRequest(string Code, string Name, string? Description);
+
+    public sealed record UpdateRecordClassRequest(string Name, string? Description, bool IsActive = true);
+
+    public sealed record CreateRecordSeriesRequest(Guid RecordClassId, string Code, string Name, string? Description);
+
+    public sealed record UpdateRecordSeriesRequest(string Name, string? Description, bool IsActive = true);
+
+    public sealed record DeclareRecordRequest(
+        Guid RecordClassId,
+        Guid? RecordSeriesId,
+        Guid? FinalVersionId,
+        string? Reason);
+
+    public sealed record TransitionRecordRequest(string Status, string? Reason);
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         MapUploads(endpoints);
         MapDocuments(endpoints);
+        MapRecords(endpoints);
         MapCategories(endpoints);
         return endpoints;
     }
@@ -433,6 +451,103 @@ public static class DocumentEndpoints
 
         admin.MapPost("/{id:guid}/move", async (Guid id, MoveCategoryRequest request, IDispatcher dispatcher, CancellationToken ct) =>
             (await dispatcher.SendAsync(new MoveCategoryCommand(id, request.NewParentId), ct)).ToHttpResult());
+    }
+
+    private static void MapRecords(IEndpointRouteBuilder endpoints)
+    {
+        var records = endpoints.MapGroup("/api/v1/records")
+            .WithTags("Records")
+            .RequireAuthorization();
+
+        records.MapGet("/classes", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListRecordClassesQuery(), ct)).ToHttpResult())
+            .WithSummary("Record classes (filing plan).");
+
+        records.MapGet("/series", async (Guid? recordClassId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListRecordSeriesQuery(recordClassId), ct)).ToHttpResult())
+            .WithSummary("Record series, optionally filtered by class.");
+
+        records.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetRecordQuery(id), ct)).ToHttpResult());
+
+        records.MapGet("/by-document/{documentId:guid}", async (Guid documentId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetRecordByDocumentQuery(documentId), ct)).ToHttpResult());
+
+        records.MapPost("/declare/{documentId:guid}", async (
+                Guid documentId,
+                DeclareRecordRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var command = new DeclareRecordCommand(
+                    documentId,
+                    request.RecordClassId,
+                    request.RecordSeriesId,
+                    request.FinalVersionId,
+                    request.Reason);
+                var result = await dispatcher.SendAsync(command, ct);
+                return result.ToHttpResult(id => Results.Created($"/api/v1/records/{id}", new { id }));
+            })
+            .WithSummary("Declare a document as an immutable Record, pinning its final version.");
+
+        records.MapPost("/{id:guid}/transition", async (
+                Guid id,
+                TransitionRecordRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                if (!Enum.TryParse<RecordStatus>(request.Status, ignoreCase: true, out var status))
+                {
+                    return ApiResults.Problem(Error.Validation("record.status", "Unknown Record status."));
+                }
+
+                return (await dispatcher.SendAsync(new TransitionRecordCommand(id, status, request.Reason), ct))
+                    .ToHttpResult();
+            })
+            .WithSummary("Audited Record lifecycle transition.");
+
+        var admin = endpoints.MapGroup("/api/v1/admin/records")
+            .WithTags("Administration: records")
+            .RequireAuthorization()
+            .RequireSystemPermission(PermissionCodes.AdminManageRecords);
+
+        admin.MapPost("/classes", async (CreateRecordClassRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new CreateRecordClassCommand(request.Code, request.Name, request.Description),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/admin/records/classes/{id}", new { id }));
+        });
+
+        admin.MapPut("/classes/{id:guid}", async (
+                Guid id,
+                UpdateRecordClassRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRecordClassCommand(id, request.Name, request.Description, request.IsActive),
+                ct)).ToHttpResult());
+
+        admin.MapPost("/series", async (CreateRecordSeriesRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new CreateRecordSeriesCommand(
+                    request.RecordClassId,
+                    request.Code,
+                    request.Name,
+                    request.Description),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/admin/records/series/{id}", new { id }));
+        });
+
+        admin.MapPut("/series/{id:guid}", async (
+                Guid id,
+                UpdateRecordSeriesRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRecordSeriesCommand(id, request.Name, request.Description, request.IsActive),
+                ct)).ToHttpResult());
     }
 
     private static string? NormalizeKey(string? key) =>

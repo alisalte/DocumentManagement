@@ -74,6 +74,13 @@ public static class AuditActions
     public const string DocumentPurged = "DOCUMENT_PURGED";
     public const string DocumentTagsChanged = "DOCUMENT_TAGS_CHANGED";
 
+    public const string RecordDeclared = "RECORD_DECLARED";
+    public const string RecordStatusChanged = "RECORD_STATUS_CHANGED";
+    public const string RecordClassCreated = "RECORD_CLASS_CREATED";
+    public const string RecordClassUpdated = "RECORD_CLASS_UPDATED";
+    public const string RecordSeriesCreated = "RECORD_SERIES_CREATED";
+    public const string RecordSeriesUpdated = "RECORD_SERIES_UPDATED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 
