@@ -131,4 +131,8 @@
   .section-label {
     @apply px-1 text-[11px] font-semibold tracking-[0.14em] text-paper-500 uppercase;
   }
+
+  .guide-step {
+    animation: var(--animate-fade-in);
+  }
 }

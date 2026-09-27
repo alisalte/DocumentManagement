@@ -95,8 +95,17 @@ export function BrowsePage() {
           </div>
         ) : (
           <div className="p-2 sm:p-0">
-            {documents.data && (
-              <DocumentList items={documents.data.items} onOpen={(item) => navigate(`/documents/${item.id}`)} />
+            {documents.data && documents.data.items.length === 0 ? (
+              <div className="space-y-3 px-4 py-10 text-center">
+                <p className="text-sm text-paper-500">{t.noDocuments}</p>
+                <Button as={RouterLink} to="/help" variant="outline" size="sm">
+                  {t.userGuide}
+                </Button>
+              </div>
+            ) : (
+              documents.data && (
+                <DocumentList items={documents.data.items} onOpen={(item) => navigate(`/documents/${item.id}`)} />
+              )
             )}
           </div>
         )}
