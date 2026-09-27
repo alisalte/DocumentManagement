@@ -35,6 +35,10 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<LegalHold> LegalHolds => Set<LegalHold>();
 
+    public DbSet<Disposition> Dispositions => Set<Disposition>();
+
+    public DbSet<DestructionCertificate> DestructionCertificates => Set<DestructionCertificate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -400,6 +404,117 @@ public sealed class DocumentsDbContext : DbContext
             entity.HasIndex(item => new { item.DocumentId, item.ReleasedAt })
                 .HasFilter("released_at IS NULL")
                 .HasDatabaseName("ix_legal_holds_active");
+        });
+
+        modelBuilder.Entity<Disposition>(entity =>
+        {
+            entity.ToTable("dispositions", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_dispositions_status",
+                    "status IN ('PendingReview','Approved','Rejected','Destroyed')");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new DispositionId(value));
+            entity.Property(item => item.RecordId).HasColumnName("record_id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.RequestReason).HasColumnName("request_reason").HasMaxLength(2000);
+            entity.Property(item => item.RequestedBy).HasColumnName("requested_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.RequestedAt).HasColumnName("requested_at");
+            entity.Property(item => item.ReviewedBy).HasColumnName("reviewed_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(item => item.DecisionReason).HasColumnName("decision_reason").HasMaxLength(2000);
+            entity.Property(item => item.ApprovedBy).HasColumnName("approved_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(item => item.DestroyedBy).HasColumnName("destroyed_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.DestroyedAt).HasColumnName("destroyed_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<ManagedRecord>().WithMany()
+                .HasForeignKey(item => item.RecordId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_dispositions_record");
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_dispositions_document");
+
+            // At most one active (PendingReview/Approved) disposition per Record.
+            entity.HasIndex(item => item.RecordId)
+                .IsUnique()
+                .HasFilter("status IN ('PendingReview','Approved')")
+                .HasDatabaseName("ux_dispositions_active_record");
+            entity.HasIndex(item => item.Status).HasDatabaseName("ix_dispositions_status");
+            entity.HasIndex(item => item.DocumentId).HasDatabaseName("ix_dispositions_document");
+        });
+
+        modelBuilder.Entity<DestructionCertificate>(entity =>
+        {
+            entity.ToTable("destruction_certificates", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_destruction_certificates_sha256",
+                    "octet_length(content_sha256) = 32 AND octet_length(certificate_hash) = 32");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new DestructionCertificateId(value));
+            entity.Property(item => item.CertificateNumber).HasColumnName("certificate_number")
+                .HasMaxLength(64).IsRequired();
+            entity.Property(item => item.DispositionId).HasColumnName("disposition_id")
+                .HasConversion(id => id.Value, value => new DispositionId(value));
+            entity.Property(item => item.RecordId).HasColumnName("record_id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.FinalVersionId).HasColumnName("final_version_id")
+                .HasConversion(id => id.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.FinalVersionLabel).HasColumnName("final_version_label")
+                .HasMaxLength(32).IsRequired();
+            entity.Property(item => item.RecordTitle).HasColumnName("record_title").HasMaxLength(500).IsRequired();
+            entity.Property(item => item.ContentSha256).HasColumnName("content_sha256").IsRequired();
+            entity.Property(item => item.RetentionPolicyId).HasColumnName("retention_policy_id")
+                .HasConversion(id => id!.Value.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.RetentionPolicyVersion).HasColumnName("retention_policy_version");
+            entity.Property(item => item.RetentionExpiresAt).HasColumnName("retention_expires_at");
+            entity.Property(item => item.LegalHoldCheckedAt).HasColumnName("legal_hold_checked_at");
+            entity.Property(item => item.ApprovedBy).HasColumnName("approved_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(item => item.DestroyedBy).HasColumnName("destroyed_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.DestroyedAt).HasColumnName("destroyed_at");
+            entity.Property(item => item.Reason).HasColumnName("reason").HasMaxLength(2000);
+            entity.Property(item => item.CertificateHash).HasColumnName("certificate_hash").IsRequired();
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne<Disposition>().WithMany()
+                .HasForeignKey(item => item.DispositionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_destruction_certificates_disposition");
+            entity.HasOne<ManagedRecord>().WithMany()
+                .HasForeignKey(item => item.RecordId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_destruction_certificates_record");
+
+            entity.HasIndex(item => item.DispositionId).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_disposition");
+            entity.HasIndex(item => item.RecordId).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_record");
+            entity.HasIndex(item => item.CertificateNumber).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_number");
         });
     }
 }

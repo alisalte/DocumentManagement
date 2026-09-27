@@ -707,6 +707,61 @@ export interface AuditFilter {
   entityId?: string | null;
 }
 
+export interface PendingDisposalItem {
+  recordId: string;
+  documentId: string;
+  title: string;
+  status: string;
+  retentionExpiresAt: string | null;
+  retentionPolicyId: string | null;
+  retentionPolicyVersion: number | null;
+  onLegalHold: boolean;
+  activeDispositionId: string | null;
+  activeDispositionStatus: string | null;
+  finalVersionId: string;
+  finalVersionLabel: string;
+}
+
+export interface Disposition {
+  id: string;
+  recordId: string;
+  documentId: string;
+  status: string;
+  requestReason: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  decisionReason: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  destroyedBy: string | null;
+  destroyedAt: string | null;
+}
+
+export interface DestructionCertificate {
+  id: string;
+  certificateNumber: string;
+  dispositionId: string;
+  recordId: string;
+  documentId: string;
+  finalVersionId: string;
+  finalVersionLabel: string;
+  recordTitle: string;
+  contentSha256: string;
+  retentionPolicyId: string | null;
+  retentionPolicyVersion: number | null;
+  retentionExpiresAt: string | null;
+  legalHoldCheckedAt: string;
+  approvedBy: string;
+  approvedAt: string;
+  destroyedBy: string;
+  destroyedAt: string;
+  reason: string | null;
+  certificateHash: string;
+  createdAt: string;
+}
+
 export interface SealStatus {
   sealCount: number;
   firstSealedFrom: string | null;
@@ -1265,6 +1320,35 @@ export const api = {
     sealStatus: () => request<SealStatus>('/api/v1/audit/seals/status'),
     verify: (from: string | null, to: string | null) =>
       request<SealVerification>('/api/v1/audit/seals/verify', { method: 'POST', body: JSON.stringify({ from, to }) }),
+  },
+
+  disposition: {
+    pending: () => request<PendingDisposalItem[]>('/api/v1/disposition/pending'),
+    get: (id: string) => request<Disposition>(`/api/v1/disposition/${id}`),
+    byRecord: (recordId: string) => request<Disposition>(`/api/v1/disposition/by-record/${recordId}`),
+    request: (recordId: string, reason: string | null) =>
+      request<{ id: string }>(`/api/v1/records/${recordId}/disposition`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    approve: (id: string, reason: string | null) =>
+      request<void>(`/api/v1/disposition/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    reject: (id: string, reason: string) =>
+      request<void>(`/api/v1/disposition/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    destroy: (id: string, reason: string | null) =>
+      request<{ certificateId: string }>(`/api/v1/disposition/${id}/destroy`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    certificate: (id: string) => request<DestructionCertificate>(`/api/v1/destruction-certificates/${id}`),
+    certificateByRecord: (recordId: string) =>
+      request<DestructionCertificate>(`/api/v1/destruction-certificates/by-record/${recordId}`),
   },
 
   isSignedIn: () => accessToken !== null,

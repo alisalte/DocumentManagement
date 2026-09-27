@@ -68,7 +68,11 @@ public sealed class SystemRolesSeeder(AuthorizationDbContext context, TimeProvid
             "AUDITOR",
             "Auditor",
             "Reads and exports the audit log.",
-            [PermissionCodes.AuditView, PermissionCodes.AuditExport],
+            [
+                PermissionCodes.AuditView,
+                PermissionCodes.AuditExport,
+                PermissionCodes.DispositionViewCertificate,
+            ],
             now,
             cancellationToken);
     }

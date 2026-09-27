@@ -90,6 +90,15 @@ public static class AuditActions
     public const string LegalHoldPlaced = "LEGAL_HOLD_PLACED";
     public const string LegalHoldReleased = "LEGAL_HOLD_RELEASED";
 
+    public const string DispositionRequested = "DISPOSITION_REQUESTED";
+    public const string DispositionApproved = "DISPOSITION_APPROVED";
+    public const string DispositionRejected = "DISPOSITION_REJECTED";
+    public const string DispositionBlockedByLegalHold = "DISPOSITION_BLOCKED_BY_LEGAL_HOLD";
+    public const string DestructionAttempted = "DESTRUCTION_ATTEMPTED";
+    public const string DestructionBlocked = "DESTRUCTION_BLOCKED";
+    public const string RecordDestroyed = "RECORD_DESTROYED";
+    public const string CertificateCreated = "CERTIFICATE_CREATED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 

@@ -18,7 +18,8 @@ ACL editor with “why?”). **Phase 9 (hardening) is closed in-repo** (security
 tests, abuse k6, deps/container scripts, TLS sample — staging host sign-off remains; see
 [`docs/hardening/`](docs/hardening/)). **Phase 10 is in progress**
 ([`docs/operations/`](docs/operations/)): Record management (10.1) is implemented; retention
-workers, legal hold, disposition, SMTP, and full import follow.
+workers, legal hold, and disposition (10.4 Certificate of Destruction) are in place;
+classification, SMTP, and full import follow.
 
 ## Stack
 

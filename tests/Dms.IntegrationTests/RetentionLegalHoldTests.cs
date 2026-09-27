@@ -200,11 +200,12 @@ public sealed class RetentionLegalHoldTests(DmsApiFactory factory)
             $"/api/v1/records/{record2}/transition",
             new { status = "PendingDisposal", reason = "test" })).StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
+        // Phase 10.4: Destroyed is only reachable through approved disposition — never via transition.
         var destroy = await admin.PostAsJsonAsync(
             $"/api/v1/records/{record2}/transition",
             new { status = "Destroyed", reason = "نباید" });
         destroy.StatusCode.ShouldBe(HttpStatusCode.Conflict, await destroy.Content.ReadAsStringAsync());
-        (await destroy.Content.ReadAsStringAsync()).ShouldContain("purge.legal_hold");
+        (await destroy.Content.ReadAsStringAsync()).ShouldContain("disposition.required");
 
         _ = recordId; // first record unused beyond setup coverage
     }

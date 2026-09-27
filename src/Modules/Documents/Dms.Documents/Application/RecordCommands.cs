@@ -365,7 +365,6 @@ public sealed class TransitionRecordHandler(
     IDmsAuthorizer authorizer,
     DocumentAccess access,
     IRecordRepository records,
-    ILegalHoldGuard legalHolds,
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
@@ -401,11 +400,9 @@ public sealed class TransitionRecordHandler(
 
         if (command.Status == RecordStatus.Destroyed)
         {
-            var hold = await legalHolds.EnsureNotOnHoldAsync(record.DocumentId, cancellationToken);
-            if (hold.IsFailure)
-            {
-                return hold;
-            }
+            return Result.Failure(Error.Conflict(
+                "disposition.required",
+                "Records can only be destroyed through an approved disposition."));
         }
 
         var from = record.Status;

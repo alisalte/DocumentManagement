@@ -62,6 +62,11 @@ public static class PermissionCodes
     public const string RecordDeclare = "RECORD_DECLARE";
     public const string AdminManageRecords = "ADMIN_MANAGE_RECORDS";
     public const string AdminManageLegalHold = "ADMIN_MANAGE_LEGAL_HOLD";
+
+    public const string DispositionRequest = "DISPOSITION_REQUEST";
+    public const string DispositionApprove = "DISPOSITION_APPROVE";
+    public const string DispositionDestroy = "DISPOSITION_DESTROY";
+    public const string DispositionViewCertificate = "DISPOSITION_VIEW_CERTIFICATE";
 }
 
 public static class PermissionCatalog
@@ -106,6 +111,11 @@ public static class PermissionCatalog
             new(PermissionCodes.RecordDeclare, PermissionScope.Resource, true, "Declare a document as an immutable Record."),
             new(PermissionCodes.AdminManageRecords, PermissionScope.System, false, "Manage record classes, series and lifecycle transitions."),
             new(PermissionCodes.AdminManageLegalHold, PermissionScope.System, false, "Place and release Legal Holds."),
+
+            new(PermissionCodes.DispositionRequest, PermissionScope.System, false, "Request disposition review for a Record pending disposal."),
+            new(PermissionCodes.DispositionApprove, PermissionScope.System, false, "Approve or reject a disposition review."),
+            new(PermissionCodes.DispositionDestroy, PermissionScope.System, false, "Destroy a Record after approved disposition."),
+            new(PermissionCodes.DispositionViewCertificate, PermissionScope.System, false, "View Certificates of Destruction."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

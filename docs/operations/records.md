@@ -34,14 +34,16 @@ Statuses: `Active` → `UnderRetention` → `Expired` → `PendingDisposal` → 
 
 ## Immutability
 
-While a Record exists and is not `Destroyed`, these document commands fail with `record.immutable`:
+Once declared, a Record never becomes mutable through document APIs — including after destruction
+(`record.immutable` on edit, tags, metadata, new version, soft-delete, restore, purge).
 
-edit title/category, tags, metadata, new version, soft-delete, restore, purge.
+Destruction itself is only allowed through an approved disposition (phase 10.4); see
+[disposition.md](disposition.md).
 
 ## Audit
 
 `RECORD_DECLARED`, `RECORD_STATUS_CHANGED`, `RECORD_CLASS_*`, `RECORD_SERIES_*`.
 
-## Next
+## Related
 
-Retention policies and workers (10.2), legal hold (10.3), disposition (10.4) build on this model.
+Retention (10.2), Legal Hold (10.3), Disposition / Certificate of Destruction (10.4).

@@ -87,6 +87,10 @@ public static class DocumentEndpoints
 
     public sealed record PlaceLegalHoldRequest(Guid DocumentId, string Reason);
 
+    public sealed record DispositionReasonRequest(string? Reason);
+
+    public sealed record RejectDispositionRequest(string Reason);
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         MapUploads(endpoints);
@@ -652,6 +656,71 @@ public static class DocumentEndpoints
                 CancellationToken ct) =>
             (await dispatcher.SendAsync(new ReleaseLegalHoldCommand(id, request.Reason), ct)).ToHttpResult())
             .RequireSystemPermission(PermissionCodes.AdminManageLegalHold);
+
+        // Disposition / Certificate of Destruction (phase 10.4)
+        var disposition = endpoints.MapGroup("/api/v1/disposition")
+            .WithTags("Disposition")
+            .RequireAuthorization();
+
+        disposition.MapGet("/pending", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListPendingDisposalQuery(), ct)).ToHttpResult())
+            .WithSummary("List Records pending disposal and recent destruction candidates.");
+
+        disposition.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDispositionQuery(id), ct)).ToHttpResult());
+
+        disposition.MapGet("/by-record/{recordId:guid}", async (Guid recordId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDispositionByRecordQuery(recordId), ct)).ToHttpResult());
+
+        records.MapPost("/{id:guid}/disposition", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new RequestDispositionCommand(id, request.Reason), ct);
+                return result.ToHttpResult(dispositionId =>
+                    Results.Created($"/api/v1/disposition/{dispositionId}", new { id = dispositionId }));
+            })
+            .WithSummary("Request disposition review for a Record in PendingDisposal.");
+
+        disposition.MapPost("/{id:guid}/approve", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ApproveDispositionCommand(id, request.Reason), ct)).ToHttpResult())
+            .WithSummary("Approve a disposition pending review.");
+
+        disposition.MapPost("/{id:guid}/reject", async (
+                Guid id,
+                RejectDispositionRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new RejectDispositionCommand(id, request.Reason), ct)).ToHttpResult())
+            .WithSummary("Reject a disposition pending review; Record returns to Expired.");
+
+        disposition.MapPost("/{id:guid}/destroy", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new DestroyDispositionCommand(id, request.Reason), ct);
+                return result.ToHttpResult(certificateId =>
+                    Results.Ok(new { certificateId }));
+            })
+            .WithSummary("Destroy an approved disposition after a fresh Legal Hold check; emits Certificate of Destruction.");
+
+        var certificates = endpoints.MapGroup("/api/v1/destruction-certificates")
+            .WithTags("Destruction Certificates")
+            .RequireAuthorization();
+
+        certificates.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDestructionCertificateQuery(id), ct)).ToHttpResult());
+
+        certificates.MapGet("/by-record/{recordId:guid}", async (Guid recordId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDestructionCertificateByRecordQuery(recordId), ct)).ToHttpResult());
     }
 
     private static string? NormalizeKey(string? key) =>

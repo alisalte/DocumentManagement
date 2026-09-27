@@ -34,6 +34,9 @@ public static class DocumentsModule
         services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
         services.AddScoped<ILegalHoldRepository, LegalHoldRepository>();
         services.AddScoped<ILegalHoldGuard, LegalHoldGuard>();
+        services.AddScoped<IDispositionRepository, DispositionRepository>();
+        services.AddScoped<IDestructionCertificateRepository, DestructionCertificateRepository>();
+        services.AddScoped<IDispositionReadModel, DispositionReadModel>();
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
@@ -89,6 +92,16 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<ReleaseLegalHoldCommand, Result>, ReleaseLegalHoldHandler>();
         services.AddScoped<IQueryHandler<ListRetentionPoliciesQuery, Result<IReadOnlyList<RetentionPolicyDto>>>, ListRetentionPoliciesHandler>();
         services.AddScoped<IQueryHandler<ListLegalHoldsQuery, Result<IReadOnlyList<LegalHoldDto>>>, ListLegalHoldsHandler>();
+
+        services.AddScoped<ICommandHandler<RequestDispositionCommand, Result<Guid>>, RequestDispositionHandler>();
+        services.AddScoped<ICommandHandler<ApproveDispositionCommand, Result>, ApproveDispositionHandler>();
+        services.AddScoped<ICommandHandler<RejectDispositionCommand, Result>, RejectDispositionHandler>();
+        services.AddScoped<ICommandHandler<DestroyDispositionCommand, Result<Guid>>, DestroyDispositionHandler>();
+        services.AddScoped<IQueryHandler<GetDispositionQuery, Result<DispositionDto>>, GetDispositionHandler>();
+        services.AddScoped<IQueryHandler<GetDispositionByRecordQuery, Result<DispositionDto>>, GetDispositionByRecordHandler>();
+        services.AddScoped<IQueryHandler<ListPendingDisposalQuery, Result<IReadOnlyList<PendingDisposalItemDto>>>, ListPendingDisposalHandler>();
+        services.AddScoped<IQueryHandler<GetDestructionCertificateQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateHandler>();
+        services.AddScoped<IQueryHandler<GetDestructionCertificateByRecordQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateByRecordHandler>();
 
         services.AddScoped<IJobHandler, RetentionAdvanceJob>();
         services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));

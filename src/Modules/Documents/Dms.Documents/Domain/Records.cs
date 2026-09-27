@@ -244,7 +244,11 @@ public sealed class ManagedRecord : AggregateRoot<RecordId>
 
     public string? RetentionExceptionReason { get; private set; }
 
-    public bool IsImmutable => Status != RecordStatus.Destroyed;
+    /// <summary>
+    /// Once declared, a Record never becomes mutable through document APIs — including after
+    /// destruction (restore/purge must not revive or erase the historical Record).
+    /// </summary>
+    public bool IsImmutable => true;
 
     public static Result<ManagedRecord> Declare(
         Document document,
@@ -390,6 +394,28 @@ public sealed class ManagedRecord : AggregateRoot<RecordId>
         return Result.Success();
     }
 
+    /// <summary>Marks the Record destroyed after an approved disposition completed content removal.</summary>
+    public Result MarkDestroyed(string? reason, UserId actor, DateTimeOffset now)
+    {
+        if (Status == RecordStatus.Destroyed)
+        {
+            return Result.Success();
+        }
+
+        if (Status != RecordStatus.PendingDisposal)
+        {
+            return Result.Failure(Error.Conflict(
+                "disposition.wrong_record_state",
+                "Only Records in PendingDisposal can be destroyed after disposition approval."));
+        }
+
+        Status = RecordStatus.Destroyed;
+        LastTransitionReason = string.IsNullOrWhiteSpace(reason) ? "Destroyed via disposition" : reason.Trim();
+        UpdatedBy = actor;
+        UpdatedAt = now;
+        return Result.Success();
+    }
+
     private static bool IsAllowedTransition(RecordStatus from, RecordStatus to) => (from, to) switch
     {
         (RecordStatus.Active, RecordStatus.UnderRetention) => true,
@@ -397,7 +423,7 @@ public sealed class ManagedRecord : AggregateRoot<RecordId>
         (RecordStatus.UnderRetention, RecordStatus.Expired) => true,
         (RecordStatus.Expired, RecordStatus.PendingDisposal) => true,
         (RecordStatus.PendingDisposal, RecordStatus.Expired) => true, // rejection of disposal review
-        (RecordStatus.PendingDisposal, RecordStatus.Destroyed) => true,
+        // Destroyed is only set via MarkDestroyed after an approved disposition.
         _ => false,
     };
 }

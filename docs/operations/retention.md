@@ -41,7 +41,8 @@ API:
 Enforced on:
 
 - `POST /documents/{id}/purge`
-- Record transition to `Destroyed`
+- Disposition request / approve / destroy (phase 10.4; re-checked immediately before destroy)
+- Record transition to `Destroyed` is refused outright (`disposition.required`)
 - (Record soft-delete/mutation already blocked by Record immutability)
 
 API:
@@ -54,8 +55,12 @@ Permissions: `ADMIN_MANAGE_LEGAL_HOLD` (system). Placement also allowed with `DO
 
 Audit: `LEGAL_HOLD_PLACED`, `LEGAL_HOLD_RELEASED`, `RETENTION_*`.
 
-## Still to build (10.4+)
+## Disposition (10.4)
 
-- Disposal review / approval / Certificate of Destruction
+See [disposition.md](disposition.md) for review → approve/reject → destroy → Certificate of
+Destruction. The retention worker still never destroys Records.
+
+## Still to build (10.5+)
+
 - Classification levels
 - Full import engine, SMTP, etc.

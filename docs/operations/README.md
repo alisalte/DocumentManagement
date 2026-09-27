@@ -9,6 +9,7 @@ operational go-live, plus the deferred platform seams named in architecture deci
 | Go-live runbook | [go-live.md](go-live.md) |
 | Release checklist | [release-checklist.md](release-checklist.md) |
 | Retention & legal hold (D12 / 10.2–10.3) | [retention.md](retention.md) · policies, worker, `legal_holds` |
+| Disposition & Certificate of Destruction (10.4) | [disposition.md](disposition.md) · review / destroy / COD |
 | Record management (10.1) | [records.md](records.md) · `documents.records` / classes / series |
 | Legacy import skeleton (D11) | [../legacy-import/](../legacy-import/) · `scripts/legacy-import.sh` |
 | Build / role identity | `GET /version` on the API host |
@@ -16,6 +17,6 @@ operational go-live, plus the deferred platform seams named in architecture deci
 
 ## Status
 
-**In progress.** Record management (10.1), retention policies + worker (10.2), and Legal Hold
-(10.3) are implemented. Disposition/destruction (10.4), classification, SMTP, full import, and
-go-live drill work remain.
+**In progress.** Record management (10.1), retention policies + worker (10.2), Legal Hold (10.3),
+and disposition / Certificate of Destruction (10.4) are implemented. Classification, SMTP, full
+import, and go-live drill work remain.
