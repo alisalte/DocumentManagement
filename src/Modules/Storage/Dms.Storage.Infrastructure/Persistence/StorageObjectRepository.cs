@@ -7,8 +7,10 @@ namespace Dms.Storage.Infrastructure.Persistence;
 
 public sealed class StorageObjectRepository(StorageDbContext context) : IStorageObjectRepository
 {
-    public Task<StorageObject?> FindAsync(StorageObjectId id, CancellationToken cancellationToken) =>
-        context.StorageObjects.FirstOrDefaultAsync(item => item.Id == id, cancellationToken);
+    public async Task<StorageObject?> FindAsync(StorageObjectId id, CancellationToken cancellationToken) =>
+        // FindAsync checks the identity map first so Register + Find in one transaction works
+        // (LINQ FirstOrDefault can miss Added entities with value-converted keys).
+        await context.StorageObjects.FindAsync([id], cancellationToken);
 
     public async Task<IReadOnlyList<StorageObject>> FindManyAsync(
         IReadOnlyCollection<StorageObjectId> ids,

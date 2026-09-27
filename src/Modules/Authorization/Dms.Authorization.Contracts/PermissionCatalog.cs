@@ -67,6 +67,10 @@ public static class PermissionCodes
     public const string DispositionApprove = "DISPOSITION_APPROVE";
     public const string DispositionDestroy = "DISPOSITION_DESTROY";
     public const string DispositionViewCertificate = "DISPOSITION_VIEW_CERTIFICATE";
+
+    public const string ImportManage = "IMPORT_MANAGE";
+    public const string ImportRun = "IMPORT_RUN";
+    public const string ImportView = "IMPORT_VIEW";
 }
 
 public static class PermissionCatalog
@@ -116,6 +120,10 @@ public static class PermissionCatalog
             new(PermissionCodes.DispositionApprove, PermissionScope.System, false, "Approve or reject a disposition review."),
             new(PermissionCodes.DispositionDestroy, PermissionScope.System, false, "Destroy a Record after approved disposition."),
             new(PermissionCodes.DispositionViewCertificate, PermissionScope.System, false, "View Certificates of Destruction."),
+
+            new(PermissionCodes.ImportManage, PermissionScope.System, false, "Create and configure legacy import jobs and mappings."),
+            new(PermissionCodes.ImportRun, PermissionScope.System, false, "Validate, start, pause, resume and retry import jobs."),
+            new(PermissionCodes.ImportView, PermissionScope.System, false, "View import jobs, items and reports."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

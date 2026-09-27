@@ -91,12 +91,27 @@ public static class DocumentEndpoints
 
     public sealed record RejectDispositionRequest(string Reason);
 
+    public sealed record CreateImportJobRequest(
+        string Name,
+        string? SourceSystem,
+        string ManifestJson,
+        string? FilesRoot,
+        string? FailurePolicy,
+        bool CreateMissingCategories = false,
+        bool DryRunOnly = false,
+        IReadOnlyList<ImportMappingRequest>? Mappings = null);
+
+    public sealed record ImportMappingRequest(string Kind, string SourceKey, string TargetKey);
+
+    public sealed record CreateClassificationLevelRequest(string Code, string Name, int Rank);
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         MapUploads(endpoints);
         MapDocuments(endpoints);
         MapRecords(endpoints);
         MapCategories(endpoints);
+        MapImports(endpoints);
         return endpoints;
     }
 
@@ -721,6 +736,92 @@ public static class DocumentEndpoints
 
         certificates.MapGet("/by-record/{recordId:guid}", async (Guid recordId, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.QueryAsync(new GetDestructionCertificateByRecordQuery(recordId), ct)).ToHttpResult());
+    }
+
+    private static void MapImports(IEndpointRouteBuilder endpoints)
+    {
+        var imports = endpoints.MapGroup("/api/v1/imports")
+            .WithTags("Legacy Import")
+            .RequireAuthorization();
+
+        imports.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListImportJobsQuery(), ct)).ToHttpResult())
+            .WithSummary("List recent legacy import jobs.");
+
+        imports.MapPost("", async (CreateImportJobRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var mappings = request.Mappings?
+                    .Select(mapping => new ImportMappingInput(mapping.Kind, mapping.SourceKey, mapping.TargetKey))
+                    .ToList();
+                var result = await dispatcher.SendAsync(
+                    new CreateImportJobCommand(
+                        request.Name,
+                        request.SourceSystem ?? string.Empty,
+                        request.ManifestJson,
+                        request.FilesRoot,
+                        request.FailurePolicy ?? "ContinueOnError",
+                        request.CreateMissingCategories,
+                        request.DryRunOnly,
+                        mappings),
+                    ct);
+                return result.ToHttpResult(id => Results.Created($"/api/v1/imports/{id}", new { id }));
+            })
+            .WithSummary("Create an import job from a legacy manifest (does not modify documents until start).");
+
+        imports.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetImportJobQuery(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/validate", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new ValidateImportJobCommand(id), ct)).ToHttpResult())
+            .WithSummary("Dry-run validation: files, mappings, hashes. No document/storage mutations.");
+
+        imports.MapPost("/{id:guid}/start", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new StartImportJobCommand(id), ct)).ToHttpResult())
+            .WithSummary("Start importing validated items via the background job worker.");
+
+        imports.MapPost("/{id:guid}/pause", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new PauseImportJobCommand(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/resume", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new ResumeImportJobCommand(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/retry-failed", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new RetryFailedImportCommand(id), ct)).ToHttpResult());
+
+        imports.MapGet("/{id:guid}/items", async (
+                Guid id,
+                string? status,
+                int? skip,
+                int? take,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.QueryAsync(
+                new ListImportItemsQuery(id, status, skip ?? 0, take ?? 100),
+                ct)).ToHttpResult());
+
+        imports.MapGet("/{id:guid}/report", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new GetImportReportCommand(id), ct)).ToHttpResult())
+            .WithSummary("Machine-readable import report (restricted; access is audited).");
+
+        var classification = endpoints.MapGroup("/api/v1/admin/classification-levels")
+            .WithTags("Administration: classification")
+            .RequireAuthorization()
+            .RequireSystemPermission(PermissionCodes.AdminManageRecords);
+
+        classification.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new ListClassificationLevelsQuery(), ct)).ToHttpResult());
+
+        classification.MapPost("", async (
+                CreateClassificationLevelRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(
+                    new CreateClassificationLevelCommand(request.Code, request.Name, request.Rank),
+                    ct);
+                return result.ToHttpResult(levelId =>
+                    Results.Created($"/api/v1/admin/classification-levels/{levelId}", new { id = levelId }));
+            });
     }
 
     private static string? NormalizeKey(string? key) =>

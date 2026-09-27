@@ -400,6 +400,9 @@ public sealed class DocumentTypeCatalog(
     public async Task<DocumentTypeSummary?> FindAsync(DocumentTypeId id, CancellationToken cancellationToken) =>
         (await repository.FindAsync(id, cancellationToken))?.ToSummary();
 
+    public async Task<DocumentTypeSummary?> FindByCodeAsync(string code, CancellationToken cancellationToken) =>
+        (await repository.FindByCodeAsync(code.Trim().ToUpperInvariant(), cancellationToken))?.ToSummary();
+
     public async Task<Result<DocumentTypeVersionId>> ResolveVersionForNewDocumentAsync(
         DocumentTypeId id,
         CancellationToken cancellationToken)

@@ -37,6 +37,15 @@ public static class DocumentsModule
         services.AddScoped<IDispositionRepository, DispositionRepository>();
         services.AddScoped<IDestructionCertificateRepository, DestructionCertificateRepository>();
         services.AddScoped<IDispositionReadModel, DispositionReadModel>();
+        services.AddScoped<IImportJobRepository, ImportJobRepository>();
+        services.AddScoped<IImportItemRepository, ImportItemRepository>();
+        services.AddScoped<IImportMappingRepository, ImportMappingRepository>();
+        services.AddScoped<IImportSourceIndexRepository, ImportSourceIndexRepository>();
+        services.AddScoped<IClassificationLevelRepository, ClassificationLevelRepository>();
+        services.AddScoped<IClassificationCatalog, ClassificationCatalogService>();
+        services.AddScoped<ImportValidator>();
+        services.AddScoped<ImportItemImporter>();
+        services.AddOptions<ImportOptions>().BindConfiguration(ImportOptions.SectionName);
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
@@ -103,7 +112,21 @@ public static class DocumentsModule
         services.AddScoped<IQueryHandler<GetDestructionCertificateQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateHandler>();
         services.AddScoped<IQueryHandler<GetDestructionCertificateByRecordQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateByRecordHandler>();
 
+        services.AddScoped<ICommandHandler<CreateImportJobCommand, Result<Guid>>, CreateImportJobHandler>();
+        services.AddScoped<ICommandHandler<ValidateImportJobCommand, Result<ImportValidationReportDto>>, ValidateImportJobHandler>();
+        services.AddScoped<ICommandHandler<StartImportJobCommand, Result>, StartImportJobHandler>();
+        services.AddScoped<ICommandHandler<PauseImportJobCommand, Result>, PauseImportJobHandler>();
+        services.AddScoped<ICommandHandler<ResumeImportJobCommand, Result>, ResumeImportJobHandler>();
+        services.AddScoped<ICommandHandler<RetryFailedImportCommand, Result>, RetryFailedImportHandler>();
+        services.AddScoped<IQueryHandler<ListImportJobsQuery, Result<IReadOnlyList<ImportJobDto>>>, ListImportJobsHandler>();
+        services.AddScoped<IQueryHandler<GetImportJobQuery, Result<ImportJobDto>>, GetImportJobHandler>();
+        services.AddScoped<IQueryHandler<ListImportItemsQuery, Result<IReadOnlyList<ImportItemDto>>>, ListImportItemsHandler>();
+        services.AddScoped<ICommandHandler<GetImportReportCommand, Result<ImportReportDto>>, GetImportReportHandler>();
+        services.AddScoped<ICommandHandler<CreateClassificationLevelCommand, Result<Guid>>, CreateClassificationLevelHandler>();
+        services.AddScoped<IQueryHandler<ListClassificationLevelsQuery, Result<IReadOnlyList<ClassificationLevelInfo>>>, ListClassificationLevelsHandler>();
+
         services.AddScoped<IJobHandler, RetentionAdvanceJob>();
+        services.AddScoped<IJobHandler, ImportRunJob>();
         services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);

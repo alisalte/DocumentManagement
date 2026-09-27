@@ -99,6 +99,19 @@ public static class AuditActions
     public const string RecordDestroyed = "RECORD_DESTROYED";
     public const string CertificateCreated = "CERTIFICATE_CREATED";
 
+    public const string ImportCreated = "IMPORT_CREATED";
+    public const string ImportValidationStarted = "IMPORT_VALIDATION_STARTED";
+    public const string ImportValidationCompleted = "IMPORT_VALIDATION_COMPLETED";
+    public const string ImportStarted = "IMPORT_STARTED";
+    public const string ImportItemImported = "IMPORT_ITEM_IMPORTED";
+    public const string ImportItemSkipped = "IMPORT_ITEM_SKIPPED";
+    public const string ImportItemFailed = "IMPORT_ITEM_FAILED";
+    public const string ImportCompleted = "IMPORT_COMPLETED";
+    public const string ImportCompletedWithErrors = "IMPORT_COMPLETED_WITH_ERRORS";
+    public const string ImportFailed = "IMPORT_FAILED";
+    public const string ImportResumed = "IMPORT_RESUMED";
+    public const string ImportReportAccessed = "IMPORT_REPORT_ACCESSED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 

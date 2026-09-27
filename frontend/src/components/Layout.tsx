@@ -7,6 +7,7 @@ import { t } from '../strings';
 import { a as audit } from '../pages/admin/auditStrings';
 import { d as directory } from '../pages/admin/directoryStrings';
 import { d as disposition } from '../pages/admin/dispositionStrings';
+import { i as importStrings } from '../pages/admin/importStrings';
 import { CategoryTree } from './CategoryTree';
 import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
@@ -60,6 +61,11 @@ export function Layout({ children }: { children: ReactNode }) {
         has('DISPOSITION_DESTROY') ||
         has('DISPOSITION_VIEW_CERTIFICATE') ||
         has('ADMIN_MANAGE_RECORDS'),
+    },
+    {
+      to: '/admin/imports',
+      label: importStrings.menu,
+      allowed: has('IMPORT_VIEW') || has('IMPORT_RUN') || has('IMPORT_MANAGE'),
     },
   ].filter((link) => link.allowed);
   const [adminMenu, setAdminMenu] = useState<HTMLElement | null>(null);

@@ -762,6 +762,79 @@ export interface DestructionCertificate {
   createdAt: string;
 }
 
+export interface ImportJob {
+  id: string;
+  sourceSystem: string;
+  name: string;
+  status: string;
+  failurePolicy: string;
+  createMissingCategories: boolean;
+  dryRunOnly: boolean;
+  totalItems: number;
+  processedItems: number;
+  succeededItems: number;
+  failedItems: number;
+  skippedItems: number;
+  invalidItems: number;
+  bytesProcessed: number;
+  bytesTotal: number;
+  lastError: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ImportItem {
+  id: string;
+  importJobId: string;
+  sourceId: string;
+  sourcePath: string;
+  title: string | null;
+  status: string;
+  errorCode: string | null;
+  errorMessage: string | null;
+  expectedSha256: string | null;
+  actualSha256: string | null;
+  expectedSize: number | null;
+  actualSize: number | null;
+  targetDocumentId: string | null;
+  targetRecordId: string | null;
+  targetVersionId: string | null;
+  retryCount: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ImportValidationReport {
+  jobId: string;
+  status: string;
+  total: number;
+  valid: number;
+  invalid: number;
+  warnings: number;
+  issues: { severity: string; code: string; message: string; sourceId: string | null; path: string | null }[];
+}
+
+export interface ImportReport {
+  importId: string;
+  sourceSystem: string;
+  name: string;
+  status: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  invalid: number;
+  bytesProcessed: number;
+  bytesTotal: number;
+  errors: ImportItem[];
+}
+
 export interface SealStatus {
   sealCount: number;
   firstSealedFrom: string | null;
@@ -1349,6 +1422,29 @@ export const api = {
     certificate: (id: string) => request<DestructionCertificate>(`/api/v1/destruction-certificates/${id}`),
     certificateByRecord: (recordId: string) =>
       request<DestructionCertificate>(`/api/v1/destruction-certificates/by-record/${recordId}`),
+  },
+
+  imports: {
+    list: () => request<ImportJob[]>('/api/v1/imports'),
+    get: (id: string) => request<ImportJob>(`/api/v1/imports/${id}`),
+    create: (body: {
+      name: string;
+      sourceSystem: string;
+      manifestJson: string;
+      filesRoot?: string | null;
+      failurePolicy: string;
+      createMissingCategories: boolean;
+      dryRunOnly: boolean;
+      mappings?: { kind: string; sourceKey: string; targetKey: string }[];
+    }) => request<{ id: string }>('/api/v1/imports', { method: 'POST', body: JSON.stringify(body) }),
+    validate: (id: string) => request<ImportValidationReport>(`/api/v1/imports/${id}/validate`, { method: 'POST' }),
+    start: (id: string) => request<void>(`/api/v1/imports/${id}/start`, { method: 'POST' }),
+    pause: (id: string) => request<void>(`/api/v1/imports/${id}/pause`, { method: 'POST' }),
+    resume: (id: string) => request<void>(`/api/v1/imports/${id}/resume`, { method: 'POST' }),
+    retryFailed: (id: string) => request<void>(`/api/v1/imports/${id}/retry-failed`, { method: 'POST' }),
+    items: (id: string, status?: string | null, skip = 0, take = 100) =>
+      request<ImportItem[]>(`/api/v1/imports/${id}/items${query({ status, skip, take })}`),
+    report: (id: string) => request<ImportReport>(`/api/v1/imports/${id}/report`),
   },
 
   isSignedIn: () => accessToken !== null,

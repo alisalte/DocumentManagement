@@ -39,6 +39,18 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<DestructionCertificate> DestructionCertificates => Set<DestructionCertificate>();
 
+    public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+
+    public DbSet<ImportItem> ImportItems => Set<ImportItem>();
+
+    public DbSet<ImportMapping> ImportMappings => Set<ImportMapping>();
+
+    public DbSet<ImportSourceIndex> ImportSourceIndexes => Set<ImportSourceIndex>();
+
+    public DbSet<ClassificationLevel> ClassificationLevels => Set<ClassificationLevel>();
+
+    public DbSet<DocumentClassification> DocumentClassifications => Set<DocumentClassification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -515,6 +527,189 @@ public sealed class DocumentsDbContext : DbContext
                 .HasDatabaseName("ux_destruction_certificates_record");
             entity.HasIndex(item => item.CertificateNumber).IsUnique()
                 .HasDatabaseName("ux_destruction_certificates_number");
+        });
+
+        modelBuilder.Entity<ImportJob>(entity =>
+        {
+            entity.ToTable("import_jobs", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_import_jobs_status",
+                    "status IN ('Created','Validating','ValidationFailed','Ready','Running','Paused','Completed','CompletedWithErrors','Failed')");
+                table.HasCheckConstraint(
+                    "ck_import_jobs_failure_policy",
+                    "failure_policy IN ('ContinueOnError','StopOnError')");
+            });
+            entity.HasKey(job => job.Id);
+            entity.Property(job => job.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(job => job.SourceSystem).HasColumnName("source_system").HasMaxLength(128).IsRequired();
+            entity.Property(job => job.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(job => job.FilesRoot).HasColumnName("files_root").HasMaxLength(1000);
+            entity.Property(job => job.ManifestSha256).HasColumnName("manifest_sha256").HasMaxLength(64).IsRequired();
+            entity.Property(job => job.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(job => job.FailurePolicy).HasColumnName("failure_policy")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(job => job.CreateMissingCategories).HasColumnName("create_missing_categories");
+            entity.Property(job => job.DryRunOnly).HasColumnName("dry_run_only");
+            entity.Property(job => job.TotalItems).HasColumnName("total_items");
+            entity.Property(job => job.ProcessedItems).HasColumnName("processed_items");
+            entity.Property(job => job.SucceededItems).HasColumnName("succeeded_items");
+            entity.Property(job => job.FailedItems).HasColumnName("failed_items");
+            entity.Property(job => job.SkippedItems).HasColumnName("skipped_items");
+            entity.Property(job => job.InvalidItems).HasColumnName("invalid_items");
+            entity.Property(job => job.BytesProcessed).HasColumnName("bytes_processed");
+            entity.Property(job => job.BytesTotal).HasColumnName("bytes_total");
+            entity.Property(job => job.LastError).HasColumnName("last_error").HasMaxLength(2000);
+            entity.Property(job => job.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(job => job.CreatedAt).HasColumnName("created_at");
+            entity.Property(job => job.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(job => job.StartedAt).HasColumnName("started_at");
+            entity.Property(job => job.CompletedAt).HasColumnName("completed_at");
+            entity.Property(job => job.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasIndex(job => job.Status).HasDatabaseName("ix_import_jobs_status");
+            entity.HasIndex(job => job.CreatedAt).HasDatabaseName("ix_import_jobs_created_at");
+            entity.HasIndex(job => new { job.SourceSystem, job.CreatedAt })
+                .HasDatabaseName("ix_import_jobs_source_created");
+        });
+
+        modelBuilder.Entity<ImportItem>(entity =>
+        {
+            entity.ToTable("import_items", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_import_items_status",
+                    "status IN ('Pending','Valid','Invalid','Ready','Running','Succeeded','Failed','Skipped','Retryable')");
+            });
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ImportItemId(value));
+            entity.Property(item => item.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(item => item.SourceId).HasColumnName("source_id").HasMaxLength(256).IsRequired();
+            entity.Property(item => item.SourcePath).HasColumnName("source_path").HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.Title).HasColumnName("title").HasMaxLength(500);
+            entity.Property(item => item.EntryJson).HasColumnName("entry_json").HasColumnType("jsonb").IsRequired();
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.ErrorCode).HasColumnName("error_code").HasMaxLength(128);
+            entity.Property(item => item.ErrorMessage).HasColumnName("error_message").HasMaxLength(2000);
+            entity.Property(item => item.ExpectedSha256).HasColumnName("expected_sha256").HasMaxLength(64);
+            entity.Property(item => item.ActualSha256).HasColumnName("actual_sha256").HasMaxLength(64);
+            entity.Property(item => item.ExpectedSize).HasColumnName("expected_size");
+            entity.Property(item => item.ActualSize).HasColumnName("actual_size");
+            entity.Property(item => item.TargetDocumentId).HasColumnName("target_document_id")
+                .HasConversion(id => id!.Value.Value, value => new DocumentId(value));
+            entity.Property(item => item.TargetRecordId).HasColumnName("target_record_id")
+                .HasConversion(id => id!.Value.Value, value => new RecordId(value));
+            entity.Property(item => item.TargetVersionId).HasColumnName("target_version_id")
+                .HasConversion(id => id!.Value.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.RetryCount).HasColumnName("retry_count");
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.StartedAt).HasColumnName("started_at");
+            entity.Property(item => item.CompletedAt).HasColumnName("completed_at");
+            entity.Property(item => item.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<ImportJob>().WithMany()
+                .HasForeignKey(item => item.ImportJobId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_import_items_job");
+
+            entity.HasIndex(item => new { item.ImportJobId, item.SourceId })
+                .IsUnique().HasDatabaseName("ux_import_items_job_source");
+            entity.HasIndex(item => new { item.ImportJobId, item.Status })
+                .HasDatabaseName("ix_import_items_job_status");
+            entity.HasIndex(item => item.Status)
+                .HasFilter("status IN ('Ready','Retryable','Running')")
+                .HasDatabaseName("ix_import_items_claimable");
+        });
+
+        modelBuilder.Entity<ImportMapping>(entity =>
+        {
+            entity.ToTable("import_mappings");
+            entity.HasKey(mapping => mapping.Id);
+            entity.Property(mapping => mapping.Id).HasColumnName("id");
+            entity.Property(mapping => mapping.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id!.Value.Value, value => new ImportJobId(value));
+            entity.Property(mapping => mapping.SourceSystem).HasColumnName("source_system").HasMaxLength(128).IsRequired();
+            entity.Property(mapping => mapping.Kind).HasColumnName("kind")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(mapping => mapping.SourceKey).HasColumnName("source_key").HasMaxLength(256).IsRequired();
+            entity.Property(mapping => mapping.TargetKey).HasColumnName("target_key").HasMaxLength(256).IsRequired();
+            entity.Property(mapping => mapping.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(mapping => mapping.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne<ImportJob>().WithMany()
+                .HasForeignKey(mapping => mapping.ImportJobId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_import_mappings_job");
+
+            entity.HasIndex(mapping => new { mapping.SourceSystem, mapping.ImportJobId, mapping.Kind, mapping.SourceKey })
+                .IsUnique()
+                .AreNullsDistinct(false)
+                .HasDatabaseName("ux_import_mappings_lookup");
+        });
+
+        modelBuilder.Entity<ImportSourceIndex>(entity =>
+        {
+            entity.ToTable("import_source_index");
+            entity.HasKey(row => new { row.SourceSystem, row.SourceId });
+            entity.Property(row => row.SourceSystem).HasColumnName("source_system").HasMaxLength(128);
+            entity.Property(row => row.SourceId).HasColumnName("source_id").HasMaxLength(256);
+            entity.Property(row => row.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(row => row.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(row => row.ImportItemId).HasColumnName("import_item_id")
+                .HasConversion(id => id.Value, value => new ImportItemId(value));
+            entity.Property(row => row.ImportedAt).HasColumnName("imported_at");
+
+            entity.HasIndex(row => row.DocumentId).HasDatabaseName("ix_import_source_index_document");
+        });
+
+        modelBuilder.Entity<ClassificationLevel>(entity =>
+        {
+            entity.ToTable("classification_levels");
+            entity.HasKey(level => level.Id);
+            entity.Property(level => level.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ClassificationLevelId(value));
+            entity.Property(level => level.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(level => level.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(level => level.Rank).HasColumnName("rank");
+            entity.Property(level => level.IsActive).HasColumnName("is_active");
+            entity.Property(level => level.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(level => level.CreatedAt).HasColumnName("created_at");
+            entity.Property(level => level.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(level => level.Code).IsUnique().HasDatabaseName("ux_classification_levels_code");
+        });
+
+        modelBuilder.Entity<DocumentClassification>(entity =>
+        {
+            entity.ToTable("document_classifications");
+            entity.HasKey(row => row.DocumentId);
+            entity.Property(row => row.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(row => row.LevelId).HasColumnName("level_id")
+                .HasConversion(id => id.Value, value => new ClassificationLevelId(value));
+            entity.Property(row => row.AssignedBy).HasColumnName("assigned_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(row => row.AssignedAt).HasColumnName("assigned_at");
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(row => row.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_document_classifications_document");
+            entity.HasOne<ClassificationLevel>().WithMany()
+                .HasForeignKey(row => row.LevelId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_document_classifications_level");
+            entity.HasIndex(row => row.LevelId).HasDatabaseName("ix_document_classifications_level");
         });
     }
 }
