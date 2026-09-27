@@ -41,8 +41,11 @@ public sealed class ManagedRecordTests
         record.TransitionTo(RecordStatus.UnderRetention, "start", Actor, Now).IsSuccess.ShouldBeTrue();
         record.TransitionTo(RecordStatus.Expired, "elapsed", Actor, Now).IsSuccess.ShouldBeTrue();
         record.TransitionTo(RecordStatus.PendingDisposal, "review", Actor, Now).IsSuccess.ShouldBeTrue();
-        record.TransitionTo(RecordStatus.Destroyed, "approved", Actor, Now).IsSuccess.ShouldBeTrue();
-        record.IsImmutable.ShouldBeFalse();
+        // Destroyed is only set via MarkDestroyed after approved disposition (phase 10.4).
+        record.TransitionTo(RecordStatus.Destroyed, "approved", Actor, Now).IsFailure.ShouldBeTrue();
+        record.MarkDestroyed("disposition", Actor, Now).IsSuccess.ShouldBeTrue();
+        record.Status.ShouldBe(RecordStatus.Destroyed);
+        record.IsImmutable.ShouldBeTrue();
 
         var again = ManagedRecord.Declare(document, version.Id, RecordClassId.New(), null, Actor, Now).Value;
         var skipped = again.TransitionTo(RecordStatus.Destroyed, "skip", Actor, Now);
