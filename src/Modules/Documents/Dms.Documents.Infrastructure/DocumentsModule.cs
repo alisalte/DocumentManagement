@@ -31,6 +31,9 @@ public static class DocumentsModule
         services.AddScoped<IRecordRepository, RecordRepository>();
         services.AddScoped<IRecordReadModel, RecordReadModel>();
         services.AddScoped<IRecordImmutabilityGuard, RecordImmutabilityGuard>();
+        services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
+        services.AddScoped<ILegalHoldRepository, LegalHoldRepository>();
+        services.AddScoped<ILegalHoldGuard, LegalHoldGuard>();
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
@@ -76,6 +79,19 @@ public static class DocumentsModule
         services.AddScoped<IQueryHandler<GetRecordQuery, Result<RecordSummaryDto>>, GetRecordHandler>();
         services.AddScoped<IQueryHandler<ListRecordClassesQuery, Result<IReadOnlyList<RecordClassDto>>>, ListRecordClassesHandler>();
         services.AddScoped<IQueryHandler<ListRecordSeriesQuery, Result<IReadOnlyList<RecordSeriesDto>>>, ListRecordSeriesHandler>();
+
+        services.AddScoped<ICommandHandler<CreateRetentionPolicyCommand, Result<Guid>>, CreateRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<UpdateRetentionPolicyCommand, Result>, UpdateRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<AssignRetentionPolicyCommand, Result>, AssignRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<SetRetentionExceptionCommand, Result>, SetRetentionExceptionHandler>();
+        services.AddScoped<ICommandHandler<ClearRetentionExceptionCommand, Result>, ClearRetentionExceptionHandler>();
+        services.AddScoped<ICommandHandler<PlaceLegalHoldCommand, Result<Guid>>, PlaceLegalHoldHandler>();
+        services.AddScoped<ICommandHandler<ReleaseLegalHoldCommand, Result>, ReleaseLegalHoldHandler>();
+        services.AddScoped<IQueryHandler<ListRetentionPoliciesQuery, Result<IReadOnlyList<RetentionPolicyDto>>>, ListRetentionPoliciesHandler>();
+        services.AddScoped<IQueryHandler<ListLegalHoldsQuery, Result<IReadOnlyList<LegalHoldDto>>>, ListLegalHoldsHandler>();
+
+        services.AddScoped<IJobHandler, RetentionAdvanceJob>();
+        services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
         services.AddScoped<PreviewService>();

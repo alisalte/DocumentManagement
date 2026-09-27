@@ -1,13 +1,15 @@
+using Dms.Documents.Contracts;
 using Dms.SharedKernel;
 
 namespace Dms.Documents.Application;
 
-/// <summary>
-/// Phase 10 (D12): purge wait after soft-delete, driven by document-type settings.
-/// Legal-hold on individual documents attaches here next.
-/// </summary>
+/// <summary>Phase 10 (D12 + 10.2/10.3): purge waits, retention, and legal hold.</summary>
 public static class RetentionGate
 {
+    public static readonly Error OnLegalHold = Error.Conflict(
+        "purge.legal_hold",
+        "This document is under Legal Hold and cannot be purged or destroyed.");
+
     public static Result EnsurePurgeAllowed(
         DateTimeOffset? deletedAt,
         int? retentionDaysAfterDelete,
@@ -28,4 +30,7 @@ public static class RetentionGate
 
         return Result.Success();
     }
+
+    public static Result EnsureNotOnHold(bool onHold) =>
+        onHold ? Result.Failure(OnLegalHold) : Result.Success();
 }

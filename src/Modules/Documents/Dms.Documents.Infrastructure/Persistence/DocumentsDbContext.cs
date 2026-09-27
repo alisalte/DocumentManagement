@@ -31,6 +31,10 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<ManagedRecord> Records => Set<ManagedRecord>();
 
+    public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+
+    public DbSet<LegalHold> LegalHolds => Set<LegalHold>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -305,6 +309,16 @@ public sealed class DocumentsDbContext : DbContext
                 .HasConversion(id => id.Value, value => new UserId(value));
             entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
             entity.Property(item => item.LastTransitionReason).HasColumnName("last_transition_reason").HasMaxLength(1000);
+            entity.Property(item => item.RetentionPolicyId).HasColumnName("retention_policy_id")
+                .HasConversion(id => id!.Value.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.RetentionPolicyVersion).HasColumnName("retention_policy_version");
+            entity.Property(item => item.RetentionPeriodDays).HasColumnName("retention_period_days");
+            entity.Property(item => item.RetentionStartEvent).HasColumnName("retention_start_event")
+                .HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.RetentionStartedAt).HasColumnName("retention_started_at");
+            entity.Property(item => item.RetentionExpiresAt).HasColumnName("retention_expires_at");
+            entity.Property(item => item.RetentionExceptionReason).HasColumnName("retention_exception_reason")
+                .HasMaxLength(2000);
 
             entity.HasOne<Document>().WithMany()
                 .HasForeignKey(item => item.DocumentId)
@@ -322,10 +336,70 @@ public sealed class DocumentsDbContext : DbContext
                 .HasForeignKey(item => item.RecordSeriesId)
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_records_series");
+            entity.HasOne<RetentionPolicy>().WithMany()
+                .HasForeignKey(item => item.RetentionPolicyId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_retention_policy");
 
             entity.HasIndex(item => item.DocumentId).IsUnique().HasDatabaseName("ux_records_document");
             entity.HasIndex(item => item.Status).HasDatabaseName("ix_records_status");
             entity.HasIndex(item => item.RecordClassId).HasDatabaseName("ix_records_class");
+            entity.HasIndex(item => item.RetentionExpiresAt)
+                .HasFilter("retention_expires_at IS NOT NULL")
+                .HasDatabaseName("ix_records_retention_expires");
+        });
+
+        modelBuilder.Entity<RetentionPolicy>(entity =>
+        {
+            entity.ToTable("retention_policies", table =>
+            {
+                table.HasCheckConstraint("ck_retention_policies_days", "retention_period_days > 0");
+                table.HasCheckConstraint("ck_retention_policies_version", "version_number > 0");
+            });
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.RetentionPeriodDays).HasColumnName("retention_period_days");
+            entity.Property(item => item.StartEvent).HasColumnName("start_event")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.VersionNumber).HasColumnName("version_number");
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(item => item.Code).IsUnique().HasDatabaseName("ux_retention_policies_code");
+        });
+
+        modelBuilder.Entity<LegalHold>(entity =>
+        {
+            entity.ToTable("legal_holds");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new LegalHoldId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.Reason).HasColumnName("reason").HasMaxLength(2000).IsRequired();
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.ReleasedAt).HasColumnName("released_at");
+            entity.Property(item => item.ReleasedBy).HasColumnName("released_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ReleaseReason).HasColumnName("release_reason").HasMaxLength(2000);
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_legal_holds_document");
+
+            entity.HasIndex(item => item.DocumentId).HasDatabaseName("ix_legal_holds_document");
+            entity.HasIndex(item => new { item.DocumentId, item.ReleasedAt })
+                .HasFilter("released_at IS NULL")
+                .HasDatabaseName("ix_legal_holds_active");
         });
     }
 }

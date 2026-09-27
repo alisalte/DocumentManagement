@@ -61,6 +61,7 @@ public static class PermissionCodes
     public const string AdminManageSearch = "ADMIN_MANAGE_SEARCH";
     public const string RecordDeclare = "RECORD_DECLARE";
     public const string AdminManageRecords = "ADMIN_MANAGE_RECORDS";
+    public const string AdminManageLegalHold = "ADMIN_MANAGE_LEGAL_HOLD";
 }
 
 public static class PermissionCatalog
@@ -104,6 +105,7 @@ public static class PermissionCatalog
             new(PermissionCodes.AdminManageSearch, PermissionScope.System, false, "See indexing status and rebuild the search index."),
             new(PermissionCodes.RecordDeclare, PermissionScope.Resource, true, "Declare a document as an immutable Record."),
             new(PermissionCodes.AdminManageRecords, PermissionScope.System, false, "Manage record classes, series and lifecycle transitions."),
+            new(PermissionCodes.AdminManageLegalHold, PermissionScope.System, false, "Place and release Legal Holds."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

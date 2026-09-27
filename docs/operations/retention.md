@@ -1,28 +1,61 @@
-# Retention and legal hold (D12)
+# Retention and legal hold (D12 / phases 10.2–10.3)
 
-Architecture decision **D12** deferred full retention. Phase 10 attaches the first seam where
-the plan said it would land: **document type settings** and the **purge path**.
+## Soft-delete purge wait (opening seam)
 
-## Settings (shipped)
-
-On `DocumentTypeSettings` (JSONB, no schema migration):
+On `DocumentTypeSettings` (JSONB):
 
 | Field | Meaning |
 |---|---|
-| `retentionDaysAfterDelete` | After soft-delete, purge is refused until this many days have passed. `null` or `≤ 0` = no wait. |
-| `supportsLegalHold` | Type may participate in legal hold. Document-level hold (column + API) is the next increment. |
+| `retentionDaysAfterDelete` | After soft-delete, purge is refused until this many days have passed. |
+| `supportsLegalHold` | Type may receive Legal Holds. |
 
-Admins edit both on the document-type settings screen.
+## Record retention policies (10.2)
 
-## Purge behaviour
+| Entity | Role |
+|---|---|
+| `documents.retention_policies` | Versioned policy (`code`, days, start event, `version_number`) |
+| Record columns | Snapshot of policy version, start/expiry timestamps, optional exception reason |
 
-`PurgeDocumentHandler` loads the type via `IDocumentTypeCatalog`. If
-`retentionDaysAfterDelete` is set and `now < deletedAt + days`, the command fails with
-`purge.retention` and the files stay.
+Start events: `Declaration` (default) or `DocumentCreated`.
 
-## Still to build
+Lifecycle for Records with a policy:
 
-- `documents.documents.legal_hold` (or equivalent) + grant/release commands + audit actions
-- Refuse purge (and optionally soft-delete) while hold is active, regardless of retention days
-- Scheduled job that proposes purge candidates past retention (never auto-purges without an actor)
-- Legal-hold reports for counsel
+`Active` → `UnderRetention` (on assign) → `Expired` → `PendingDisposal`
+
+Worker job `documents.retention-advance` (hourly) advances clocks. It **never destroys** Records.
+Retention exceptions pause the clock (`RETENTION_EXCEPTION_SET` / `CLEARED`).
+
+API:
+
+- `POST/PUT /api/v1/admin/records/retention-policies`
+- `POST /api/v1/records/{id}/retention`
+- `POST/DELETE /api/v1/records/{id}/retention-exception`
+
+## Legal Hold (10.3)
+
+| Entity | Role |
+|---|---|
+| `documents.legal_holds` | Stackable holds on a Document (reason, created, release history) |
+
+**Critical rule:** a Document/Record under an active Legal Hold **cannot** be purged or destroyed.
+Enforced on:
+
+- `POST /documents/{id}/purge`
+- Record transition to `Destroyed`
+- (Record soft-delete/mutation already blocked by Record immutability)
+
+API:
+
+- `POST /api/v1/legal-holds`
+- `POST /api/v1/legal-holds/{id}/release` (requires `ADMIN_MANAGE_LEGAL_HOLD`)
+- `GET /api/v1/legal-holds/by-document/{documentId}`
+
+Permissions: `ADMIN_MANAGE_LEGAL_HOLD` (system). Placement also allowed with `DOCUMENT_MANAGE_PERMISSION` on the document.
+
+Audit: `LEGAL_HOLD_PLACED`, `LEGAL_HOLD_RELEASED`, `RETENTION_*`.
+
+## Still to build (10.4+)
+
+- Disposal review / approval / Certificate of Destruction
+- Classification levels
+- Full import engine, SMTP, etc.

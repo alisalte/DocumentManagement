@@ -230,6 +230,20 @@ public sealed class ManagedRecord : AggregateRoot<RecordId>
 
     public string? LastTransitionReason { get; private set; }
 
+    public RetentionPolicyId? RetentionPolicyId { get; private set; }
+
+    public int? RetentionPolicyVersion { get; private set; }
+
+    public int? RetentionPeriodDays { get; private set; }
+
+    public RetentionStartEvent? RetentionStartEvent { get; private set; }
+
+    public DateTimeOffset? RetentionStartedAt { get; private set; }
+
+    public DateTimeOffset? RetentionExpiresAt { get; private set; }
+
+    public string? RetentionExceptionReason { get; private set; }
+
     public bool IsImmutable => Status != RecordStatus.Destroyed;
 
     public static Result<ManagedRecord> Declare(
@@ -284,6 +298,95 @@ public sealed class ManagedRecord : AggregateRoot<RecordId>
         LastTransitionReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         UpdatedBy = actor;
         UpdatedAt = now;
+        return Result.Success();
+    }
+
+    public Result ApplyRetentionPolicy(
+        RetentionPolicy policy,
+        DateTimeOffset documentCreatedAt,
+        UserId actor,
+        DateTimeOffset now)
+    {
+        if (Status is RecordStatus.Destroyed or RecordStatus.PendingDisposal)
+        {
+            return Result.Failure(Error.Conflict(
+                "retention.wrong_state",
+                "Retention cannot be applied in the current Record state."));
+        }
+
+        if (!policy.IsActive)
+        {
+            return Result.Failure(Error.Conflict("retention.inactive", "The retention policy is not active."));
+        }
+
+        var start = policy.StartEvent switch
+        {
+            Contracts.RetentionStartEvent.DocumentCreated => documentCreatedAt,
+            _ => DeclaredAt,
+        };
+
+        RetentionPolicyId = policy.Id;
+        RetentionPolicyVersion = policy.VersionNumber;
+        RetentionPeriodDays = policy.RetentionPeriodDays;
+        RetentionStartEvent = policy.StartEvent;
+        RetentionStartedAt = start;
+        RetentionExpiresAt = start.AddDays(policy.RetentionPeriodDays);
+        UpdatedBy = actor;
+        UpdatedAt = now;
+
+        if (Status == RecordStatus.Active)
+        {
+            Status = RecordStatus.UnderRetention;
+            LastTransitionReason = $"Retention policy {policy.Code} v{policy.VersionNumber}";
+        }
+
+        return Result.Success();
+    }
+
+    public Result SetRetentionException(string reason, UserId actor, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Result.Failure(Error.Validation("retention.exception", "An exception reason is required."));
+        }
+
+        RetentionExceptionReason = reason.Trim();
+        UpdatedBy = actor;
+        UpdatedAt = now;
+        return Result.Success();
+    }
+
+    public Result ClearRetentionException(UserId actor, DateTimeOffset now)
+    {
+        RetentionExceptionReason = null;
+        UpdatedBy = actor;
+        UpdatedAt = now;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Worker path: expire when the clock has elapsed and no exception is active.
+    /// Does not destroy — only moves to Expired (and then PendingDisposal).
+    /// </summary>
+    public Result AdvanceRetentionClock(DateTimeOffset now, UserId systemActor)
+    {
+        if (RetentionExceptionReason is not null)
+        {
+            return Result.Success();
+        }
+
+        if (Status == RecordStatus.UnderRetention
+            && RetentionExpiresAt is { } expires
+            && now >= expires)
+        {
+            return TransitionTo(RecordStatus.Expired, "Retention period elapsed", systemActor, now);
+        }
+
+        if (Status == RecordStatus.Expired)
+        {
+            return TransitionTo(RecordStatus.PendingDisposal, "Eligible for disposal review", systemActor, now);
+        }
+
         return Result.Success();
     }
 

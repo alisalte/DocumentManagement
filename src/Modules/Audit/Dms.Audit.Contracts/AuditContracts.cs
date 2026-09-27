@@ -81,6 +81,15 @@ public static class AuditActions
     public const string RecordSeriesCreated = "RECORD_SERIES_CREATED";
     public const string RecordSeriesUpdated = "RECORD_SERIES_UPDATED";
 
+    public const string RetentionPolicyCreated = "RETENTION_POLICY_CREATED";
+    public const string RetentionPolicyUpdated = "RETENTION_POLICY_UPDATED";
+    public const string RetentionAssigned = "RETENTION_ASSIGNED";
+    public const string RetentionExceptionSet = "RETENTION_EXCEPTION_SET";
+    public const string RetentionExceptionCleared = "RETENTION_EXCEPTION_CLEARED";
+
+    public const string LegalHoldPlaced = "LEGAL_HOLD_PLACED";
+    public const string LegalHoldReleased = "LEGAL_HOLD_RELEASED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 

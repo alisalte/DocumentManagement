@@ -55,6 +55,8 @@ public interface IRecordRepository
 
     Task<bool> ExistsForDocumentAsync(DocumentId documentId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ManagedRecord>> ListRetentionCandidatesAsync(CancellationToken cancellationToken);
+
     void Add(ManagedRecord record);
 
     Task<RecordClass?> FindClassAsync(RecordClassId id, CancellationToken cancellationToken);

@@ -69,6 +69,24 @@ public static class DocumentEndpoints
 
     public sealed record TransitionRecordRequest(string Status, string? Reason);
 
+    public sealed record CreateRetentionPolicyRequest(
+        string Code,
+        string Name,
+        string? Description,
+        int RetentionPeriodDays,
+        string StartEvent);
+
+    public sealed record UpdateRetentionPolicyRequest(
+        string Name,
+        string? Description,
+        int RetentionPeriodDays,
+        string StartEvent,
+        bool IsActive = true);
+
+    public sealed record AssignRetentionRequest(Guid RetentionPolicyId);
+
+    public sealed record PlaceLegalHoldRequest(Guid DocumentId, string Reason);
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         MapUploads(endpoints);
@@ -548,6 +566,92 @@ public static class DocumentEndpoints
             (await dispatcher.SendAsync(
                 new UpdateRecordSeriesCommand(id, request.Name, request.Description, request.IsActive),
                 ct)).ToHttpResult());
+
+        // Retention policies (phase 10.2)
+        admin.MapGet("/retention-policies", async (IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new ListRetentionPoliciesQuery(), ct)).ToHttpResult());
+
+        admin.MapPost("/retention-policies", async (
+                CreateRetentionPolicyRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(
+                    new CreateRetentionPolicyCommand(
+                        request.Code,
+                        request.Name,
+                        request.Description,
+                        request.RetentionPeriodDays,
+                        request.StartEvent),
+                    ct);
+                return result.ToHttpResult(id =>
+                    Results.Created($"/api/v1/admin/records/retention-policies/{id}", new { id }));
+            });
+
+        admin.MapPut("/retention-policies/{id:guid}", async (
+                Guid id,
+                UpdateRetentionPolicyRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRetentionPolicyCommand(
+                    id,
+                    request.Name,
+                    request.Description,
+                    request.RetentionPeriodDays,
+                    request.StartEvent,
+                    request.IsActive),
+                ct)).ToHttpResult());
+
+        records.MapPost("/{id:guid}/retention", async (
+                Guid id,
+                AssignRetentionRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new AssignRetentionPolicyCommand(id, request.RetentionPolicyId), ct))
+                .ToHttpResult());
+
+        records.MapPost("/{id:guid}/retention-exception", async (
+                Guid id,
+                ReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new SetRetentionExceptionCommand(id, request.Reason ?? string.Empty),
+                ct)).ToHttpResult());
+
+        records.MapDelete("/{id:guid}/retention-exception", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ClearRetentionExceptionCommand(id), ct)).ToHttpResult());
+
+        // Legal hold (phase 10.3)
+        var holds = endpoints.MapGroup("/api/v1/legal-holds")
+            .WithTags("Legal Holds")
+            .RequireAuthorization();
+
+        holds.MapGet("/by-document/{documentId:guid}", async (
+                Guid documentId,
+                bool? includeReleased,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.QueryAsync(
+                new ListLegalHoldsQuery(documentId, includeReleased ?? false),
+                ct)).ToHttpResult());
+
+        holds.MapPost("", async (PlaceLegalHoldRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new PlaceLegalHoldCommand(request.DocumentId, request.Reason),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/legal-holds/{id}", new { id }));
+        });
+
+        holds.MapPost("/{id:guid}/release", async (
+                Guid id,
+                ReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ReleaseLegalHoldCommand(id, request.Reason), ct)).ToHttpResult())
+            .RequireSystemPermission(PermissionCodes.AdminManageLegalHold);
     }
 
     private static string? NormalizeKey(string? key) =>

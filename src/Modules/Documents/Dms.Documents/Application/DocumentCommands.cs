@@ -903,6 +903,7 @@ public sealed class PurgeDocumentHandler(
     IDocumentRepository documents,
     IDocumentTypeCatalog documentTypes,
     IStorageService storage,
+    ILegalHoldGuard legalHolds,
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
@@ -944,6 +945,12 @@ public sealed class PurgeDocumentHandler(
             return Result.Failure(Error.Conflict(
                 "purge.not_deleted",
                 "Only documents in the recycle bin can be purged. Delete it first."));
+        }
+
+        var onHold = await legalHolds.EnsureNotOnHoldAsync(document.Id, cancellationToken);
+        if (onHold.IsFailure)
+        {
+            return onHold;
         }
 
         var documentType = await documentTypes.FindAsync(document.DocumentTypeId, cancellationToken);

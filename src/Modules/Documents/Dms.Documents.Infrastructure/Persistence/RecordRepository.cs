@@ -17,6 +17,13 @@ public sealed class RecordRepository(DocumentsDbContext context) : IRecordReposi
     public Task<bool> ExistsForDocumentAsync(DocumentId documentId, CancellationToken cancellationToken) =>
         context.Records.AnyAsync(record => record.DocumentId == documentId, cancellationToken);
 
+    public async Task<IReadOnlyList<ManagedRecord>> ListRetentionCandidatesAsync(CancellationToken cancellationToken) =>
+        await context.Records
+            .Where(record =>
+                record.RetentionExceptionReason == null
+                && (record.Status == RecordStatus.UnderRetention || record.Status == RecordStatus.Expired))
+            .ToListAsync(cancellationToken);
+
     public void Add(ManagedRecord record) => context.Records.Add(record);
 
     public Task<RecordClass?> FindClassAsync(RecordClassId id, CancellationToken cancellationToken) =>
