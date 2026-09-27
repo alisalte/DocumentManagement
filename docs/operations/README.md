@@ -16,7 +16,6 @@ operational go-live, plus the deferred platform seams named in architecture deci
 
 ## Status
 
-**In progress.** Record declaration and immutability (10.1) are in. Settings-level retention and
-purge wait, ops docs, `/version`, the email channel port, and the import manifest/tooling remain
-from the phase opening. Retention workers, legal hold, SMTP delivery, and a full importer against
-a real archive close the rest of phase 10.
+**In progress.** Record management (10.1), retention policies + worker (10.2), and Legal Hold
+(10.3) are implemented. Disposition/destruction (10.4), classification, SMTP, full import, and
+go-live drill work remain.
