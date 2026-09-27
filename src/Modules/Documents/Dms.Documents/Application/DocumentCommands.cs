@@ -467,7 +467,8 @@ public sealed class AddVersionHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<AddVersionCommand, Result<CreatedVersionDto>>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<AddVersionCommand, Result<CreatedVersionDto>>
 {
     public async Task<Result<CreatedVersionDto>> HandleAsync(
         AddVersionCommand command,
@@ -498,6 +499,12 @@ public sealed class AddVersionHandler(
         if (allowed.IsFailure)
         {
             return Result.Failure<CreatedVersionDto>(allowed.Error);
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.DocumentId), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return Result.Failure<CreatedVersionDto>(mutable.Error);
         }
 
         // Row locked from here to commit: concurrent uploads queue up and each gets the next number.
@@ -627,7 +634,8 @@ public sealed class UpdateDocumentHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<UpdateDocumentCommand, Result>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<UpdateDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(UpdateDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -640,6 +648,12 @@ public sealed class UpdateDocumentHandler(
         if (allowed.IsFailure)
         {
             return allowed;
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
         }
 
         if (DocumentRules.ValidateDetails(command.Title, command.Description) is { } invalid)
@@ -728,7 +742,8 @@ public sealed class SetDocumentTagsHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<SetDocumentTagsCommand, Result>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<SetDocumentTagsCommand, Result>
 {
     public async Task<Result> HandleAsync(SetDocumentTagsCommand command, CancellationToken cancellationToken)
     {
@@ -741,6 +756,12 @@ public sealed class SetDocumentTagsHandler(
         if (allowed.IsFailure)
         {
             return allowed;
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
         }
 
         var document = await documents.FindAsync(new DocumentId(command.Id), cancellationToken);
@@ -779,7 +800,8 @@ public sealed class DeleteDocumentHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<DeleteDocumentCommand, Result>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<DeleteDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(DeleteDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -792,6 +814,12 @@ public sealed class DeleteDocumentHandler(
         if (allowed.IsFailure)
         {
             return allowed;
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
         }
 
         var document = await documents.FindAsync(new DocumentId(command.Id), cancellationToken);
@@ -825,7 +853,8 @@ public sealed class RestoreDocumentHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<RestoreDocumentCommand, Result>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<RestoreDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(RestoreDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -844,6 +873,12 @@ public sealed class RestoreDocumentHandler(
         if (allowed.IsFailure)
         {
             return allowed;
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
         }
 
         document.Restore(actor, timeProvider.GetUtcNow());
@@ -868,10 +903,12 @@ public sealed class PurgeDocumentHandler(
     IDocumentRepository documents,
     IDocumentTypeCatalog documentTypes,
     IStorageService storage,
+    ILegalHoldGuard legalHolds,
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<PurgeDocumentCommand, Result>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<PurgeDocumentCommand, Result>
 {
     public async Task<Result> HandleAsync(PurgeDocumentCommand command, CancellationToken cancellationToken)
     {
@@ -883,6 +920,12 @@ public sealed class PurgeDocumentHandler(
         if (!await access.IsSystemAllowedAsync(PermissionCodes.DocumentPurge, cancellationToken))
         {
             return Result.Failure(DocumentErrors.Forbidden("Permanently deleting documents requires DOCUMENT_PURGE."));
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
         }
 
         if (string.IsNullOrWhiteSpace(command.Reason))
@@ -902,6 +945,12 @@ public sealed class PurgeDocumentHandler(
             return Result.Failure(Error.Conflict(
                 "purge.not_deleted",
                 "Only documents in the recycle bin can be purged. Delete it first."));
+        }
+
+        var onHold = await legalHolds.EnsureNotOnHoldAsync(document.Id, cancellationToken);
+        if (onHold.IsFailure)
+        {
+            return onHold;
         }
 
         var documentType = await documentTypes.FindAsync(document.DocumentTypeId, cancellationToken);
@@ -1041,7 +1090,8 @@ public sealed class UpdateMetadataHandler(
     IAuditWriter audit,
     DocumentChanges changes,
     ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>
 {
     public async Task<Result<MetadataUpdateDto>> HandleAsync(
         UpdateMetadataCommand command,
@@ -1068,6 +1118,12 @@ public sealed class UpdateMetadataHandler(
         if (allowed.IsFailure)
         {
             return Result.Failure<MetadataUpdateDto>(allowed.Error);
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.DocumentId), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return Result.Failure<MetadataUpdateDto>(mutable.Error);
         }
 
         // Locked like a new version: a revision number is allocated from the same counter space.

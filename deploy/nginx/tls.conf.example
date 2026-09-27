@@ -1,0 +1,61 @@
+# TLS termination example for staging/production (phase 9).
+# Copy beside default.conf (or merge into it) and mount certificates.
+# The API still speaks HTTP behind nginx; HSTS is set by the API when
+# ASPNETCORE_ENVIRONMENT is not Development, and can also be set here.
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name archive.example.com;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    client_max_body_size 2100m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+    add_header X-Frame-Options DENY always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:" always;
+    add_header Cross-Origin-Opener-Policy same-origin always;
+
+    location /api/ {
+        proxy_pass http://api:8080;
+        proxy_http_version 1.1;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        proxy_read_timeout 600s;
+        proxy_send_timeout 600s;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /health/ {
+        proxy_pass http://api:8080;
+    }
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+    }
+
+    location / {
+        try_files $uri /index.html;
+        add_header Cache-Control "no-store" always;
+    }
+}
+
+# Optional HTTP → HTTPS redirect
+server {
+    listen 80;
+    server_name archive.example.com;
+    return 301 https://$host$request_uri;
+}

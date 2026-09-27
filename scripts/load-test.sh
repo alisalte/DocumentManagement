@@ -29,4 +29,8 @@ k6 run -e BASE_URL="$BASE_URL" -e USER="$USER" -e PASSWORD="$PASSWORD" \
 k6 run -e BASE_URL="$BASE_URL" -e USER="$USER" -e PASSWORD="$PASSWORD" \
     -e VUS=10 -e DURATION="$DURATION" load/k6/search.js
 
-echo "Load suite finished. For login abuse (429), run: k6 run load/k6/login-abuse.js"
+# Abuse / rate-limit scenarios (short; expect some 429s).
+k6 run -e BASE_URL="$BASE_URL" -e VUS=5 -e DURATION=20s load/k6/login-abuse.js || true
+k6 run -e BASE_URL="$BASE_URL" -e VUS=8 -e DURATION=20s load/k6/share-link-abuse.js || true
+
+echo "Load suite finished (health, browse, search, login-abuse, share-link-abuse)."

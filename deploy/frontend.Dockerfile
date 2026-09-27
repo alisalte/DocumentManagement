@@ -12,6 +12,12 @@ ENV VITE_API_BASE_URL=""
 RUN npm run build
 
 FROM nginx:alpine AS runtime
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY --from=nginxconf default.conf /etc/nginx/conf.d/default.conf
+# Non-root: listen on 8080 (already in default.conf), writable pid/cache for the nginx user.
+RUN mkdir -p /var/cache/nginx /tmp/nginx \
+ && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp/nginx \
+ && sed -i 's@pid\s\+.*\;@pid /tmp/nginx/nginx.pid;@' /etc/nginx/nginx.conf \
+ && sed -i '/^user /d' /etc/nginx/nginx.conf
+COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
+COPY --from=nginxconf --chown=nginx:nginx default.conf /etc/nginx/conf.d/default.conf
+USER nginx
 EXPOSE 8080

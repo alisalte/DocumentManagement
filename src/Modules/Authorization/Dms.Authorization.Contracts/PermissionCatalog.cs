@@ -59,6 +59,18 @@ public static class PermissionCodes
     public const string AdminManageCategories = "ADMIN_MANAGE_CATEGORIES";
     public const string DocumentPurge = "DOCUMENT_PURGE";
     public const string AdminManageSearch = "ADMIN_MANAGE_SEARCH";
+    public const string RecordDeclare = "RECORD_DECLARE";
+    public const string AdminManageRecords = "ADMIN_MANAGE_RECORDS";
+    public const string AdminManageLegalHold = "ADMIN_MANAGE_LEGAL_HOLD";
+
+    public const string DispositionRequest = "DISPOSITION_REQUEST";
+    public const string DispositionApprove = "DISPOSITION_APPROVE";
+    public const string DispositionDestroy = "DISPOSITION_DESTROY";
+    public const string DispositionViewCertificate = "DISPOSITION_VIEW_CERTIFICATE";
+
+    public const string ImportManage = "IMPORT_MANAGE";
+    public const string ImportRun = "IMPORT_RUN";
+    public const string ImportView = "IMPORT_VIEW";
 }
 
 public static class PermissionCatalog
@@ -100,6 +112,18 @@ public static class PermissionCatalog
             new(PermissionCodes.AdminManageCategories, PermissionScope.System, false, "Manage the category tree."),
             new(PermissionCodes.DocumentPurge, PermissionScope.System, false, "Permanently delete documents."),
             new(PermissionCodes.AdminManageSearch, PermissionScope.System, false, "See indexing status and rebuild the search index."),
+            new(PermissionCodes.RecordDeclare, PermissionScope.Resource, true, "Declare a document as an immutable Record."),
+            new(PermissionCodes.AdminManageRecords, PermissionScope.System, false, "Manage record classes, series and lifecycle transitions."),
+            new(PermissionCodes.AdminManageLegalHold, PermissionScope.System, false, "Place and release Legal Holds."),
+
+            new(PermissionCodes.DispositionRequest, PermissionScope.System, false, "Request disposition review for a Record pending disposal."),
+            new(PermissionCodes.DispositionApprove, PermissionScope.System, false, "Approve or reject a disposition review."),
+            new(PermissionCodes.DispositionDestroy, PermissionScope.System, false, "Destroy a Record after approved disposition."),
+            new(PermissionCodes.DispositionViewCertificate, PermissionScope.System, false, "View Certificates of Destruction."),
+
+            new(PermissionCodes.ImportManage, PermissionScope.System, false, "Create and configure legacy import jobs and mappings."),
+            new(PermissionCodes.ImportRun, PermissionScope.System, false, "Validate, start, pause, resume and retry import jobs."),
+            new(PermissionCodes.ImportView, PermissionScope.System, false, "View import jobs, items and reports."),
         ];
 
         Index = All.ToDictionary(definition => definition.Code, StringComparer.Ordinal);

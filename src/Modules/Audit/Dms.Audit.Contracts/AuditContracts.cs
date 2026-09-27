@@ -74,6 +74,44 @@ public static class AuditActions
     public const string DocumentPurged = "DOCUMENT_PURGED";
     public const string DocumentTagsChanged = "DOCUMENT_TAGS_CHANGED";
 
+    public const string RecordDeclared = "RECORD_DECLARED";
+    public const string RecordStatusChanged = "RECORD_STATUS_CHANGED";
+    public const string RecordClassCreated = "RECORD_CLASS_CREATED";
+    public const string RecordClassUpdated = "RECORD_CLASS_UPDATED";
+    public const string RecordSeriesCreated = "RECORD_SERIES_CREATED";
+    public const string RecordSeriesUpdated = "RECORD_SERIES_UPDATED";
+
+    public const string RetentionPolicyCreated = "RETENTION_POLICY_CREATED";
+    public const string RetentionPolicyUpdated = "RETENTION_POLICY_UPDATED";
+    public const string RetentionAssigned = "RETENTION_ASSIGNED";
+    public const string RetentionExceptionSet = "RETENTION_EXCEPTION_SET";
+    public const string RetentionExceptionCleared = "RETENTION_EXCEPTION_CLEARED";
+
+    public const string LegalHoldPlaced = "LEGAL_HOLD_PLACED";
+    public const string LegalHoldReleased = "LEGAL_HOLD_RELEASED";
+
+    public const string DispositionRequested = "DISPOSITION_REQUESTED";
+    public const string DispositionApproved = "DISPOSITION_APPROVED";
+    public const string DispositionRejected = "DISPOSITION_REJECTED";
+    public const string DispositionBlockedByLegalHold = "DISPOSITION_BLOCKED_BY_LEGAL_HOLD";
+    public const string DestructionAttempted = "DESTRUCTION_ATTEMPTED";
+    public const string DestructionBlocked = "DESTRUCTION_BLOCKED";
+    public const string RecordDestroyed = "RECORD_DESTROYED";
+    public const string CertificateCreated = "CERTIFICATE_CREATED";
+
+    public const string ImportCreated = "IMPORT_CREATED";
+    public const string ImportValidationStarted = "IMPORT_VALIDATION_STARTED";
+    public const string ImportValidationCompleted = "IMPORT_VALIDATION_COMPLETED";
+    public const string ImportStarted = "IMPORT_STARTED";
+    public const string ImportItemImported = "IMPORT_ITEM_IMPORTED";
+    public const string ImportItemSkipped = "IMPORT_ITEM_SKIPPED";
+    public const string ImportItemFailed = "IMPORT_ITEM_FAILED";
+    public const string ImportCompleted = "IMPORT_COMPLETED";
+    public const string ImportCompletedWithErrors = "IMPORT_COMPLETED_WITH_ERRORS";
+    public const string ImportFailed = "IMPORT_FAILED";
+    public const string ImportResumed = "IMPORT_RESUMED";
+    public const string ImportReportAccessed = "IMPORT_REPORT_ACCESSED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 

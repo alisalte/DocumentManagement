@@ -13,7 +13,8 @@ re-check on staging for environment-only items (TLS, CORS origin, secrets in ima
 | [x] Wrong password and unknown username return the same status and body shape (no account enumeration) | `AuthenticationApiTests` |
 | [x] Refresh-token reuse is refused and audited (`TOKEN_REUSE_DETECTED`) | `AuthenticationApiTests` |
 | [x] Forced password change blocks every API except change-password / sign-out | `AdministrationApiTests` |
-| [x] Login rate limit returns HTTP 429 after `Dms:RateLimits:LoginPerMinute` (default 10) | k6 `load/k6/login-abuse.js` (verified locally) |
+| [x] Login rate limit returns HTTP 429 after `Dms:RateLimits:LoginPerMinute` (default 10) | k6 `load/k6/login-abuse.js` (in `scripts/load-test.sh`) |
+| [x] Account lockout after `MaxFailedAccessAttempts` | `AuthenticationApiTests` |
 | [x] JWT without a valid signature is rejected; expired tokens are rejected | `SecuritySuiteTests` / `AuthenticationApiTests` |
 | [x] Deactivating a user clears effective permissions on the next authorized call | `AdministrationApiTests` |
 
@@ -36,7 +37,7 @@ re-check on staging for environment-only items (TLS, CORS origin, secrets in ima
 | [x] External links re-check the sharer's rights on every open | `ShareApiTests` |
 | [x] Expired, revoked and exhausted links refuse access | `ShareApiTests` |
 | [x] Wrong link password locks after `LinkPasswordMaxAttempts` | `ShareApiTests` |
-| [ ] Share-link open rate limit returns 429 | staging / k6 (policy wired; confirm budget) |
+| [x] Share-link open rate limit returns 429 | k6 `load/k6/share-link-abuse.js` (wired in `scripts/load-test.sh`) |
 | [ ] OpenAPI / Scalar are not exposed outside Development | staging (`ASPNETCORE_ENVIRONMENT=Production`) |
 
 ## Transport and browser

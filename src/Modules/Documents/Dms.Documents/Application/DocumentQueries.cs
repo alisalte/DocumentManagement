@@ -81,7 +81,11 @@ public sealed class ListDocumentsHandler(
     }
 }
 
-public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel readModel, IDocumentTypeCatalog documentTypes)
+public sealed class GetDocumentHandler(
+    DocumentAccess access,
+    IDocumentReadModel readModel,
+    IDocumentTypeCatalog documentTypes,
+    IRecordReadModel records)
     : IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>
 {
     /// <summary>Actions the UI may offer. Checked one by one with the real evaluator.</summary>
@@ -124,10 +128,13 @@ public sealed class GetDocumentHandler(DocumentAccess access, IDocumentReadModel
             ? await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(schemaId), cancellationToken)
             : null;
 
+        var record = await records.GetByDocumentAsync(new DocumentId(query.Id), cancellationToken);
+
         return Result.Success(details with
         {
             AllowedActions = actions,
             CurrentMetadata = MetadataPresenter.ForApi(schema, details.CurrentMetadata?.GetRawText()),
+            Record = record,
         });
     }
 }

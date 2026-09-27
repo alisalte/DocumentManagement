@@ -106,11 +106,16 @@ public interface ITemporaryGrantSource
 /// </summary>
 public interface IResourceAclWriter
 {
+    /// <param name="actingAs">
+    /// When set (e.g. background import), grants are attributed to this user instead of the
+    /// HTTP current user. Required when there is no HTTP caller.
+    /// </param>
     Task GrantAsync(
         ResourceRef resource,
         SubjectType subjectType,
         Guid subjectId,
         IReadOnlyCollection<string> permissionCodes,
         string reason,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        UserId? actingAs = null);
 }

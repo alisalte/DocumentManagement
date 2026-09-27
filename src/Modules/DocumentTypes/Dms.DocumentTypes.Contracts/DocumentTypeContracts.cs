@@ -229,6 +229,8 @@ public interface IDocumentTypeCatalog
 {
     Task<DocumentTypeSummary?> FindAsync(DocumentTypeId id, CancellationToken cancellationToken);
 
+    Task<DocumentTypeSummary?> FindByCodeAsync(string code, CancellationToken cancellationToken);
+
     /// <summary>The schema version a new document or version binds to.</summary>
     Task<Result<DocumentTypeVersionId>> ResolveVersionForNewDocumentAsync(
         DocumentTypeId id,

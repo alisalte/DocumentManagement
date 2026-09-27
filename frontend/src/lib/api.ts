@@ -707,6 +707,134 @@ export interface AuditFilter {
   entityId?: string | null;
 }
 
+export interface PendingDisposalItem {
+  recordId: string;
+  documentId: string;
+  title: string;
+  status: string;
+  retentionExpiresAt: string | null;
+  retentionPolicyId: string | null;
+  retentionPolicyVersion: number | null;
+  onLegalHold: boolean;
+  activeDispositionId: string | null;
+  activeDispositionStatus: string | null;
+  finalVersionId: string;
+  finalVersionLabel: string;
+}
+
+export interface Disposition {
+  id: string;
+  recordId: string;
+  documentId: string;
+  status: string;
+  requestReason: string | null;
+  requestedBy: string;
+  requestedAt: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  decisionReason: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  destroyedBy: string | null;
+  destroyedAt: string | null;
+}
+
+export interface DestructionCertificate {
+  id: string;
+  certificateNumber: string;
+  dispositionId: string;
+  recordId: string;
+  documentId: string;
+  finalVersionId: string;
+  finalVersionLabel: string;
+  recordTitle: string;
+  contentSha256: string;
+  retentionPolicyId: string | null;
+  retentionPolicyVersion: number | null;
+  retentionExpiresAt: string | null;
+  legalHoldCheckedAt: string;
+  approvedBy: string;
+  approvedAt: string;
+  destroyedBy: string;
+  destroyedAt: string;
+  reason: string | null;
+  certificateHash: string;
+  createdAt: string;
+}
+
+export interface ImportJob {
+  id: string;
+  sourceSystem: string;
+  name: string;
+  status: string;
+  failurePolicy: string;
+  createMissingCategories: boolean;
+  dryRunOnly: boolean;
+  totalItems: number;
+  processedItems: number;
+  succeededItems: number;
+  failedItems: number;
+  skippedItems: number;
+  invalidItems: number;
+  bytesProcessed: number;
+  bytesTotal: number;
+  lastError: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ImportItem {
+  id: string;
+  importJobId: string;
+  sourceId: string;
+  sourcePath: string;
+  title: string | null;
+  status: string;
+  errorCode: string | null;
+  errorMessage: string | null;
+  expectedSha256: string | null;
+  actualSha256: string | null;
+  expectedSize: number | null;
+  actualSize: number | null;
+  targetDocumentId: string | null;
+  targetRecordId: string | null;
+  targetVersionId: string | null;
+  retryCount: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface ImportValidationReport {
+  jobId: string;
+  status: string;
+  total: number;
+  valid: number;
+  invalid: number;
+  warnings: number;
+  issues: { severity: string; code: string; message: string; sourceId: string | null; path: string | null }[];
+}
+
+export interface ImportReport {
+  importId: string;
+  sourceSystem: string;
+  name: string;
+  status: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  total: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  invalid: number;
+  bytesProcessed: number;
+  bytesTotal: number;
+  errors: ImportItem[];
+}
+
 export interface SealStatus {
   sealCount: number;
   firstSealedFrom: string | null;
@@ -1265,6 +1393,58 @@ export const api = {
     sealStatus: () => request<SealStatus>('/api/v1/audit/seals/status'),
     verify: (from: string | null, to: string | null) =>
       request<SealVerification>('/api/v1/audit/seals/verify', { method: 'POST', body: JSON.stringify({ from, to }) }),
+  },
+
+  disposition: {
+    pending: () => request<PendingDisposalItem[]>('/api/v1/disposition/pending'),
+    get: (id: string) => request<Disposition>(`/api/v1/disposition/${id}`),
+    byRecord: (recordId: string) => request<Disposition>(`/api/v1/disposition/by-record/${recordId}`),
+    request: (recordId: string, reason: string | null) =>
+      request<{ id: string }>(`/api/v1/records/${recordId}/disposition`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    approve: (id: string, reason: string | null) =>
+      request<void>(`/api/v1/disposition/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    reject: (id: string, reason: string) =>
+      request<void>(`/api/v1/disposition/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    destroy: (id: string, reason: string | null) =>
+      request<{ certificateId: string }>(`/api/v1/disposition/${id}/destroy`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+    certificate: (id: string) => request<DestructionCertificate>(`/api/v1/destruction-certificates/${id}`),
+    certificateByRecord: (recordId: string) =>
+      request<DestructionCertificate>(`/api/v1/destruction-certificates/by-record/${recordId}`),
+  },
+
+  imports: {
+    list: () => request<ImportJob[]>('/api/v1/imports'),
+    get: (id: string) => request<ImportJob>(`/api/v1/imports/${id}`),
+    create: (body: {
+      name: string;
+      sourceSystem: string;
+      manifestJson: string;
+      filesRoot?: string | null;
+      failurePolicy: string;
+      createMissingCategories: boolean;
+      dryRunOnly: boolean;
+      mappings?: { kind: string; sourceKey: string; targetKey: string }[];
+    }) => request<{ id: string }>('/api/v1/imports', { method: 'POST', body: JSON.stringify(body) }),
+    validate: (id: string) => request<ImportValidationReport>(`/api/v1/imports/${id}/validate`, { method: 'POST' }),
+    start: (id: string) => request<void>(`/api/v1/imports/${id}/start`, { method: 'POST' }),
+    pause: (id: string) => request<void>(`/api/v1/imports/${id}/pause`, { method: 'POST' }),
+    resume: (id: string) => request<void>(`/api/v1/imports/${id}/resume`, { method: 'POST' }),
+    retryFailed: (id: string) => request<void>(`/api/v1/imports/${id}/retry-failed`, { method: 'POST' }),
+    items: (id: string, status?: string | null, skip = 0, take = 100) =>
+      request<ImportItem[]>(`/api/v1/imports/${id}/items${query({ status, skip, take })}`),
+    report: (id: string) => request<ImportReport>(`/api/v1/imports/${id}/report`),
   },
 
   isSignedIn: () => accessToken !== null,

@@ -14,10 +14,13 @@ search, and sharing: internal shares and external links, each pinned to one vers
 against the sharer's rights on every use and always overridden by an explicit DENY; a restricted
 database role that can only append to the audit log, a tamper-evident seal chain over the log,
 audit export and viewer, in-app notifications, and the admin UI (users, groups, roles, categories,
-ACL editor with “why?”). **Phase 9 (hardening) is near close** (security suite green, drill +
-health/login-abuse k6 verified; staging TLS/CORS sign-off remains — see
+ACL editor with “why?”). **Phase 9 (hardening) is closed in-repo** (security suite, storage path
+tests, abuse k6, deps/container scripts, TLS sample — staging host sign-off remains; see
 [`docs/hardening/`](docs/hardening/)). **Phase 10 is in progress**
-([`docs/operations/`](docs/operations/), retention, import dry-run, notification channel).
+([`docs/operations/`](docs/operations/)): Record management (10.1), retention / legal hold
+(10.2–10.3), disposition / Certificate of Destruction (10.4), and the legacy import engine
+(10.6 — see [`docs/legacy-import/`](docs/legacy-import/)) are in place; SMTP and later
+phase-10 work follow.
 
 ## Stack
 

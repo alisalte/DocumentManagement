@@ -28,6 +28,24 @@ public static class DocumentsModule
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IDocumentReadModel, DocumentReadModel>();
+        services.AddScoped<IRecordRepository, RecordRepository>();
+        services.AddScoped<IRecordReadModel, RecordReadModel>();
+        services.AddScoped<IRecordImmutabilityGuard, RecordImmutabilityGuard>();
+        services.AddScoped<IRetentionPolicyRepository, RetentionPolicyRepository>();
+        services.AddScoped<ILegalHoldRepository, LegalHoldRepository>();
+        services.AddScoped<ILegalHoldGuard, LegalHoldGuard>();
+        services.AddScoped<IDispositionRepository, DispositionRepository>();
+        services.AddScoped<IDestructionCertificateRepository, DestructionCertificateRepository>();
+        services.AddScoped<IDispositionReadModel, DispositionReadModel>();
+        services.AddScoped<IImportJobRepository, ImportJobRepository>();
+        services.AddScoped<IImportItemRepository, ImportItemRepository>();
+        services.AddScoped<IImportMappingRepository, ImportMappingRepository>();
+        services.AddScoped<IImportSourceIndexRepository, ImportSourceIndexRepository>();
+        services.AddScoped<IClassificationLevelRepository, ClassificationLevelRepository>();
+        services.AddScoped<IClassificationCatalog, ClassificationCatalogService>();
+        services.AddScoped<ImportValidator>();
+        services.AddScoped<ImportItemImporter>();
+        services.AddOptions<ImportOptions>().BindConfiguration(ImportOptions.SectionName);
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
@@ -62,6 +80,54 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<RestoreDocumentCommand, Result>, RestoreDocumentHandler>();
         services.AddScoped<ICommandHandler<PurgeDocumentCommand, Result>, PurgeDocumentHandler>();
         services.AddScoped<ICommandHandler<OpenContentCommand, Result<StoredContent>>, OpenContentHandler>();
+
+        services.AddScoped<ICommandHandler<CreateRecordClassCommand, Result<Guid>>, CreateRecordClassHandler>();
+        services.AddScoped<ICommandHandler<UpdateRecordClassCommand, Result>, UpdateRecordClassHandler>();
+        services.AddScoped<ICommandHandler<CreateRecordSeriesCommand, Result<Guid>>, CreateRecordSeriesHandler>();
+        services.AddScoped<ICommandHandler<UpdateRecordSeriesCommand, Result>, UpdateRecordSeriesHandler>();
+        services.AddScoped<ICommandHandler<DeclareRecordCommand, Result<Guid>>, DeclareRecordHandler>();
+        services.AddScoped<ICommandHandler<TransitionRecordCommand, Result>, TransitionRecordHandler>();
+        services.AddScoped<IQueryHandler<GetRecordByDocumentQuery, Result<RecordSummaryDto>>, GetRecordByDocumentHandler>();
+        services.AddScoped<IQueryHandler<GetRecordQuery, Result<RecordSummaryDto>>, GetRecordHandler>();
+        services.AddScoped<IQueryHandler<ListRecordClassesQuery, Result<IReadOnlyList<RecordClassDto>>>, ListRecordClassesHandler>();
+        services.AddScoped<IQueryHandler<ListRecordSeriesQuery, Result<IReadOnlyList<RecordSeriesDto>>>, ListRecordSeriesHandler>();
+
+        services.AddScoped<ICommandHandler<CreateRetentionPolicyCommand, Result<Guid>>, CreateRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<UpdateRetentionPolicyCommand, Result>, UpdateRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<AssignRetentionPolicyCommand, Result>, AssignRetentionPolicyHandler>();
+        services.AddScoped<ICommandHandler<SetRetentionExceptionCommand, Result>, SetRetentionExceptionHandler>();
+        services.AddScoped<ICommandHandler<ClearRetentionExceptionCommand, Result>, ClearRetentionExceptionHandler>();
+        services.AddScoped<ICommandHandler<PlaceLegalHoldCommand, Result<Guid>>, PlaceLegalHoldHandler>();
+        services.AddScoped<ICommandHandler<ReleaseLegalHoldCommand, Result>, ReleaseLegalHoldHandler>();
+        services.AddScoped<IQueryHandler<ListRetentionPoliciesQuery, Result<IReadOnlyList<RetentionPolicyDto>>>, ListRetentionPoliciesHandler>();
+        services.AddScoped<IQueryHandler<ListLegalHoldsQuery, Result<IReadOnlyList<LegalHoldDto>>>, ListLegalHoldsHandler>();
+
+        services.AddScoped<ICommandHandler<RequestDispositionCommand, Result<Guid>>, RequestDispositionHandler>();
+        services.AddScoped<ICommandHandler<ApproveDispositionCommand, Result>, ApproveDispositionHandler>();
+        services.AddScoped<ICommandHandler<RejectDispositionCommand, Result>, RejectDispositionHandler>();
+        services.AddScoped<ICommandHandler<DestroyDispositionCommand, Result<Guid>>, DestroyDispositionHandler>();
+        services.AddScoped<IQueryHandler<GetDispositionQuery, Result<DispositionDto>>, GetDispositionHandler>();
+        services.AddScoped<IQueryHandler<GetDispositionByRecordQuery, Result<DispositionDto>>, GetDispositionByRecordHandler>();
+        services.AddScoped<IQueryHandler<ListPendingDisposalQuery, Result<IReadOnlyList<PendingDisposalItemDto>>>, ListPendingDisposalHandler>();
+        services.AddScoped<IQueryHandler<GetDestructionCertificateQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateHandler>();
+        services.AddScoped<IQueryHandler<GetDestructionCertificateByRecordQuery, Result<DestructionCertificateDto>>, GetDestructionCertificateByRecordHandler>();
+
+        services.AddScoped<ICommandHandler<CreateImportJobCommand, Result<Guid>>, CreateImportJobHandler>();
+        services.AddScoped<ICommandHandler<ValidateImportJobCommand, Result<ImportValidationReportDto>>, ValidateImportJobHandler>();
+        services.AddScoped<ICommandHandler<StartImportJobCommand, Result>, StartImportJobHandler>();
+        services.AddScoped<ICommandHandler<PauseImportJobCommand, Result>, PauseImportJobHandler>();
+        services.AddScoped<ICommandHandler<ResumeImportJobCommand, Result>, ResumeImportJobHandler>();
+        services.AddScoped<ICommandHandler<RetryFailedImportCommand, Result>, RetryFailedImportHandler>();
+        services.AddScoped<IQueryHandler<ListImportJobsQuery, Result<IReadOnlyList<ImportJobDto>>>, ListImportJobsHandler>();
+        services.AddScoped<IQueryHandler<GetImportJobQuery, Result<ImportJobDto>>, GetImportJobHandler>();
+        services.AddScoped<IQueryHandler<ListImportItemsQuery, Result<IReadOnlyList<ImportItemDto>>>, ListImportItemsHandler>();
+        services.AddScoped<ICommandHandler<GetImportReportCommand, Result<ImportReportDto>>, GetImportReportHandler>();
+        services.AddScoped<ICommandHandler<CreateClassificationLevelCommand, Result<Guid>>, CreateClassificationLevelHandler>();
+        services.AddScoped<IQueryHandler<ListClassificationLevelsQuery, Result<IReadOnlyList<ClassificationLevelInfo>>>, ListClassificationLevelsHandler>();
+
+        services.AddScoped<IJobHandler, RetentionAdvanceJob>();
+        services.AddScoped<IJobHandler, ImportRunJob>();
+        services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
         services.AddScoped<PreviewService>();

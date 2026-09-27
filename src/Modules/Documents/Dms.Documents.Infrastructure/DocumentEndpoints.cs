@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
+using Dms.Documents.Contracts;
 using Dms.SharedKernel;
 using Dms.Storage.Contracts;
 using Dms.Web;
@@ -52,11 +53,65 @@ public static class DocumentEndpoints
 
     public sealed record MoveCategoryRequest(Guid? NewParentId);
 
+    public sealed record CreateRecordClassRequest(string Code, string Name, string? Description);
+
+    public sealed record UpdateRecordClassRequest(string Name, string? Description, bool IsActive = true);
+
+    public sealed record CreateRecordSeriesRequest(Guid RecordClassId, string Code, string Name, string? Description);
+
+    public sealed record UpdateRecordSeriesRequest(string Name, string? Description, bool IsActive = true);
+
+    public sealed record DeclareRecordRequest(
+        Guid RecordClassId,
+        Guid? RecordSeriesId,
+        Guid? FinalVersionId,
+        string? Reason);
+
+    public sealed record TransitionRecordRequest(string Status, string? Reason);
+
+    public sealed record CreateRetentionPolicyRequest(
+        string Code,
+        string Name,
+        string? Description,
+        int RetentionPeriodDays,
+        string StartEvent);
+
+    public sealed record UpdateRetentionPolicyRequest(
+        string Name,
+        string? Description,
+        int RetentionPeriodDays,
+        string StartEvent,
+        bool IsActive = true);
+
+    public sealed record AssignRetentionRequest(Guid RetentionPolicyId);
+
+    public sealed record PlaceLegalHoldRequest(Guid DocumentId, string Reason);
+
+    public sealed record DispositionReasonRequest(string? Reason);
+
+    public sealed record RejectDispositionRequest(string Reason);
+
+    public sealed record CreateImportJobRequest(
+        string Name,
+        string? SourceSystem,
+        string ManifestJson,
+        string? FilesRoot,
+        string? FailurePolicy,
+        bool CreateMissingCategories = false,
+        bool DryRunOnly = false,
+        IReadOnlyList<ImportMappingRequest>? Mappings = null);
+
+    public sealed record ImportMappingRequest(string Kind, string SourceKey, string TargetKey);
+
+    public sealed record CreateClassificationLevelRequest(string Code, string Name, int Rank);
+
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
     {
         MapUploads(endpoints);
         MapDocuments(endpoints);
+        MapRecords(endpoints);
         MapCategories(endpoints);
+        MapImports(endpoints);
         return endpoints;
     }
 
@@ -433,6 +488,340 @@ public static class DocumentEndpoints
 
         admin.MapPost("/{id:guid}/move", async (Guid id, MoveCategoryRequest request, IDispatcher dispatcher, CancellationToken ct) =>
             (await dispatcher.SendAsync(new MoveCategoryCommand(id, request.NewParentId), ct)).ToHttpResult());
+    }
+
+    private static void MapRecords(IEndpointRouteBuilder endpoints)
+    {
+        var records = endpoints.MapGroup("/api/v1/records")
+            .WithTags("Records")
+            .RequireAuthorization();
+
+        records.MapGet("/classes", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListRecordClassesQuery(), ct)).ToHttpResult())
+            .WithSummary("Record classes (filing plan).");
+
+        records.MapGet("/series", async (Guid? recordClassId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListRecordSeriesQuery(recordClassId), ct)).ToHttpResult())
+            .WithSummary("Record series, optionally filtered by class.");
+
+        records.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetRecordQuery(id), ct)).ToHttpResult());
+
+        records.MapGet("/by-document/{documentId:guid}", async (Guid documentId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetRecordByDocumentQuery(documentId), ct)).ToHttpResult());
+
+        records.MapPost("/declare/{documentId:guid}", async (
+                Guid documentId,
+                DeclareRecordRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var command = new DeclareRecordCommand(
+                    documentId,
+                    request.RecordClassId,
+                    request.RecordSeriesId,
+                    request.FinalVersionId,
+                    request.Reason);
+                var result = await dispatcher.SendAsync(command, ct);
+                return result.ToHttpResult(id => Results.Created($"/api/v1/records/{id}", new { id }));
+            })
+            .WithSummary("Declare a document as an immutable Record, pinning its final version.");
+
+        records.MapPost("/{id:guid}/transition", async (
+                Guid id,
+                TransitionRecordRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                if (!Enum.TryParse<RecordStatus>(request.Status, ignoreCase: true, out var status))
+                {
+                    return ApiResults.Problem(Error.Validation("record.status", "Unknown Record status."));
+                }
+
+                return (await dispatcher.SendAsync(new TransitionRecordCommand(id, status, request.Reason), ct))
+                    .ToHttpResult();
+            })
+            .WithSummary("Audited Record lifecycle transition.");
+
+        var admin = endpoints.MapGroup("/api/v1/admin/records")
+            .WithTags("Administration: records")
+            .RequireAuthorization()
+            .RequireSystemPermission(PermissionCodes.AdminManageRecords);
+
+        admin.MapPost("/classes", async (CreateRecordClassRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new CreateRecordClassCommand(request.Code, request.Name, request.Description),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/admin/records/classes/{id}", new { id }));
+        });
+
+        admin.MapPut("/classes/{id:guid}", async (
+                Guid id,
+                UpdateRecordClassRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRecordClassCommand(id, request.Name, request.Description, request.IsActive),
+                ct)).ToHttpResult());
+
+        admin.MapPost("/series", async (CreateRecordSeriesRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new CreateRecordSeriesCommand(
+                    request.RecordClassId,
+                    request.Code,
+                    request.Name,
+                    request.Description),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/admin/records/series/{id}", new { id }));
+        });
+
+        admin.MapPut("/series/{id:guid}", async (
+                Guid id,
+                UpdateRecordSeriesRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRecordSeriesCommand(id, request.Name, request.Description, request.IsActive),
+                ct)).ToHttpResult());
+
+        // Retention policies (phase 10.2)
+        admin.MapGet("/retention-policies", async (IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new ListRetentionPoliciesQuery(), ct)).ToHttpResult());
+
+        admin.MapPost("/retention-policies", async (
+                CreateRetentionPolicyRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(
+                    new CreateRetentionPolicyCommand(
+                        request.Code,
+                        request.Name,
+                        request.Description,
+                        request.RetentionPeriodDays,
+                        request.StartEvent),
+                    ct);
+                return result.ToHttpResult(id =>
+                    Results.Created($"/api/v1/admin/records/retention-policies/{id}", new { id }));
+            });
+
+        admin.MapPut("/retention-policies/{id:guid}", async (
+                Guid id,
+                UpdateRetentionPolicyRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new UpdateRetentionPolicyCommand(
+                    id,
+                    request.Name,
+                    request.Description,
+                    request.RetentionPeriodDays,
+                    request.StartEvent,
+                    request.IsActive),
+                ct)).ToHttpResult());
+
+        records.MapPost("/{id:guid}/retention", async (
+                Guid id,
+                AssignRetentionRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new AssignRetentionPolicyCommand(id, request.RetentionPolicyId), ct))
+                .ToHttpResult());
+
+        records.MapPost("/{id:guid}/retention-exception", async (
+                Guid id,
+                ReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(
+                new SetRetentionExceptionCommand(id, request.Reason ?? string.Empty),
+                ct)).ToHttpResult());
+
+        records.MapDelete("/{id:guid}/retention-exception", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ClearRetentionExceptionCommand(id), ct)).ToHttpResult());
+
+        // Legal hold (phase 10.3)
+        var holds = endpoints.MapGroup("/api/v1/legal-holds")
+            .WithTags("Legal Holds")
+            .RequireAuthorization();
+
+        holds.MapGet("/by-document/{documentId:guid}", async (
+                Guid documentId,
+                bool? includeReleased,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.QueryAsync(
+                new ListLegalHoldsQuery(documentId, includeReleased ?? false),
+                ct)).ToHttpResult());
+
+        holds.MapPost("", async (PlaceLegalHoldRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        {
+            var result = await dispatcher.SendAsync(
+                new PlaceLegalHoldCommand(request.DocumentId, request.Reason),
+                ct);
+            return result.ToHttpResult(id => Results.Created($"/api/v1/legal-holds/{id}", new { id }));
+        });
+
+        holds.MapPost("/{id:guid}/release", async (
+                Guid id,
+                ReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ReleaseLegalHoldCommand(id, request.Reason), ct)).ToHttpResult())
+            .RequireSystemPermission(PermissionCodes.AdminManageLegalHold);
+
+        // Disposition / Certificate of Destruction (phase 10.4)
+        var disposition = endpoints.MapGroup("/api/v1/disposition")
+            .WithTags("Disposition")
+            .RequireAuthorization();
+
+        disposition.MapGet("/pending", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListPendingDisposalQuery(), ct)).ToHttpResult())
+            .WithSummary("List Records pending disposal and recent destruction candidates.");
+
+        disposition.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDispositionQuery(id), ct)).ToHttpResult());
+
+        disposition.MapGet("/by-record/{recordId:guid}", async (Guid recordId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDispositionByRecordQuery(recordId), ct)).ToHttpResult());
+
+        records.MapPost("/{id:guid}/disposition", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new RequestDispositionCommand(id, request.Reason), ct);
+                return result.ToHttpResult(dispositionId =>
+                    Results.Created($"/api/v1/disposition/{dispositionId}", new { id = dispositionId }));
+            })
+            .WithSummary("Request disposition review for a Record in PendingDisposal.");
+
+        disposition.MapPost("/{id:guid}/approve", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new ApproveDispositionCommand(id, request.Reason), ct)).ToHttpResult())
+            .WithSummary("Approve a disposition pending review.");
+
+        disposition.MapPost("/{id:guid}/reject", async (
+                Guid id,
+                RejectDispositionRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new RejectDispositionCommand(id, request.Reason), ct)).ToHttpResult())
+            .WithSummary("Reject a disposition pending review; Record returns to Expired.");
+
+        disposition.MapPost("/{id:guid}/destroy", async (
+                Guid id,
+                DispositionReasonRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new DestroyDispositionCommand(id, request.Reason), ct);
+                return result.ToHttpResult(certificateId =>
+                    Results.Ok(new { certificateId }));
+            })
+            .WithSummary("Destroy an approved disposition after a fresh Legal Hold check; emits Certificate of Destruction.");
+
+        var certificates = endpoints.MapGroup("/api/v1/destruction-certificates")
+            .WithTags("Destruction Certificates")
+            .RequireAuthorization();
+
+        certificates.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDestructionCertificateQuery(id), ct)).ToHttpResult());
+
+        certificates.MapGet("/by-record/{recordId:guid}", async (Guid recordId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetDestructionCertificateByRecordQuery(recordId), ct)).ToHttpResult());
+    }
+
+    private static void MapImports(IEndpointRouteBuilder endpoints)
+    {
+        var imports = endpoints.MapGroup("/api/v1/imports")
+            .WithTags("Legacy Import")
+            .RequireAuthorization();
+
+        imports.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListImportJobsQuery(), ct)).ToHttpResult())
+            .WithSummary("List recent legacy import jobs.");
+
+        imports.MapPost("", async (CreateImportJobRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var mappings = request.Mappings?
+                    .Select(mapping => new ImportMappingInput(mapping.Kind, mapping.SourceKey, mapping.TargetKey))
+                    .ToList();
+                var result = await dispatcher.SendAsync(
+                    new CreateImportJobCommand(
+                        request.Name,
+                        request.SourceSystem ?? string.Empty,
+                        request.ManifestJson,
+                        request.FilesRoot,
+                        request.FailurePolicy ?? "ContinueOnError",
+                        request.CreateMissingCategories,
+                        request.DryRunOnly,
+                        mappings),
+                    ct);
+                return result.ToHttpResult(id => Results.Created($"/api/v1/imports/{id}", new { id }));
+            })
+            .WithSummary("Create an import job from a legacy manifest (does not modify documents until start).");
+
+        imports.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetImportJobQuery(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/validate", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new ValidateImportJobCommand(id), ct)).ToHttpResult())
+            .WithSummary("Dry-run validation: files, mappings, hashes. No document/storage mutations.");
+
+        imports.MapPost("/{id:guid}/start", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new StartImportJobCommand(id), ct)).ToHttpResult())
+            .WithSummary("Start importing validated items via the background job worker.");
+
+        imports.MapPost("/{id:guid}/pause", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new PauseImportJobCommand(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/resume", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new ResumeImportJobCommand(id), ct)).ToHttpResult());
+
+        imports.MapPost("/{id:guid}/retry-failed", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new RetryFailedImportCommand(id), ct)).ToHttpResult());
+
+        imports.MapGet("/{id:guid}/items", async (
+                Guid id,
+                string? status,
+                int? skip,
+                int? take,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.QueryAsync(
+                new ListImportItemsQuery(id, status, skip ?? 0, take ?? 100),
+                ct)).ToHttpResult());
+
+        imports.MapGet("/{id:guid}/report", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new GetImportReportCommand(id), ct)).ToHttpResult())
+            .WithSummary("Machine-readable import report (restricted; access is audited).");
+
+        var classification = endpoints.MapGroup("/api/v1/admin/classification-levels")
+            .WithTags("Administration: classification")
+            .RequireAuthorization()
+            .RequireSystemPermission(PermissionCodes.AdminManageRecords);
+
+        classification.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new ListClassificationLevelsQuery(), ct)).ToHttpResult());
+
+        classification.MapPost("", async (
+                CreateClassificationLevelRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(
+                    new CreateClassificationLevelCommand(request.Code, request.Name, request.Rank),
+                    ct);
+                return result.ToHttpResult(levelId =>
+                    Results.Created($"/api/v1/admin/classification-levels/{levelId}", new { id = levelId }));
+            });
     }
 
     private static string? NormalizeKey(string? key) =>

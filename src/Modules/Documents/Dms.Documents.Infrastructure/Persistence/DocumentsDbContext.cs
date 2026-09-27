@@ -25,6 +25,32 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
 
+    public DbSet<RecordClass> RecordClasses => Set<RecordClass>();
+
+    public DbSet<RecordSeries> RecordSeries => Set<RecordSeries>();
+
+    public DbSet<ManagedRecord> Records => Set<ManagedRecord>();
+
+    public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
+
+    public DbSet<LegalHold> LegalHolds => Set<LegalHold>();
+
+    public DbSet<Disposition> Dispositions => Set<Disposition>();
+
+    public DbSet<DestructionCertificate> DestructionCertificates => Set<DestructionCertificate>();
+
+    public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
+
+    public DbSet<ImportItem> ImportItems => Set<ImportItem>();
+
+    public DbSet<ImportMapping> ImportMappings => Set<ImportMapping>();
+
+    public DbSet<ImportSourceIndex> ImportSourceIndexes => Set<ImportSourceIndex>();
+
+    public DbSet<ClassificationLevel> ClassificationLevels => Set<ClassificationLevel>();
+
+    public DbSet<DocumentClassification> DocumentClassifications => Set<DocumentClassification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -223,6 +249,467 @@ public sealed class DocumentsDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_document_tags_tag");
             entity.HasIndex(link => link.TagId).HasDatabaseName("ix_document_tags_tag");
+        });
+
+        modelBuilder.Entity<RecordClass>(entity =>
+        {
+            entity.ToTable("record_classes");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(item => item.Code).IsUnique().HasDatabaseName("ux_record_classes_code");
+        });
+
+        modelBuilder.Entity<RecordSeries>(entity =>
+        {
+            entity.ToTable("record_series");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordSeriesId(value));
+            entity.Property(item => item.RecordClassId).HasColumnName("record_class_id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne<RecordClass>().WithMany()
+                .HasForeignKey(item => item.RecordClassId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_record_series_class");
+
+            entity.HasIndex(item => new { item.RecordClassId, item.Code })
+                .IsUnique().HasDatabaseName("ux_record_series_class_code");
+        });
+
+        modelBuilder.Entity<ManagedRecord>(entity =>
+        {
+            entity.ToTable("records", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_records_status",
+                    "status IN ('Active','UnderRetention','Expired','PendingDisposal','Destroyed')");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.FinalVersionId).HasColumnName("final_version_id")
+                .HasConversion(id => id.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.RecordClassId).HasColumnName("record_class_id")
+                .HasConversion(id => id.Value, value => new RecordClassId(value));
+            entity.Property(item => item.RecordSeriesId).HasColumnName("record_series_id")
+                .HasConversion(id => id!.Value.Value, value => new RecordSeriesId(value));
+            entity.Property(item => item.Title).HasColumnName("title").HasMaxLength(500).IsRequired();
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.DeclaredBy).HasColumnName("declared_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.DeclaredAt).HasColumnName("declared_at");
+            entity.Property(item => item.MetadataFrozenAt).HasColumnName("metadata_frozen_at");
+            entity.Property(item => item.UpdatedBy).HasColumnName("updated_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.LastTransitionReason).HasColumnName("last_transition_reason").HasMaxLength(1000);
+            entity.Property(item => item.RetentionPolicyId).HasColumnName("retention_policy_id")
+                .HasConversion(id => id!.Value.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.RetentionPolicyVersion).HasColumnName("retention_policy_version");
+            entity.Property(item => item.RetentionPeriodDays).HasColumnName("retention_period_days");
+            entity.Property(item => item.RetentionStartEvent).HasColumnName("retention_start_event")
+                .HasConversion<string>().HasMaxLength(32);
+            entity.Property(item => item.RetentionStartedAt).HasColumnName("retention_started_at");
+            entity.Property(item => item.RetentionExpiresAt).HasColumnName("retention_expires_at");
+            entity.Property(item => item.RetentionExceptionReason).HasColumnName("retention_exception_reason")
+                .HasMaxLength(2000);
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_document");
+            entity.HasOne<DocumentVersion>().WithMany()
+                .HasForeignKey(item => item.FinalVersionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_final_version");
+            entity.HasOne<RecordClass>().WithMany()
+                .HasForeignKey(item => item.RecordClassId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_class");
+            entity.HasOne<RecordSeries>().WithMany()
+                .HasForeignKey(item => item.RecordSeriesId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_series");
+            entity.HasOne<RetentionPolicy>().WithMany()
+                .HasForeignKey(item => item.RetentionPolicyId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_records_retention_policy");
+
+            entity.HasIndex(item => item.DocumentId).IsUnique().HasDatabaseName("ux_records_document");
+            entity.HasIndex(item => item.Status).HasDatabaseName("ix_records_status");
+            entity.HasIndex(item => item.RecordClassId).HasDatabaseName("ix_records_class");
+            entity.HasIndex(item => item.RetentionExpiresAt)
+                .HasFilter("retention_expires_at IS NOT NULL")
+                .HasDatabaseName("ix_records_retention_expires");
+        });
+
+        modelBuilder.Entity<RetentionPolicy>(entity =>
+        {
+            entity.ToTable("retention_policies", table =>
+            {
+                table.HasCheckConstraint("ck_retention_policies_days", "retention_period_days > 0");
+                table.HasCheckConstraint("ck_retention_policies_version", "version_number > 0");
+            });
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasColumnName("description").HasMaxLength(1000);
+            entity.Property(item => item.RetentionPeriodDays).HasColumnName("retention_period_days");
+            entity.Property(item => item.StartEvent).HasColumnName("start_event")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.VersionNumber).HasColumnName("version_number");
+            entity.Property(item => item.IsActive).HasColumnName("is_active");
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(item => item.Code).IsUnique().HasDatabaseName("ux_retention_policies_code");
+        });
+
+        modelBuilder.Entity<LegalHold>(entity =>
+        {
+            entity.ToTable("legal_holds");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new LegalHoldId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.Reason).HasColumnName("reason").HasMaxLength(2000).IsRequired();
+            entity.Property(item => item.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.ReleasedAt).HasColumnName("released_at");
+            entity.Property(item => item.ReleasedBy).HasColumnName("released_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ReleaseReason).HasColumnName("release_reason").HasMaxLength(2000);
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_legal_holds_document");
+
+            entity.HasIndex(item => item.DocumentId).HasDatabaseName("ix_legal_holds_document");
+            entity.HasIndex(item => new { item.DocumentId, item.ReleasedAt })
+                .HasFilter("released_at IS NULL")
+                .HasDatabaseName("ix_legal_holds_active");
+        });
+
+        modelBuilder.Entity<Disposition>(entity =>
+        {
+            entity.ToTable("dispositions", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_dispositions_status",
+                    "status IN ('PendingReview','Approved','Rejected','Destroyed')");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new DispositionId(value));
+            entity.Property(item => item.RecordId).HasColumnName("record_id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.RequestReason).HasColumnName("request_reason").HasMaxLength(2000);
+            entity.Property(item => item.RequestedBy).HasColumnName("requested_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.RequestedAt).HasColumnName("requested_at");
+            entity.Property(item => item.ReviewedBy).HasColumnName("reviewed_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ReviewedAt).HasColumnName("reviewed_at");
+            entity.Property(item => item.DecisionReason).HasColumnName("decision_reason").HasMaxLength(2000);
+            entity.Property(item => item.ApprovedBy).HasColumnName("approved_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(item => item.DestroyedBy).HasColumnName("destroyed_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+            entity.Property(item => item.DestroyedAt).HasColumnName("destroyed_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<ManagedRecord>().WithMany()
+                .HasForeignKey(item => item.RecordId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_dispositions_record");
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(item => item.DocumentId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_dispositions_document");
+
+            // At most one active (PendingReview/Approved) disposition per Record.
+            entity.HasIndex(item => item.RecordId)
+                .IsUnique()
+                .HasFilter("status IN ('PendingReview','Approved')")
+                .HasDatabaseName("ux_dispositions_active_record");
+            entity.HasIndex(item => item.Status).HasDatabaseName("ix_dispositions_status");
+            entity.HasIndex(item => item.DocumentId).HasDatabaseName("ix_dispositions_document");
+        });
+
+        modelBuilder.Entity<DestructionCertificate>(entity =>
+        {
+            entity.ToTable("destruction_certificates", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_destruction_certificates_sha256",
+                    "octet_length(content_sha256) = 32 AND octet_length(certificate_hash) = 32");
+            });
+
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new DestructionCertificateId(value));
+            entity.Property(item => item.CertificateNumber).HasColumnName("certificate_number")
+                .HasMaxLength(64).IsRequired();
+            entity.Property(item => item.DispositionId).HasColumnName("disposition_id")
+                .HasConversion(id => id.Value, value => new DispositionId(value));
+            entity.Property(item => item.RecordId).HasColumnName("record_id")
+                .HasConversion(id => id.Value, value => new RecordId(value));
+            entity.Property(item => item.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(item => item.FinalVersionId).HasColumnName("final_version_id")
+                .HasConversion(id => id.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.FinalVersionLabel).HasColumnName("final_version_label")
+                .HasMaxLength(32).IsRequired();
+            entity.Property(item => item.RecordTitle).HasColumnName("record_title").HasMaxLength(500).IsRequired();
+            entity.Property(item => item.ContentSha256).HasColumnName("content_sha256").IsRequired();
+            entity.Property(item => item.RetentionPolicyId).HasColumnName("retention_policy_id")
+                .HasConversion(id => id!.Value.Value, value => new RetentionPolicyId(value));
+            entity.Property(item => item.RetentionPolicyVersion).HasColumnName("retention_policy_version");
+            entity.Property(item => item.RetentionExpiresAt).HasColumnName("retention_expires_at");
+            entity.Property(item => item.LegalHoldCheckedAt).HasColumnName("legal_hold_checked_at");
+            entity.Property(item => item.ApprovedBy).HasColumnName("approved_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(item => item.DestroyedBy).HasColumnName("destroyed_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(item => item.DestroyedAt).HasColumnName("destroyed_at");
+            entity.Property(item => item.Reason).HasColumnName("reason").HasMaxLength(2000);
+            entity.Property(item => item.CertificateHash).HasColumnName("certificate_hash").IsRequired();
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne<Disposition>().WithMany()
+                .HasForeignKey(item => item.DispositionId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_destruction_certificates_disposition");
+            entity.HasOne<ManagedRecord>().WithMany()
+                .HasForeignKey(item => item.RecordId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_destruction_certificates_record");
+
+            entity.HasIndex(item => item.DispositionId).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_disposition");
+            entity.HasIndex(item => item.RecordId).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_record");
+            entity.HasIndex(item => item.CertificateNumber).IsUnique()
+                .HasDatabaseName("ux_destruction_certificates_number");
+        });
+
+        modelBuilder.Entity<ImportJob>(entity =>
+        {
+            entity.ToTable("import_jobs", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_import_jobs_status",
+                    "status IN ('Created','Validating','ValidationFailed','Ready','Running','Paused','Completed','CompletedWithErrors','Failed')");
+                table.HasCheckConstraint(
+                    "ck_import_jobs_failure_policy",
+                    "failure_policy IN ('ContinueOnError','StopOnError')");
+            });
+            entity.HasKey(job => job.Id);
+            entity.Property(job => job.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(job => job.SourceSystem).HasColumnName("source_system").HasMaxLength(128).IsRequired();
+            entity.Property(job => job.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(job => job.FilesRoot).HasColumnName("files_root").HasMaxLength(1000);
+            entity.Property(job => job.ManifestSha256).HasColumnName("manifest_sha256").HasMaxLength(64).IsRequired();
+            entity.Property(job => job.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(job => job.FailurePolicy).HasColumnName("failure_policy")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(job => job.CreateMissingCategories).HasColumnName("create_missing_categories");
+            entity.Property(job => job.DryRunOnly).HasColumnName("dry_run_only");
+            entity.Property(job => job.TotalItems).HasColumnName("total_items");
+            entity.Property(job => job.ProcessedItems).HasColumnName("processed_items");
+            entity.Property(job => job.SucceededItems).HasColumnName("succeeded_items");
+            entity.Property(job => job.FailedItems).HasColumnName("failed_items");
+            entity.Property(job => job.SkippedItems).HasColumnName("skipped_items");
+            entity.Property(job => job.InvalidItems).HasColumnName("invalid_items");
+            entity.Property(job => job.BytesProcessed).HasColumnName("bytes_processed");
+            entity.Property(job => job.BytesTotal).HasColumnName("bytes_total");
+            entity.Property(job => job.LastError).HasColumnName("last_error").HasMaxLength(2000);
+            entity.Property(job => job.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(job => job.CreatedAt).HasColumnName("created_at");
+            entity.Property(job => job.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(job => job.StartedAt).HasColumnName("started_at");
+            entity.Property(job => job.CompletedAt).HasColumnName("completed_at");
+            entity.Property(job => job.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasIndex(job => job.Status).HasDatabaseName("ix_import_jobs_status");
+            entity.HasIndex(job => job.CreatedAt).HasDatabaseName("ix_import_jobs_created_at");
+            entity.HasIndex(job => new { job.SourceSystem, job.CreatedAt })
+                .HasDatabaseName("ix_import_jobs_source_created");
+        });
+
+        modelBuilder.Entity<ImportItem>(entity =>
+        {
+            entity.ToTable("import_items", table =>
+            {
+                table.HasCheckConstraint(
+                    "ck_import_items_status",
+                    "status IN ('Pending','Valid','Invalid','Ready','Running','Succeeded','Failed','Skipped','Retryable')");
+            });
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ImportItemId(value));
+            entity.Property(item => item.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(item => item.SourceId).HasColumnName("source_id").HasMaxLength(256).IsRequired();
+            entity.Property(item => item.SourcePath).HasColumnName("source_path").HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.Title).HasColumnName("title").HasMaxLength(500);
+            entity.Property(item => item.EntryJson).HasColumnName("entry_json").HasColumnType("jsonb").IsRequired();
+            entity.Property(item => item.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(item => item.ErrorCode).HasColumnName("error_code").HasMaxLength(128);
+            entity.Property(item => item.ErrorMessage).HasColumnName("error_message").HasMaxLength(2000);
+            entity.Property(item => item.ExpectedSha256).HasColumnName("expected_sha256").HasMaxLength(64);
+            entity.Property(item => item.ActualSha256).HasColumnName("actual_sha256").HasMaxLength(64);
+            entity.Property(item => item.ExpectedSize).HasColumnName("expected_size");
+            entity.Property(item => item.ActualSize).HasColumnName("actual_size");
+            entity.Property(item => item.TargetDocumentId).HasColumnName("target_document_id")
+                .HasConversion(id => id!.Value.Value, value => new DocumentId(value));
+            entity.Property(item => item.TargetRecordId).HasColumnName("target_record_id")
+                .HasConversion(id => id!.Value.Value, value => new RecordId(value));
+            entity.Property(item => item.TargetVersionId).HasColumnName("target_version_id")
+                .HasConversion(id => id!.Value.Value, value => new DocumentVersionId(value));
+            entity.Property(item => item.RetryCount).HasColumnName("retry_count");
+            entity.Property(item => item.CreatedAt).HasColumnName("created_at");
+            entity.Property(item => item.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(item => item.StartedAt).HasColumnName("started_at");
+            entity.Property(item => item.CompletedAt).HasColumnName("completed_at");
+            entity.Property(item => item.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<ImportJob>().WithMany()
+                .HasForeignKey(item => item.ImportJobId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_import_items_job");
+
+            entity.HasIndex(item => new { item.ImportJobId, item.SourceId })
+                .IsUnique().HasDatabaseName("ux_import_items_job_source");
+            entity.HasIndex(item => new { item.ImportJobId, item.Status })
+                .HasDatabaseName("ix_import_items_job_status");
+            entity.HasIndex(item => item.Status)
+                .HasFilter("status IN ('Ready','Retryable','Running')")
+                .HasDatabaseName("ix_import_items_claimable");
+        });
+
+        modelBuilder.Entity<ImportMapping>(entity =>
+        {
+            entity.ToTable("import_mappings");
+            entity.HasKey(mapping => mapping.Id);
+            entity.Property(mapping => mapping.Id).HasColumnName("id");
+            entity.Property(mapping => mapping.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id!.Value.Value, value => new ImportJobId(value));
+            entity.Property(mapping => mapping.SourceSystem).HasColumnName("source_system").HasMaxLength(128).IsRequired();
+            entity.Property(mapping => mapping.Kind).HasColumnName("kind")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(mapping => mapping.SourceKey).HasColumnName("source_key").HasMaxLength(256).IsRequired();
+            entity.Property(mapping => mapping.TargetKey).HasColumnName("target_key").HasMaxLength(256).IsRequired();
+            entity.Property(mapping => mapping.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(mapping => mapping.CreatedAt).HasColumnName("created_at");
+
+            entity.HasOne<ImportJob>().WithMany()
+                .HasForeignKey(mapping => mapping.ImportJobId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_import_mappings_job");
+
+            entity.HasIndex(mapping => new { mapping.SourceSystem, mapping.ImportJobId, mapping.Kind, mapping.SourceKey })
+                .IsUnique()
+                .AreNullsDistinct(false)
+                .HasDatabaseName("ux_import_mappings_lookup");
+        });
+
+        modelBuilder.Entity<ImportSourceIndex>(entity =>
+        {
+            entity.ToTable("import_source_index");
+            entity.HasKey(row => new { row.SourceSystem, row.SourceId });
+            entity.Property(row => row.SourceSystem).HasColumnName("source_system").HasMaxLength(128);
+            entity.Property(row => row.SourceId).HasColumnName("source_id").HasMaxLength(256);
+            entity.Property(row => row.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(row => row.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id.Value, value => new ImportJobId(value));
+            entity.Property(row => row.ImportItemId).HasColumnName("import_item_id")
+                .HasConversion(id => id.Value, value => new ImportItemId(value));
+            entity.Property(row => row.ImportedAt).HasColumnName("imported_at");
+
+            entity.HasIndex(row => row.DocumentId).HasDatabaseName("ix_import_source_index_document");
+        });
+
+        modelBuilder.Entity<ClassificationLevel>(entity =>
+        {
+            entity.ToTable("classification_levels");
+            entity.HasKey(level => level.Id);
+            entity.Property(level => level.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new ClassificationLevelId(value));
+            entity.Property(level => level.Code).HasColumnName("code").HasMaxLength(64).IsRequired();
+            entity.Property(level => level.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(level => level.Rank).HasColumnName("rank");
+            entity.Property(level => level.IsActive).HasColumnName("is_active");
+            entity.Property(level => level.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(level => level.CreatedAt).HasColumnName("created_at");
+            entity.Property(level => level.UpdatedAt).HasColumnName("updated_at");
+            entity.HasIndex(level => level.Code).IsUnique().HasDatabaseName("ux_classification_levels_code");
+        });
+
+        modelBuilder.Entity<DocumentClassification>(entity =>
+        {
+            entity.ToTable("document_classifications");
+            entity.HasKey(row => row.DocumentId);
+            entity.Property(row => row.DocumentId).HasColumnName("document_id")
+                .HasConversion(id => id.Value, value => new DocumentId(value));
+            entity.Property(row => row.LevelId).HasColumnName("level_id")
+                .HasConversion(id => id.Value, value => new ClassificationLevelId(value));
+            entity.Property(row => row.AssignedBy).HasColumnName("assigned_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(row => row.AssignedAt).HasColumnName("assigned_at");
+
+            entity.HasOne<Document>().WithMany()
+                .HasForeignKey(row => row.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_document_classifications_document");
+            entity.HasOne<ClassificationLevel>().WithMany()
+                .HasForeignKey(row => row.LevelId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_document_classifications_level");
+            entity.HasIndex(row => row.LevelId).HasDatabaseName("ix_document_classifications_level");
         });
     }
 }

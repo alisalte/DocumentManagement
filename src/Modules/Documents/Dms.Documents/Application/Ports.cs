@@ -177,6 +177,9 @@ public sealed record DocumentDetailsDto(
     public JsonElement? CurrentMetadata { get; init; }
 
     public Guid? CurrentSchemaVersionId { get; init; }
+
+    /// <summary>Present when the document has been declared as a Record (phase 10.1).</summary>
+    public RecordSummaryDto? Record { get; init; }
 }
 
 public sealed record DocumentVersionDto(

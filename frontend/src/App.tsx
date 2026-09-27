@@ -15,6 +15,8 @@ import { SharedVersionPage } from './pages/SharedVersionPage';
 import { SharedWithMePage } from './pages/SharedWithMePage';
 import { AuditPage } from './pages/admin/AuditPage';
 import { CategoriesPage } from './pages/admin/CategoriesPage';
+import { DispositionPage } from './pages/admin/DispositionPage';
+import { ImportPage } from './pages/admin/ImportPage';
 import { GroupsPage } from './pages/admin/GroupsPage';
 import { RolesPage } from './pages/admin/RolesPage';
 import { UsersPage } from './pages/admin/UsersPage';
@@ -98,6 +100,13 @@ function Shell() {
   const canManageSearch = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH');
   const canViewAudit = user.isSystemAdmin || user.systemPermissions.includes('AUDIT_VIEW');
   const has = (code: string) => user.isSystemAdmin || user.systemPermissions.includes(code);
+  const canDisposition =
+    has('DISPOSITION_REQUEST') ||
+    has('DISPOSITION_APPROVE') ||
+    has('DISPOSITION_DESTROY') ||
+    has('DISPOSITION_VIEW_CERTIFICATE') ||
+    has('ADMIN_MANAGE_RECORDS');
+  const canImport = has('IMPORT_VIEW') || has('IMPORT_RUN') || has('IMPORT_MANAGE');
 
   return (
     <Layout>
@@ -113,6 +122,8 @@ function Shell() {
         <Route path="/help" element={<HelpGuidePage />} />
         {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
         {canViewAudit && <Route path="/admin/audit" element={<AuditPage />} />}
+        {canDisposition && <Route path="/admin/disposition" element={<DispositionPage />} />}
+        {canImport && <Route path="/admin/imports" element={<ImportPage />} />}
         {has('ADMIN_MANAGE_USERS') && <Route path="/admin/users" element={<UsersPage />} />}
         {has('ADMIN_MANAGE_GROUPS') && <Route path="/admin/groups" element={<GroupsPage />} />}
         {has('ADMIN_MANAGE_ROLES') && <Route path="/admin/roles" element={<RolesPage />} />}

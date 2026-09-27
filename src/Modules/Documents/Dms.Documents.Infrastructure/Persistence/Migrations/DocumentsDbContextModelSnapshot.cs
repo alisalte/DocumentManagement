@@ -114,6 +114,255 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Dms.Documents.Domain.ClassificationLevel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("Rank")
+                        .HasColumnType("integer")
+                        .HasColumnName("rank");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_classification_levels_code");
+
+                    b.ToTable("classification_levels", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.DestructionCertificate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<byte[]>("CertificateHash")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("certificate_hash");
+
+                    b.Property<string>("CertificateNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("certificate_number");
+
+                    b.Property<byte[]>("ContentSha256")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("content_sha256");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("DestroyedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("destroyed_at");
+
+                    b.Property<Guid>("DestroyedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("destroyed_by");
+
+                    b.Property<Guid>("DispositionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("disposition_id");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<Guid>("FinalVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("final_version_id");
+
+                    b.Property<string>("FinalVersionLabel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("final_version_label");
+
+                    b.Property<DateTimeOffset>("LegalHoldCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("legal_hold_checked_at");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RecordTitle")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("record_title");
+
+                    b.Property<DateTimeOffset?>("RetentionExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retention_expires_at");
+
+                    b.Property<Guid?>("RetentionPolicyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("retention_policy_id");
+
+                    b.Property<int?>("RetentionPolicyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_policy_version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CertificateNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ux_destruction_certificates_number");
+
+                    b.HasIndex("DispositionId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_destruction_certificates_disposition");
+
+                    b.HasIndex("RecordId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_destruction_certificates_record");
+
+                    b.ToTable("destruction_certificates", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_destruction_certificates_sha256", "octet_length(content_sha256) = 32 AND octet_length(certificate_hash) = 32");
+                        });
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.Disposition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approved_at");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("approved_by");
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("decision_reason");
+
+                    b.Property<DateTimeOffset?>("DestroyedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("destroyed_at");
+
+                    b.Property<Guid?>("DestroyedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("destroyed_by");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<Guid>("RecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_id");
+
+                    b.Property<string>("RequestReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("request_reason");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("requested_by");
+
+                    b.Property<DateTimeOffset?>("ReviewedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_dispositions_document");
+
+                    b.HasIndex("RecordId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_dispositions_active_record")
+                        .HasFilter("status IN ('PendingReview','Approved')");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_dispositions_status");
+
+                    b.ToTable("dispositions", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_dispositions_status", "status IN ('PendingReview','Approved','Rejected','Destroyed')");
+                        });
+                });
+
             modelBuilder.Entity("Dms.Documents.Domain.Document", b =>
                 {
                     b.Property<Guid>("Id")
@@ -230,6 +479,32 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_documents_latest_version", "latest_version_number >= 0");
                         });
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.DocumentClassification", b =>
+                {
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
+                    b.Property<Guid>("AssignedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("assigned_by");
+
+                    b.Property<Guid>("LevelId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("level_id");
+
+                    b.HasKey("DocumentId");
+
+                    b.HasIndex("LevelId")
+                        .HasDatabaseName("ix_document_classifications_level");
+
+                    b.ToTable("document_classifications", "documents");
                 });
 
             modelBuilder.Entity("Dms.Documents.Domain.DocumentTag", b =>
@@ -367,6 +642,685 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Dms.Documents.Domain.ImportItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActualSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("actual_sha256");
+
+                    b.Property<long?>("ActualSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("actual_size");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EntryJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("entry_json");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("error_code");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("error_message");
+
+                    b.Property<string>("ExpectedSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("expected_sha256");
+
+                    b.Property<long?>("ExpectedSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("expected_size");
+
+                    b.Property<Guid>("ImportJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_job_id");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("retry_count");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("SourceId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_id");
+
+                    b.Property<string>("SourcePath")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("source_path");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid?>("TargetDocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_document_id");
+
+                    b.Property<Guid?>("TargetRecordId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_record_id");
+
+                    b.Property<Guid?>("TargetVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("target_version_id");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_import_items_claimable")
+                        .HasFilter("status IN ('Ready','Retryable','Running')");
+
+                    b.HasIndex("ImportJobId", "SourceId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_import_items_job_source");
+
+                    b.HasIndex("ImportJobId", "Status")
+                        .HasDatabaseName("ix_import_items_job_status");
+
+                    b.ToTable("import_items", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_import_items_status", "status IN ('Pending','Valid','Invalid','Ready','Running','Succeeded','Failed','Skipped','Retryable')");
+                        });
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ImportJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("BytesProcessed")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bytes_processed");
+
+                    b.Property<long>("BytesTotal")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bytes_total");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<bool>("CreateMissingCategories")
+                        .HasColumnType("boolean")
+                        .HasColumnName("create_missing_categories");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("DryRunOnly")
+                        .HasColumnType("boolean")
+                        .HasColumnName("dry_run_only");
+
+                    b.Property<int>("FailedItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_items");
+
+                    b.Property<string>("FailurePolicy")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("failure_policy");
+
+                    b.Property<string>("FilesRoot")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("files_root");
+
+                    b.Property<int>("InvalidItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("invalid_items");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("ManifestSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("manifest_sha256");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("ProcessedItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("processed_items");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<int>("SkippedItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("skipped_items");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source_system");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("SucceededItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("succeeded_items");
+
+                    b.Property<int>("TotalItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_items");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_import_jobs_created_at");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_import_jobs_status");
+
+                    b.HasIndex("SourceSystem", "CreatedAt")
+                        .HasDatabaseName("ix_import_jobs_source_created");
+
+                    b.ToTable("import_jobs", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_import_jobs_failure_policy", "failure_policy IN ('ContinueOnError','StopOnError')");
+
+                            t.HasCheckConstraint("ck_import_jobs_status", "status IN ('Created','Validating','ValidationFailed','Ready','Running','Paused','Completed','CompletedWithErrors','Failed')");
+                        });
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ImportMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("ImportJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_job_id");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("SourceKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_key");
+
+                    b.Property<string>("SourceSystem")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source_system");
+
+                    b.Property<string>("TargetKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("target_key");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportJobId");
+
+                    b.HasIndex("SourceSystem", "ImportJobId", "Kind", "SourceKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_import_mappings_lookup");
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("SourceSystem", "ImportJobId", "Kind", "SourceKey"), false);
+
+                    b.ToTable("import_mappings", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ImportSourceIndex", b =>
+                {
+                    b.Property<string>("SourceSystem")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("source_system");
+
+                    b.Property<string>("SourceId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("source_id");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<Guid>("ImportItemId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_item_id");
+
+                    b.Property<Guid>("ImportJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_job_id");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("imported_at");
+
+                    b.HasKey("SourceSystem", "SourceId");
+
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_import_source_index_document");
+
+                    b.ToTable("import_source_index", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.LegalHold", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ReleaseReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("release_reason");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at");
+
+                    b.Property<Guid?>("ReleasedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("released_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId")
+                        .HasDatabaseName("ix_legal_holds_document");
+
+                    b.HasIndex("DocumentId", "ReleasedAt")
+                        .HasDatabaseName("ix_legal_holds_active")
+                        .HasFilter("released_at IS NULL");
+
+                    b.ToTable("legal_holds", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ManagedRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("DeclaredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("declared_at");
+
+                    b.Property<Guid>("DeclaredBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("declared_by");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_id");
+
+                    b.Property<Guid>("FinalVersionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("final_version_id");
+
+                    b.Property<string>("LastTransitionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("last_transition_reason");
+
+                    b.Property<DateTimeOffset>("MetadataFrozenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("metadata_frozen_at");
+
+                    b.Property<Guid>("RecordClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_class_id");
+
+                    b.Property<Guid?>("RecordSeriesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_series_id");
+
+                    b.Property<string>("RetentionExceptionReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("retention_exception_reason");
+
+                    b.Property<DateTimeOffset?>("RetentionExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retention_expires_at");
+
+                    b.Property<int?>("RetentionPeriodDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_period_days");
+
+                    b.Property<Guid?>("RetentionPolicyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("retention_policy_id");
+
+                    b.Property<int?>("RetentionPolicyVersion")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_policy_version");
+
+                    b.Property<string>("RetentionStartEvent")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("retention_start_event");
+
+                    b.Property<DateTimeOffset?>("RetentionStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("retention_started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DocumentId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_records_document");
+
+                    b.HasIndex("FinalVersionId");
+
+                    b.HasIndex("RecordClassId")
+                        .HasDatabaseName("ix_records_class");
+
+                    b.HasIndex("RecordSeriesId");
+
+                    b.HasIndex("RetentionExpiresAt")
+                        .HasDatabaseName("ix_records_retention_expires")
+                        .HasFilter("retention_expires_at IS NOT NULL");
+
+                    b.HasIndex("RetentionPolicyId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_records_status");
+
+                    b.ToTable("records", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_records_status", "status IN ('Active','UnderRetention','Expired','PendingDisposal','Destroyed')");
+                        });
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.RecordClass", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_record_classes_code");
+
+                    b.ToTable("record_classes", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.RecordSeries", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("RecordClassId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("record_class_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordClassId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_record_series_class_code");
+
+                    b.ToTable("record_series", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.RetentionPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("RetentionPeriodDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("retention_period_days");
+
+                    b.Property<string>("StartEvent")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("start_event");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("version_number");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_retention_policies_code");
+
+                    b.ToTable("retention_policies", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_retention_policies_days", "retention_period_days > 0");
+
+                            t.HasCheckConstraint("ck_retention_policies_version", "version_number > 0");
+                        });
+                });
+
             modelBuilder.Entity("Dms.Documents.Domain.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -411,6 +1365,40 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_categories_parent");
                 });
 
+            modelBuilder.Entity("Dms.Documents.Domain.DestructionCertificate", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.Disposition", null)
+                        .WithMany()
+                        .HasForeignKey("DispositionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_destruction_certificates_disposition");
+
+                    b.HasOne("Dms.Documents.Domain.ManagedRecord", null)
+                        .WithMany()
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_destruction_certificates_record");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.Disposition", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispositions_document");
+
+                    b.HasOne("Dms.Documents.Domain.ManagedRecord", null)
+                        .WithMany()
+                        .HasForeignKey("RecordId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispositions_record");
+                });
+
             modelBuilder.Entity("Dms.Documents.Domain.Document", b =>
                 {
                     b.HasOne("Dms.Documents.Domain.Category", null)
@@ -419,6 +1407,23 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_documents_category");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.DocumentClassification", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_classifications_document");
+
+                    b.HasOne("Dms.Documents.Domain.ClassificationLevel", null)
+                        .WithMany()
+                        .HasForeignKey("LevelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_document_classifications_level");
                 });
 
             modelBuilder.Entity("Dms.Documents.Domain.DocumentTag", b =>
@@ -446,6 +1451,81 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_document_versions_document");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ImportItem", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.ImportJob", null)
+                        .WithMany()
+                        .HasForeignKey("ImportJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_import_items_job");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ImportMapping", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.ImportJob", null)
+                        .WithMany()
+                        .HasForeignKey("ImportJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_import_mappings_job");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.LegalHold", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_legal_holds_document");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.ManagedRecord", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.Document", null)
+                        .WithMany()
+                        .HasForeignKey("DocumentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_records_document");
+
+                    b.HasOne("Dms.Documents.Domain.DocumentVersion", null)
+                        .WithMany()
+                        .HasForeignKey("FinalVersionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_records_final_version");
+
+                    b.HasOne("Dms.Documents.Domain.RecordClass", null)
+                        .WithMany()
+                        .HasForeignKey("RecordClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_records_class");
+
+                    b.HasOne("Dms.Documents.Domain.RecordSeries", null)
+                        .WithMany()
+                        .HasForeignKey("RecordSeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_records_series");
+
+                    b.HasOne("Dms.Documents.Domain.RetentionPolicy", null)
+                        .WithMany()
+                        .HasForeignKey("RetentionPolicyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_records_retention_policy");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.RecordSeries", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.RecordClass", null)
+                        .WithMany()
+                        .HasForeignKey("RecordClassId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_record_series_class");
                 });
 
             modelBuilder.Entity("Dms.Documents.Domain.Document", b =>

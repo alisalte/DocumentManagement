@@ -1,32 +1,84 @@
-# Legacy archive import (D11)
+# Legacy archive import (Phase 10.6 / D11)
 
-Architecture decision **D11** deferred bulk import from older file shares. Phase 10 ships the
-**manifest contract** and a dry-run script so a real importer can land without redesigning storage.
+Bulk import from a legacy DMS uses a **manifest**, server-side **files root**, dry-run
+**validation**, then a resumable **import job** that writes through `IStorageService` and
+existing document / record / ACL / classification / retention / legal-hold domain services.
 
 ## Manifest
 
-See [manifest.example.json](manifest.example.json). Each entry becomes one document:
+See [manifest.example.json](manifest.example.json).
 
-- `title`, optional `description`
-- `categoryPath` — slash-separated names under the archive root (created if missing when the
-  importer runs with `--create-categories`, otherwise must already exist)
-- `documentTypeCode` — existing type code
-- `file` — path relative to `--files-root`
-- optional `tags`, `ownerUsername`, `createdAt` (ISO-8601; defaults to import time)
+- `schemaVersion`: `1` or `2`
+- `source`: logical source system name (idempotency namespace)
+- `entries[]`:
+  - `sourceId` (required for v2; derived from path+title when omitted)
+  - `title`, optional `description`
+  - `categoryPath` — slash-separated names under the archive root
+  - `documentTypeCode` — existing type code (or mapped)
+  - `file` / `path` — path **relative** to `Dms:Import:FilesRoot` (never absolute / `..`)
+  - optional `sha256`, `size`, `contentType`, `tags`, `ownerUsername`, `createdAt`
+  - optional `classification`, `record`, `recordClassCode`, `recordSeriesCode`,
+    `retentionPolicyCode`, `legalHoldReason`, `metadata`, `acl`, `versions`
 
-## Dry-run
+## Configuration
+
+```json
+"Dms": {
+  "Import": {
+    "FilesRoot": "/var/lib/dms/import-staging"
+  }
+}
+```
+
+Clients may only request a **relative subfolder** under that root. Arbitrary filesystem
+targets are rejected.
+
+## API
+
+| Method | Path | Permission |
+|--------|------|------------|
+| `POST` | `/api/v1/imports` | `IMPORT_MANAGE` |
+| `POST` | `/api/v1/imports/{id}/validate` | `IMPORT_MANAGE` or `IMPORT_RUN` |
+| `POST` | `/api/v1/imports/{id}/start` | `IMPORT_RUN` |
+| `POST` | `/api/v1/imports/{id}/pause` | `IMPORT_RUN` |
+| `POST` | `/api/v1/imports/{id}/resume` | `IMPORT_RUN` |
+| `POST` | `/api/v1/imports/{id}/retry-failed` | `IMPORT_RUN` |
+| `GET` | `/api/v1/imports` | `IMPORT_VIEW` |
+| `GET` | `/api/v1/imports/{id}` | `IMPORT_VIEW` |
+| `GET` | `/api/v1/imports/{id}/items` | `IMPORT_VIEW` |
+| `GET` | `/api/v1/imports/{id}/report` | `IMPORT_VIEW` (audited) |
+
+## Lifecycle
+
+```text
+Created → Validating → Ready → Running → Completed
+                      ↘ ValidationFailed
+                 Ready → Running → Paused → Running
+                 Running → CompletedWithErrors | Failed
+                 Failed | CompletedWithErrors → retry / resume
+```
+
+Default failure policy is `ContinueOnError` (per-item). `StopOnError` finishes the job on
+the first failed item.
+
+## Idempotency
+
+Successful imports are keyed by `(sourceSystem, sourceId)` in `documents.import_source_index`.
+Re-running the same source skips with `IMPORT_IDEMPOTENT_SKIP` and does not create a second
+document.
+
+## Local dry-run script
 
 ```bash
 ./scripts/legacy-import.sh --manifest docs/legacy-import/manifest.example.json --files-root /path/to/files
 ```
 
-Exit 0 means the manifest parses and every `file` exists. No API calls yet.
+Exit 0 means the manifest parses and every `file` exists. Full validation/import uses the API
+and admin UI (`/admin/imports`).
 
-## Next increment
+## Mappings
 
-A small console tool (or extension of this script) that:
-
-1. Authenticates as an import service account with `DOCUMENT_CREATE` on target categories.
-2. Stages each file through the normal upload API (so ClamAV / hashing / audit stay on the path).
-3. Writes an import batch id into audit metadata for replay and support.
-4. Never bypasses ACL or malware quarantine.
+Pass `mappings` on create (`kind`, `sourceKey`, `targetKey`) for User, Group, Folder,
+DocumentType, Classification, RecordClass, RecordSeries, RetentionPolicy, Permission,
+MetadataField. Unknown classifications / principals / document types fail validation — they
+are never silently downgraded.

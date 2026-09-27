@@ -22,9 +22,10 @@ public sealed class ResourceAclWriter(
         Guid subjectId,
         IReadOnlyCollection<string> permissionCodes,
         string reason,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        UserId? actingAs = null)
     {
-        var actor = currentUser.UserId
+        var actor = actingAs ?? currentUser.UserId
             ?? throw new InvalidOperationException("Default grants are only written on behalf of a user.");
         var now = timeProvider.GetUtcNow();
 

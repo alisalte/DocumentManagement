@@ -31,6 +31,9 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
     /// <summary>Filesystem storage in a throwaway directory: real bytes on a real disk, no object store needed.</summary>
     public string StorageRoot { get; } = Path.Combine(Path.GetTempPath(), $"dms_test_{Guid.NewGuid():N}");
 
+    /// <summary>Trusted root for legacy import source files (phase 10.6).</summary>
+    public string ImportFilesRoot { get; } = Path.Combine(Path.GetTempPath(), $"dms_import_{Guid.NewGuid():N}");
+
     private static string AdminConnectionString =>
         Environment.GetEnvironmentVariable("DMS_TEST_POSTGRES")
         ?? "Host=localhost;Port=5433;Username=dms;Password=dms;Database=postgres";
@@ -79,6 +82,9 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
 
         Environment.SetEnvironmentVariable("Dms__Storage__Provider", "filesystem");
         Environment.SetEnvironmentVariable("Dms__Storage__FileSystem__RootPath", StorageRoot);
+
+        Directory.CreateDirectory(ImportFilesRoot);
+        Environment.SetEnvironmentVariable("Dms__Import__FilesRoot", ImportFilesRoot);
 
         // Every test signs in, and they all come from the same address. The limiter itself is
         // covered by its own test rather than by throttling the whole suite.
@@ -137,6 +143,11 @@ public sealed class DmsApiFactory : WebApplicationFactory<Program>, IAsyncLifeti
         if (Directory.Exists(StorageRoot))
         {
             Directory.Delete(StorageRoot, recursive: true);
+        }
+
+        if (Directory.Exists(ImportFilesRoot))
+        {
+            Directory.Delete(ImportFilesRoot, recursive: true);
         }
     }
 

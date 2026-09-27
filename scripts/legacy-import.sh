@@ -36,7 +36,7 @@ from pathlib import Path
 
 manifest_path, files_root = Path(sys.argv[1]), Path(sys.argv[2])
 data = json.loads(manifest_path.read_text(encoding="utf-8"))
-if data.get("schemaVersion") != 1:
+if data.get("schemaVersion") not in (1, 2):
     sys.exit(f"Unsupported schemaVersion: {data.get('schemaVersion')!r}")
 entries = data.get("entries")
 if not isinstance(entries, list) or not entries:
@@ -44,10 +44,14 @@ if not isinstance(entries, list) or not entries:
 
 errors = []
 for i, entry in enumerate(entries):
-    for key in ("title", "categoryPath", "documentTypeCode", "file"):
+    for key in ("title", "categoryPath", "documentTypeCode"):
         if not entry.get(key):
             errors.append(f"entries[{i}].{key} is required")
-    rel = entry.get("file") or ""
+    rel = entry.get("file") or entry.get("path") or ""
+    if not rel:
+        errors.append(f"entries[{i}].file (or path) is required")
+    if ".." in rel.replace("\\", "/").split("/") or rel.startswith("/") or "\0" in rel:
+        errors.append(f"entries[{i}].file path is not allowed: {rel}")
     path = files_root / rel
     if rel and not path.is_file():
         errors.append(f"entries[{i}].file missing on disk: {path}")
@@ -57,5 +61,5 @@ if errors:
     sys.exit(1)
 
 print(f"Dry-run OK: {len(entries)} entries, source={data.get('source')!r}")
-print("No API calls were made. Wire upload in the next phase-10 increment.")
+print("For full validation/import use POST /api/v1/imports (phase 10.6).")
 PY
