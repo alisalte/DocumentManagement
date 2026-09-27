@@ -8,7 +8,7 @@ operational go-live, plus the deferred platform seams named in architecture deci
 |---|---|
 | Go-live runbook | [go-live.md](go-live.md) |
 | Release checklist | [release-checklist.md](release-checklist.md) |
-| Retention & legal-hold seam (D12) | [retention.md](retention.md) · `DocumentTypeSettings.RetentionDaysAfterDelete` |
+| Retention & legal hold (D12 / 10.2–10.3) | [retention.md](retention.md) · policies, worker, `legal_holds` |
 | Record management (10.1) | [records.md](records.md) · `documents.records` / classes / series |
 | Legacy import skeleton (D11) | [../legacy-import/](../legacy-import/) · `scripts/legacy-import.sh` |
 | Build / role identity | `GET /version` on the API host |
