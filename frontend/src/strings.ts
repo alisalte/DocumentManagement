@@ -99,7 +99,7 @@ export const t = {
   searchPlaceholder: 'عنوان، متن، مشخصات…',
   searchResults: 'نتیجه',
   searchNothing: 'سندی با این مشخصات پیدا نشد.',
-  searchDegraded: 'موتور جستجو در دسترس نیست؛ فقط در عنوان‌ها جستجو شد.',
+  searchDegraded: 'موتور جستجو در دسترس نیست؛ فقط در عنوان، توضیح و نام فایل جستجو شد.',
   allVersions: 'جستجو در نسخه‌های قبلی',
   allTypes: 'همه‌ی انواع',
   allCategories: 'همه‌ی پوشه‌ها',

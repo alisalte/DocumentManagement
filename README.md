@@ -90,16 +90,20 @@ sudo apt-get install -y tesseract-ocr tesseract-ocr-fas tesseract-ocr-eng popple
 
 The backend image already bundles those packages. Disable with `Dms__Search__Tesseract__Enabled=false`.
 
-**Tika + OpenSearch (optional, richer extraction for Office files).** Everything works without
-them: PDFs and images still get previews, OCR still runs locally, and search falls back to
-titles when OpenSearch is off.
+**OpenSearch (full-text search) and optional Tika.** Without OpenSearch the API still runs and
+search falls back to title, description, and file name (`degraded: true`). Development points at
+`http://localhost:9200` by default; start the engine with:
 
 ```bash
-docker run -d --name dms-opensearch -p 9200:9200 -e discovery.type=single-node \
-  -e DISABLE_SECURITY_PLUGIN=true -e DISABLE_INSTALL_DEMO_CONFIG=true opensearchproject/opensearch:2.19.3
-docker build -t dms-tika deploy/tika && docker run -d --name dms-tika -p 9998:9998 dms-tika
+./scripts/dev-search.sh
+# or let the API script start it: DMS_AUTO_SEARCH=1 ./scripts/dev-api.sh
+```
 
-Dms__Search__OpenSearchUrl=http://localhost:9200 Dms__Search__TikaUrl=http://localhost:9998 ./scripts/dev-api.sh
+For Office-rich extraction, also run Tika and point the API at it:
+
+```bash
+START_TIKA=1 ./scripts/dev-search.sh
+Dms__Search__TikaUrl=http://localhost:9998 ./scripts/dev-api.sh
 ```
 
 When `Dms__Search__TikaUrl` is set, Tika owns text extraction and OCR; local Tesseract is unused.

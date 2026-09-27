@@ -170,8 +170,8 @@ public sealed class SearchDocumentsHandler(
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
-            // Section 8.4: search keeps working on titles when the engine is down.
-            logger.LogError(exception, "The search engine failed; falling back to title search.");
+            // Section 8.4: search keeps working on Postgres metadata when the engine is down.
+            logger.LogError(exception, "The search engine failed; falling back to metadata search.");
             return Result.Success(await DegradedAsync(query, page, pageSize, cancellationToken));
         }
 

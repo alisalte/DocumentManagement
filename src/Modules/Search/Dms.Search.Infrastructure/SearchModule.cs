@@ -33,8 +33,9 @@ public static class SearchModule
         services.AddDmsModuleDbContext<SearchDbContext>(MigrationOrder, SearchDbContext.Schema);
         services.AddScoped<IContentExtractionRepository, ContentExtractionRepository>();
 
-        // Both engines are optional: without OpenSearch search falls back to titles in Postgres,
-        // without Tika only metadata is searchable. Neither blocks filing a document.
+        // Both engines are optional: without OpenSearch search falls back to title/description/
+        // file name in Postgres; without Tika, local Tesseract (or nothing) handles extraction.
+        // Neither blocks filing a document.
         if (string.IsNullOrWhiteSpace(options.OpenSearchUrl))
         {
             services.AddSingleton<ISearchEngine, DisabledSearchEngine>();
