@@ -53,7 +53,17 @@ public sealed record SearchResultDto(
     IReadOnlyDictionary<string, IReadOnlyList<FacetBucket>> Facets,
     bool Degraded);
 
-public sealed record SearchStatusDto(bool EngineEnabled, bool ExtractorEnabled, string? Index, long IndexedVersions, IReadOnlyDictionary<string, int> Extractions);
+/// <param name="EngineMode">
+/// <c>OpenSearch</c>, <c>Disabled</c> (no URL configured), or <c>Unreachable</c> (URL set but ping failed).
+/// </param>
+public sealed record SearchStatusDto(
+    bool EngineEnabled,
+    bool ExtractorEnabled,
+    string? Index,
+    long IndexedVersions,
+    IReadOnlyDictionary<string, int> Extractions,
+    string EngineMode = "Disabled",
+    string? ExtractorMode = null);
 
 public sealed record SearchStatusQuery : IQuery<Result<SearchStatusDto>>;
 
@@ -438,8 +448,10 @@ public sealed class SearchStatusHandler(
         }
 
         (string? Index, long Count) status = (null, 0);
+        var engineMode = "Disabled";
         if (engine.IsEnabled)
         {
+            engineMode = "OpenSearch";
             try
             {
                 status = await engine.StatusAsync(cancellationToken);
@@ -447,8 +459,15 @@ public sealed class SearchStatusHandler(
             catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
             {
                 status = (null, -1);
+                engineMode = "Unreachable";
             }
         }
+
+        var extractorMode = !extractor.IsEnabled
+            ? "Disabled"
+            : extractor.GetType().Name.Contains("Tika", StringComparison.Ordinal) ? "Tika"
+            : extractor.GetType().Name.Contains("Local", StringComparison.Ordinal) ? "LocalTesseract"
+            : "Enabled";
 
         var counts = await extractions.CountByStatusAsync(cancellationToken);
         return Result.Success(new SearchStatusDto(
@@ -456,7 +475,9 @@ public sealed class SearchStatusHandler(
             extractor.IsEnabled,
             status.Index,
             status.Count,
-            counts.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value)));
+            counts.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value),
+            engineMode,
+            extractorMode));
     }
 }
 
