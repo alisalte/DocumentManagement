@@ -40,20 +40,20 @@ export function HelpGuidePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 page-enter">
-      <header className="relative overflow-hidden rounded-3xl border border-ink-300/50 bg-gradient-to-bl from-ink-500 via-ink-600 to-copper-500 px-5 py-8 text-white sm:px-8 sm:py-10">
+      <header className="relative overflow-hidden rounded-3xl border border-ink-200/70 bg-gradient-to-bl from-ink-900 via-ink-800 to-ink-700 px-5 py-8 text-white sm:px-8 sm:py-10">
         <div
-          className="pointer-events-none absolute -start-16 -top-20 size-64 rounded-full bg-copper-300/45 blur-3xl"
+          className="pointer-events-none absolute -start-16 -top-20 size-64 rounded-full bg-copper-400/20 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -end-10 bottom-0 size-48 rounded-full bg-white/20 blur-2xl"
+          className="pointer-events-none absolute -end-10 bottom-0 size-48 rounded-full bg-white/10 blur-2xl"
           aria-hidden
         />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-xl space-y-3">
-            <p className="text-xs font-semibold tracking-[0.2em] text-copper-100 uppercase">{guideIntro.brand}</p>
+            <p className="text-xs font-semibold tracking-[0.2em] text-ink-200 uppercase">{guideIntro.brand}</p>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{guideIntro.title}</h1>
-            <p className="text-sm leading-7 text-white/90 sm:text-base">{guideIntro.lead}</p>
+            <p className="text-sm leading-7 text-ink-100/90 sm:text-base">{guideIntro.lead}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button as={RouterLink} to="/new" variant="secondary" size="sm">
@@ -64,7 +64,7 @@ export function HelpGuidePage() {
               to="/search"
               variant="outline"
               size="sm"
-              className="!border-white/40 !bg-white/15 !text-white hover:!border-white/60 hover:!bg-white/25"
+              className="!border-white/30 !bg-white/10 !text-white hover:!border-white/50 hover:!bg-white/15"
             >
               جستجو
             </Button>
@@ -89,8 +89,8 @@ export function HelpGuidePage() {
                     className={cx(
                       'flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-200',
                       selected
-                        ? 'bg-ink-600 text-white shadow-[0_2px_10px_rgb(217_84_40/0.22)]'
-                        : 'text-paper-600 hover:bg-copper-50 hover:text-ink-900',
+                        ? 'bg-ink-800 text-white shadow-[0_2px_10px_rgb(12_32_52/0.18)]'
+                        : 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
                     )}
                   >
                     <span
@@ -136,7 +136,7 @@ function GuideBlock({ section, index }: { section: GuideSection; index: number }
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl space-y-2">
           <div className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-xl bg-ink-600 text-sm font-bold text-white">
+            <span className="grid size-8 place-items-center rounded-xl bg-ink-800 text-sm font-bold text-white">
               {(index + 1).toLocaleString('fa-IR')}
             </span>
             <h2 id={`${section.id}-title`} className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">
@@ -191,7 +191,7 @@ function UiMock({ section }: { section: GuideSection }) {
     section.mock.highlights.find((item) => item.spot === spot)?.label;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-paper-300/80 bg-white shadow-[0_8px_28px_rgb(217_84_40/0.1)]">
+    <div className="overflow-hidden rounded-xl border border-paper-300/80 bg-white shadow-[0_8px_28px_rgb(12_32_52/0.08)]">
       <div className="flex items-center gap-1.5 border-b border-paper-100 bg-paper-50 px-3 py-2">
         <span className="size-2 rounded-full bg-paper-300" />
         <span className="size-2 rounded-full bg-paper-300" />
@@ -232,7 +232,7 @@ function UiMock({ section }: { section: GuideSection }) {
             <div
               className={cx(
                 'flex h-8 items-center rounded-lg px-2.5 text-[11px] font-semibold',
-                spots.has('nav') ? 'bg-ink-600 text-white ring-2 ring-ink-400/40' : 'bg-paper-100 text-paper-600',
+                spots.has('nav') ? 'bg-ink-800 text-white ring-2 ring-ink-500/30' : 'bg-paper-100 text-paper-600',
               )}
             >
               {label('nav') ?? 'نوار بالا'}
@@ -241,8 +241,8 @@ function UiMock({ section }: { section: GuideSection }) {
               className={cx(
                 'flex h-8 items-center rounded-lg px-2.5 text-[11px] font-semibold',
                 spots.has('action')
-                  ? 'bg-copper-500 text-ink-950 ring-2 ring-copper-300/50'
-                  : 'bg-ink-600 text-white/95',
+                  ? 'bg-copper-600 text-white ring-2 ring-copper-400/40'
+                  : 'bg-ink-700 text-white/90',
               )}
             >
               {label('action') ?? 'اقدام'}
@@ -291,7 +291,7 @@ function Callout({ children, className }: { children: ReactNode; className?: str
   return (
     <span
       className={cx(
-        'inline-flex max-w-full items-center rounded-full bg-ink-700 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white shadow-sm',
+        'inline-flex max-w-full items-center rounded-full bg-ink-900 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white shadow-sm',
         'animate-[fade-in_0.45s_ease-out_both]',
         className,
       )}
