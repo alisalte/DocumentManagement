@@ -7,9 +7,9 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-ink-600 text-white shadow-[0_1px_2px_rgb(77_29_16/0.14)] hover:bg-ink-700 active:bg-ink-800',
+    'bg-ink-700 text-white shadow-[0_1px_2px_rgb(12_32_52/0.12)] hover:bg-ink-800 active:bg-ink-900',
   secondary:
-    'bg-copper-500 text-ink-950 shadow-[0_1px_2px_rgb(87_53_14/0.14)] hover:bg-copper-400 active:bg-copper-600',
+    'bg-copper-600 text-white shadow-[0_1px_2px_rgb(58_38_26/0.12)] hover:bg-copper-700 active:bg-copper-800',
   outline:
     'border border-paper-300 bg-white/90 text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
   ghost: 'text-paper-700 hover:bg-ink-50 hover:text-ink-900',

@@ -20,11 +20,11 @@ function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cx(
-        'relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-ink-500 to-ink-700 text-base font-bold text-white shadow-[0_2px_10px_rgb(217_84_40/0.35)]',
+        'relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-ink-800 text-base font-bold text-white shadow-[0_2px_8px_rgb(12_32_52/0.25)]',
         className,
       )}
     >
-      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgb(255_203_51/0.35),transparent_55%)]" aria-hidden />
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.18),transparent_55%)]" aria-hidden />
       <span className="relative">ب</span>
     </span>
   );
@@ -95,8 +95,8 @@ export function Layout({ children }: { children: ReactNode }) {
       'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-all duration-150',
       'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
       active
-        ? 'bg-ink-100/95 text-ink-800 shadow-[inset_0_0_0_1px_rgb(217_84_40/0.18)]'
-        : 'text-paper-600 hover:bg-copper-50 hover:text-ink-900',
+        ? 'bg-ink-100/90 text-ink-800 shadow-[inset_0_0_0_1px_rgb(30_74_117/0.12)]'
+        : 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
     );
 
   const folderTree = (
@@ -108,7 +108,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b border-paper-200/80 bg-white/75 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-paper-200/80 bg-white/80 backdrop-blur-md">
         <div className="flex h-[4.25rem] items-center gap-2 px-3 sm:px-5">
           <button
             type="button"
@@ -228,7 +228,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <RouterLink
               to="/new"
               className={cx(
-                'hidden h-9 items-center rounded-xl bg-ink-600 px-3.5 text-sm font-medium text-white shadow-[0_1px_2px_rgb(77_29_16/0.14)] transition-colors hover:bg-ink-700 lg:inline-flex',
+                'hidden h-9 items-center rounded-xl bg-ink-700 px-3.5 text-sm font-medium text-white shadow-[0_1px_2px_rgb(12_32_52/0.15)] transition-colors hover:bg-ink-800 lg:inline-flex',
               )}
             >
               {t.newDocument}
@@ -285,7 +285,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex flex-1">
         {!hideFolderRail && (
           <aside
-            className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/70 p-4 backdrop-blur-sm lg:block"
+            className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
             style={{ width: drawerWidth }}
           >
             {folderTree}
@@ -303,7 +303,7 @@ export function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-y-auto bg-white shadow-[0_16px_40px_rgb(217_84_40/0.16)] animate-[slide-in_0.28s_ease-out]"
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-y-auto bg-white shadow-[0_16px_40px_rgb(12_32_52/0.18)] animate-[slide-in_0.28s_ease-out]"
             style={{ maxWidth: drawerWidth }}
           >
             <div className="flex h-[4.25rem] shrink-0 items-center justify-between gap-2 border-b border-paper-200 px-4">

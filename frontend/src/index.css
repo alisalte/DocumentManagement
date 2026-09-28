@@ -3,49 +3,48 @@
 @theme {
   --font-sans: 'Vazirmatn', 'Segoe UI', Tahoma, Arial, sans-serif;
 
-  /*
-   * Warm sunlit archive — coral ink, peach paper, marigold accent.
-   * Deliberately not cool blue-gray, not purple, and not cream+#F4F1EA terracotta.
-   */
-  --color-ink-50: #fff1e8;
-  --color-ink-100: #ffe0cc;
-  --color-ink-200: #ffc49e;
-  --color-ink-300: #f59a68;
-  --color-ink-400: #eb7340;
-  --color-ink-500: #d95428;
-  --color-ink-600: #c0441c;
-  --color-ink-700: #9a3618;
-  --color-ink-800: #722914;
-  --color-ink-900: #4d1d10;
-  --color-ink-950: #2e1209;
+  /* Primary: deep archival ink */
+  --color-ink-50: #eef3f8;
+  --color-ink-100: #d9e4f0;
+  --color-ink-200: #b3c9e0;
+  --color-ink-300: #7fa3c7;
+  --color-ink-400: #4d7aa8;
+  --color-ink-500: #2f5f8f;
+  --color-ink-600: #1e4a75;
+  --color-ink-700: #163a5c;
+  --color-ink-800: #112d48;
+  --color-ink-900: #0c2034;
+  --color-ink-950: #071421;
 
-  --color-paper-50: #fffaf4;
-  --color-paper-100: #fff2e4;
-  --color-paper-200: #ffe3c8;
-  --color-paper-300: #f0c9a4;
-  --color-paper-400: #d4a57a;
-  --color-paper-500: #b8885e;
-  --color-paper-600: #946c48;
-  --color-paper-700: #735437;
-  --color-paper-800: #543d28;
-  --color-paper-900: #382818;
+  /* Surfaces: cool paper, not cream */
+  --color-paper-50: #f7f8fa;
+  --color-paper-100: #eef1f5;
+  --color-paper-200: #e2e7ee;
+  --color-paper-300: #cdd5e0;
+  --color-paper-400: #a8b4c4;
+  --color-paper-500: #8492a6;
+  --color-paper-600: #66768c;
+  --color-paper-700: #4f5d70;
+  --color-paper-800: #3a4554;
+  --color-paper-900: #252d38;
 
-  --color-copper-50: #fff8e0;
-  --color-copper-100: #ffefb0;
-  --color-copper-200: #ffe06e;
-  --color-copper-300: #ffcb33;
-  --color-copper-400: #f5b40f;
-  --color-copper-500: #e09a08;
-  --color-copper-600: #c47d06;
-  --color-copper-700: #9a5f0a;
-  --color-copper-800: #784910;
-  --color-copper-900: #57350e;
+  /* Accent: muted copper, used sparingly */
+  --color-copper-50: #faf6f3;
+  --color-copper-100: #f0e6de;
+  --color-copper-200: #e0cbb8;
+  --color-copper-300: #c9a688;
+  --color-copper-400: #b0845c;
+  --color-copper-500: #966843;
+  --color-copper-600: #7d5335;
+  --color-copper-700: #64412b;
+  --color-copper-800: #4d3323;
+  --color-copper-900: #3a261a;
 
   --animate-progress: progress 1.4s ease-in-out infinite;
   --animate-fade-in: fade-in 0.35s ease-out both;
   --animate-slide-in: slide-in 0.28s ease-out both;
-  --shadow-surface: 0 1px 2px rgb(77 29 16 / 0.05), 0 10px 28px rgb(217 84 40 / 0.08);
-  --shadow-elevated: 0 4px 14px rgb(77 29 16 / 0.08), 0 18px 40px rgb(217 84 40 / 0.12);
+  --shadow-surface: 0 1px 2px rgb(12 32 52 / 0.04), 0 8px 24px rgb(12 32 52 / 0.06);
+  --shadow-elevated: 0 4px 12px rgb(12 32 52 / 0.08), 0 16px 40px rgb(12 32 52 / 0.1);
 }
 
 @keyframes progress {
@@ -87,10 +86,9 @@
   body {
     @apply bg-paper-100 text-ink-900 antialiased;
     background-image:
-      radial-gradient(ellipse 110% 70% at 100% -15%, rgb(245 180 15 / 0.22), transparent 55%),
-      radial-gradient(ellipse 90% 55% at -5% 105%, rgb(217 84 40 / 0.14), transparent 50%),
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgb(255 203 51 / 0.12), transparent 45%),
-      linear-gradient(180deg, #fff6eb 0%, #ffe9d2 48%, #ffd9b8 100%);
+      radial-gradient(ellipse 120% 80% at 100% -20%, rgb(30 74 117 / 0.08), transparent 55%),
+      radial-gradient(ellipse 90% 60% at -10% 100%, rgb(125 83 53 / 0.05), transparent 50%),
+      linear-gradient(180deg, #f4f6f9 0%, #eef1f5 100%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -101,7 +99,7 @@
     inset: 0;
     pointer-events: none;
     z-index: 0;
-    opacity: 0.04;
+    opacity: 0.035;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
@@ -112,11 +110,11 @@
   }
 
   :focus-visible {
-    @apply outline-2 outline-offset-2 outline-ink-500;
+    @apply outline-2 outline-offset-2 outline-ink-600;
   }
 
   ::selection {
-    background: rgb(245 180 15 / 0.35);
+    background: rgb(30 74 117 / 0.18);
   }
 }
 
