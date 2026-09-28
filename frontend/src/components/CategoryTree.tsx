@@ -196,7 +196,7 @@ const rowClasses = (selected: boolean, muted: boolean) =>
     'flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-sm transition-all duration-150',
     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
     selected
-      ? 'bg-ink-100/90 font-semibold text-ink-800 shadow-[inset_-3px_0_0_0_rgb(30_74_117)]'
+      ? 'bg-ink-100/95 font-semibold text-ink-800 shadow-[inset_-3px_0_0_0_rgb(217_84_40)]'
       : 'text-ink-800 hover:bg-ink-50',
     muted && !selected && 'text-paper-400',
   );

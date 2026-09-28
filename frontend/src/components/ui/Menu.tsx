@@ -79,7 +79,7 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
       }}
       className={cx(
         'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-white py-1',
-        'shadow-[0_4px_12px_rgb(12_32_52/0.08),0_16px_40px_rgb(12_32_52/0.1)]',
+        'shadow-[0_4px_12px_rgb(77_29_16/0.08),0_16px_40px_rgb(217_84_40/0.12)]',
         className,
       )}
     >
