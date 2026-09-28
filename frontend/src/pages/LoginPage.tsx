@@ -25,17 +25,17 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <aside className="relative hidden overflow-hidden bg-ink-900 text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+      <aside className="relative hidden overflow-hidden bg-ink-700 text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 80% 60% at 20% 10%, rgb(79 122 168 / 0.45), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 90%, rgb(150 104 67 / 0.22), transparent 50%), linear-gradient(165deg, #0c2034 0%, #163a5c 55%, #112d48 100%)',
+              'radial-gradient(ellipse 80% 60% at 15% 5%, rgb(255 203 51 / 0.55), transparent 55%), radial-gradient(ellipse 70% 50% at 95% 90%, rgb(255 122 64 / 0.4), transparent 50%), linear-gradient(165deg, #d95428 0%, #c0441c 42%, #9a3618 100%)',
           }}
         />
         <div
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          className="pointer-events-none absolute inset-0 opacity-[0.08]"
           aria-hidden
           style={{
             backgroundImage:
@@ -45,42 +45,42 @@ export function LoginPage() {
 
         <div className="relative">
           <div className="mb-10 inline-flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl bg-white/10 text-xl font-bold backdrop-blur-sm ring-1 ring-white/20">
+            <span className="grid size-12 place-items-center rounded-2xl bg-copper-400/90 text-xl font-bold text-ink-950 shadow-[0_4px_16px_rgb(245_180_15/0.35)] ring-1 ring-white/30">
               ب
             </span>
-            <span className="text-sm font-medium tracking-[0.2em] text-white/70 uppercase">DMS</span>
+            <span className="text-sm font-medium tracking-[0.2em] text-white/80 uppercase">DMS</span>
           </div>
           <h1 className="max-w-md text-4xl font-bold leading-tight tracking-tight xl:text-5xl">{t.appTitle}</h1>
-          <p className="mt-5 max-w-sm text-base leading-7 text-white/70">
+          <p className="mt-5 max-w-sm text-base leading-7 text-white/85">
             آرشیو سازمانی اسناد با نسخه‌بندی، دسترسی دقیق، گردش‌کار و رویدادنگاری کامل.
           </p>
         </div>
 
-        <p className="relative text-xs tracking-wide text-white/40">امن · قابل حسابرسی · فارسی</p>
+        <p className="relative text-xs tracking-wide text-white/55">امن · قابل حسابرسی · فارسی</p>
       </aside>
 
       <div className="relative flex items-center justify-center p-6 sm:p-10">
         <div className="absolute inset-0 lg:hidden" aria-hidden>
-          <div className="absolute inset-0 bg-gradient-to-b from-ink-900 via-ink-800 to-paper-100 opacity-95" />
+          <div className="absolute inset-0 bg-gradient-to-b from-ink-500 via-ink-600 to-paper-100 opacity-95" />
         </div>
 
         <div className="relative w-full max-w-sm animate-[fade-in_0.4s_ease-out]">
           <div className="mb-8 text-center lg:text-start">
             <div className="mb-5 inline-flex items-center gap-2.5 lg:hidden">
-              <span className="grid size-11 place-items-center rounded-2xl bg-white/15 text-lg font-bold text-white shadow-lg ring-1 ring-white/25">
+              <span className="grid size-11 place-items-center rounded-2xl bg-copper-400 text-lg font-bold text-ink-950 shadow-lg ring-1 ring-white/40">
                 ب
               </span>
             </div>
-            <p className="mb-2 text-[11px] font-semibold tracking-[0.18em] text-white/70 uppercase lg:text-paper-500">
+            <p className="mb-2 text-[11px] font-semibold tracking-[0.18em] text-white/80 uppercase lg:text-paper-500">
               ورود به سامانه
             </p>
             <h2 className="text-2xl font-bold tracking-tight text-white lg:text-3xl lg:text-ink-900">{t.appTitle}</h2>
-            <p className="mt-2 text-sm text-white/65 lg:text-paper-500">نام کاربری و گذرواژهٔ سازمانی خود را وارد کنید.</p>
+            <p className="mt-2 text-sm text-white/75 lg:text-paper-500">نام کاربری و گذرواژهٔ سازمانی خود را وارد کنید.</p>
           </div>
 
           <form
             onSubmit={submit}
-            className="space-y-4 rounded-2xl border border-paper-200/90 bg-white/90 p-5 shadow-[0_1px_2px_rgb(12_32_52/0.04),0_12px_32px_rgb(12_32_52/0.08)] backdrop-blur-sm sm:p-6"
+            className="space-y-4 rounded-2xl border border-paper-200/90 bg-white/95 p-5 shadow-[0_1px_2px_rgb(77_29_16/0.05),0_14px_36px_rgb(217_84_40/0.12)] backdrop-blur-sm sm:p-6"
           >
             <TextField
               label={t.username}
