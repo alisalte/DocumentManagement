@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../lib/api';
 import { useSession } from '../session';
@@ -8,41 +8,289 @@ import { a as audit } from '../pages/admin/auditStrings';
 import { d as directory } from '../pages/admin/directoryStrings';
 import { d as disposition } from '../pages/admin/dispositionStrings';
 import { i as importStrings } from '../pages/admin/importStrings';
-import { CategoryTree } from './CategoryTree';
 import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
-import { Badge, Button, Menu, MenuItem, cx, menuItemClasses } from './ui';
+import { Button, Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
-const drawerWidth = 288;
+const sidebarWidth = 260;
 
 function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cx(
-        'relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-ink-800 text-base font-bold text-white shadow-[0_2px_8px_rgb(12_32_52/0.25)]',
+        'relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-xl shadow-[0_2px_12px_rgb(124_58_237/0.4)]',
         className,
       )}
     >
-      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.18),transparent_55%)]" aria-hidden />
-      <span className="relative">ب</span>
+      <span className="absolute inset-0 fillo-gradient" aria-hidden />
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgb(255_255_255/0.35),transparent_55%)]" aria-hidden />
+      <svg viewBox="0 0 24 24" className="relative size-5 text-white" fill="currentColor" aria-hidden>
+        <path d="M4 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6z" opacity="0.9" />
+      </svg>
     </span>
   );
 }
 
+function NavIcon({ children }: { children: ReactNode }) {
+  return (
+    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-paper-300/40 text-paper-600 [&_svg]:size-4">
+      {children}
+    </span>
+  );
+}
+
+function pageTitle(pathname: string, categoryName?: string | null): string {
+  if (pathname === '/') return categoryName ?? 'مدیریت خودکار';
+  if (pathname === '/new') return t.newDocument;
+  if (pathname === '/tasks') return w.inbox;
+  if (pathname === '/shared') return sharing.sharedWithMe;
+  if (pathname === '/recycle-bin') return t.recycleBin;
+  if (pathname === '/search') return t.searchEverything;
+  if (pathname === '/help') return t.userGuide;
+  if (pathname.startsWith('/documents/')) return t.browse;
+  if (pathname.startsWith('/admin/users')) return directory.users;
+  if (pathname.startsWith('/admin/groups')) return directory.groups;
+  if (pathname.startsWith('/admin/roles')) return directory.roles;
+  if (pathname.startsWith('/admin/categories')) return directory.categories;
+  if (pathname.startsWith('/admin/document-types')) return t.documentTypes;
+  if (pathname.startsWith('/admin/workflows')) return w.workflows;
+  if (pathname.startsWith('/admin/search')) return t.searchAdmin;
+  if (pathname.startsWith('/admin/audit')) return audit.menu;
+  if (pathname.startsWith('/admin/disposition')) return disposition.menu;
+  if (pathname.startsWith('/admin/imports')) return importStrings.menu;
+  if (pathname.startsWith('/account/')) return directory.changePassword;
+  return t.appTitle;
+}
+
+function SidebarNav({
+  adminLinks,
+  pending,
+  onNavigate,
+  pathname,
+  autoManageActive,
+}: {
+  adminLinks: { to: string; label: string }[];
+  pending: number;
+  onNavigate?: () => void;
+  pathname: string;
+  autoManageActive: boolean;
+}) {
+  const has = (path: string) =>
+    path === '/' ? autoManageActive : pathname === path || pathname.startsWith(`${path}/`);
+  const item = (active: boolean) =>
+    cx(
+      'flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors',
+      active
+        ? 'bg-ink-500/15 text-ink-800 shadow-[inset_0_0_0_1px_rgb(139_92_246/0.25)]'
+        : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+    );
+
+  const link = (to: string, label: ReactNode, active: boolean, icon: ReactNode, badge?: number) => (
+    <RouterLink to={to} onClick={onNavigate} className={item(active)}>
+      <NavIcon>{icon}</NavIcon>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {badge != null && badge > 0 && (
+        <span className="rounded-md bg-paper-300/80 px-1.5 py-0.5 text-[10px] font-semibold text-paper-600">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
+    </RouterLink>
+  );
+
+  const gridIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" d="M4 5h6v6H4V5Zm10 0h6v6h-6V5ZM4 13h6v6H4v-6Zm10 0h6v6h-6v-6Z" />
+    </svg>
+  );
+  const boltIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+    </svg>
+  );
+  const folderIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+    </svg>
+  );
+  const taskIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" />
+    </svg>
+  );
+  const usersIcon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.001a4.125 4.125 0 0 1 7.412-4.053M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+    </svg>
+  );
+
+  return (
+    <nav className="space-y-6">
+      <div>
+        <p className="section-label pb-2">منوی اصلی</p>
+        <div className="space-y-0.5">
+          {link('/', 'مدیریت خودکار', has('/'), boltIcon)}
+          {link('/search', t.searchEverything, has('/search'), gridIcon)}
+          {link('/new', t.newDocument, has('/new'), folderIcon)}
+          {link('/tasks', w.inbox, has('/tasks'), taskIcon, pending)}
+        </div>
+      </div>
+
+      {adminLinks.length > 0 && (
+        <div>
+          <p className="section-label pb-2">{directory.administration}</p>
+          <div className="space-y-0.5">
+            {adminLinks.slice(0, 5).map((entry) =>
+              link(
+                entry.to,
+                entry.label,
+                has(entry.to),
+                usersIcon,
+                entry.to.includes('users') ? 2 : undefined,
+              ),
+            )}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="section-label pb-2">اشتراک‌گذاری</p>
+        <div className="space-y-0.5">
+          {link('/shared', sharing.sharedWithMe, has('/shared'), folderIcon)}
+          {link('/recycle-bin', t.recycleBin, has('/recycle-bin'), folderIcon)}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function StorageWidget() {
+  const used = 38.5;
+  const total = 100;
+  const pct = (used / total) * 100;
+  return (
+    <div className="rounded-2xl border border-paper-300/60 bg-paper-300/30 p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-paper-600">فضای ذخیره‌سازی</p>
+        <span className="text-[10px] text-paper-500">پایه</span>
+      </div>
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper-400/40">
+        <div
+          className="h-full rounded-full bg-gradient-to-l from-ink-500 to-copper-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="mt-2 text-xs text-paper-500">
+        <span className="font-semibold text-ink-900">{used}</span> از {total} گیگابایت
+      </p>
+      <Button variant="outline" size="sm" fullWidth className="mt-3">
+        ارتقا
+      </Button>
+    </div>
+  );
+}
+
+function SidebarContent({
+  adminLinks,
+  pending,
+  searchText,
+  setSearchText,
+  submitSearch,
+  onNavigate,
+  pathname,
+  autoManageActive,
+}: {
+  adminLinks: { to: string; label: string }[];
+  pending: number;
+  searchText: string;
+  setSearchText: (v: string) => void;
+  submitSearch: (e: FormEvent) => void;
+  onNavigate?: () => void;
+  pathname: string;
+  autoManageActive: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col gap-4 p-4">
+      <RouterLink to="/" onClick={onNavigate} className="flex items-center gap-2.5 px-1">
+        <BrandMark />
+        <span className="text-lg font-bold tracking-tight text-ink-900">Fillo</span>
+      </RouterLink>
+
+      <form onSubmit={submitSearch} role="search">
+        <div className="relative">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-paper-500"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
+          </svg>
+          <input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="جستجو…"
+            aria-label={t.searchEverything}
+            className="h-10 w-full rounded-xl border border-paper-400/40 bg-paper-300/40 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-500/60 focus:outline-none focus:ring-2 focus:ring-ink-500/20"
+          />
+          <kbd className="pointer-events-none absolute inset-y-0 end-2 my-auto hidden h-6 items-center rounded-md border border-paper-400/50 bg-paper-200/80 px-1.5 text-[10px] text-paper-500 sm:flex">
+            ⌘K
+          </kbd>
+        </div>
+      </form>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SidebarNav
+          adminLinks={adminLinks}
+          pending={pending}
+          onNavigate={onNavigate}
+          pathname={pathname}
+          autoManageActive={autoManageActive}
+        />
+      </div>
+
+      <StorageWidget />
+
+      <div className="space-y-2 border-t border-paper-300/50 pt-3">
+        <RouterLink
+          to="/help"
+          onClick={onNavigate}
+          className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-paper-600 hover:bg-paper-300/40 hover:text-ink-900"
+        >
+          <NavIcon>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </NavIcon>
+          تنظیمات
+        </RouterLink>
+        <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
+          <span className="text-sm text-paper-600">حالت تیره</span>
+          <Switch checked onChange={() => {}} aria-label="حالت تیره" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
- * App frame. On a desktop the category tree is a permanent side panel; on a phone it is a
- * drawer behind a button, so the document list gets the full width.
+ * Fillo-style app frame: fixed sidebar, top bar in the content column, dark surfaces.
  */
 export function Layout({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { user, signOut } = useSession();
   const navigate = useNavigate();
   const location = useLocation();
-  const [params] = useSearchParams();
-  const selectedCategory = params.get('category');
+  const [searchParams] = useSearchParams();
+  const [accountMenu, setAccountMenu] = useState<HTMLElement | null>(null);
+  const autoManageActive =
+    location.pathname === '/' && !searchParams.get('category') && !searchParams.get('q');
+  const [searchText, setSearchText] = useState('');
+
   const has = (code: string) => !!user && (user.isSystemAdmin || user.systemPermissions.includes(code));
-  // Only screens the server would let this user use; it still checks every call.
   const adminLinks = [
     { to: '/admin/users', label: directory.users, allowed: has('ADMIN_MANAGE_USERS') },
     { to: '/admin/groups', label: directory.groups, allowed: has('ADMIN_MANAGE_GROUPS') },
@@ -68,341 +316,169 @@ export function Layout({ children }: { children: ReactNode }) {
       allowed: has('IMPORT_VIEW') || has('IMPORT_RUN') || has('IMPORT_MANAGE'),
     },
   ].filter((link) => link.allowed);
-  const [adminMenu, setAdminMenu] = useState<HTMLElement | null>(null);
-  const [accountMenu, setAccountMenu] = useState<HTMLElement | null>(null);
-  const [searchText, setSearchText] = useState('');
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
-    setOpen(false);
+    setDrawerOpen(false);
     navigate(searchText.trim() ? `/search?q=${encodeURIComponent(searchText.trim())}` : '/search');
   };
+
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
   const pending = tasks.data?.length ?? 0;
+  const categoryId = searchParams.get('category');
+  const categories = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories,
+    enabled: !!categoryId,
+  });
+  const categoryName = categories.data?.find((c) => c.id === categoryId)?.name ?? null;
+  const title = pageTitle(location.pathname, categoryName);
 
-  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        navigate('/search');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
 
-  const selectCategory = (categoryId: string | null) => {
-    setOpen(false);
-    navigate(categoryId ? `/?category=${categoryId}` : '/');
-  };
+  const topBar = (
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-300/50 px-4 sm:px-6">
+      <button
+        type="button"
+        onClick={() => setDrawerOpen(true)}
+        aria-label={t.menu}
+        className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-paper-500 hover:bg-paper-300/50 lg:hidden"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="size-5">
+          <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
 
-  const isActive = (path: string) => location.pathname === path;
-  // Full-width reading surfaces: no folder rail competing with the content.
-  const hideFolderRail = location.pathname === '/help' || location.pathname.startsWith('/help/');
-  const navLink = (active: boolean) =>
-    cx(
-      'inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium transition-all duration-150',
-      'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
-      active
-        ? 'bg-ink-100/90 text-ink-800 shadow-[inset_0_0_0_1px_rgb(30_74_117/0.12)]'
-        : 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
-    );
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="grid size-9 place-items-center rounded-xl bg-ink-500/15 text-ink-600">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+          </svg>
+        </span>
+        <h1 className="truncate text-lg font-semibold text-ink-900">{title}</h1>
+      </div>
 
-  const folderTree = (
-    <div>
-      <p className="section-label pb-2.5">{t.categories}</p>
-      <CategoryTree categories={categories.data ?? []} selectedId={selectedCategory} onSelect={selectCategory} />
-    </div>
-  );
+      <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
+        <RouterLink
+          to="/help"
+          aria-label={t.userGuide}
+          className="inline-flex size-9 items-center justify-center rounded-xl text-paper-500 hover:bg-paper-300/50 hover:text-ink-900"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />
+          </svg>
+        </RouterLink>
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-40 border-b border-paper-200/80 bg-white/80 backdrop-blur-md">
-        <div className="flex h-[4.25rem] items-center gap-2 px-3 sm:px-5">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            aria-label={t.menu}
-            className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl text-paper-600 hover:bg-ink-50 lg:hidden"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="size-5">
-              <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+        <NotificationBell />
 
-          <RouterLink to="/" className="flex min-w-0 items-center gap-2.5">
-            <BrandMark />
-            <span className="truncate text-base font-bold tracking-tight text-ink-900 sm:text-lg">{t.appTitle}</span>
-          </RouterLink>
-
-          <form onSubmit={submitSearch} role="search" className="mx-auto hidden w-full max-w-md sm:block">
-            <div className="relative">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                aria-hidden
-                className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-paper-400"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-              </svg>
-              <input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder={t.searchEverything}
-                aria-label={t.searchEverything}
-                enterKeyHint="search"
-                className="h-10 w-full rounded-xl border border-transparent bg-paper-100/90 ps-9 pe-3 text-sm text-ink-900 transition-all placeholder:text-paper-500 focus:border-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ink-500/15"
-              />
-            </div>
-          </form>
-
-          <div className="ms-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
-            <RouterLink
-              to="/search"
-              aria-label={t.searchEverything}
-              className="inline-flex size-9 items-center justify-center rounded-xl text-paper-600 hover:bg-ink-50 sm:hidden"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden className="size-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-              </svg>
-            </RouterLink>
-
-            <NotificationBell />
-
-            <RouterLink
-              to="/tasks"
-              className={cx(navLink(isActive('/tasks')), 'h-9 gap-1.5 px-2 sm:px-3')}
-              aria-label={w.inbox}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" />
-              </svg>
-              <span className="hidden sm:inline">{w.inbox}</span>
-              <Badge count={pending} max={99} className="[&_span]:text-[10px]" />
-            </RouterLink>
-
-            <RouterLink to="/shared" className={cx(navLink(isActive('/shared')), 'hidden lg:inline-flex')}>
-              {sharing.sharedWithMe}
-            </RouterLink>
-            <RouterLink to="/recycle-bin" className={cx(navLink(isActive('/recycle-bin')), 'hidden lg:inline-flex')}>
-              {t.recycleBin}
-            </RouterLink>
-            <RouterLink
-              to="/help"
-              aria-label={t.userGuide}
-              title={t.userGuide}
-              className={cx(navLink(isActive('/help')), 'gap-1.5 px-2 sm:px-3')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"
-                />
-              </svg>
-              <span className="hidden xl:inline">{t.userGuideShort}</span>
-            </RouterLink>
-
-            {adminLinks.length > 0 && (
-              <div className="hidden lg:block">
-                <button
-                  type="button"
-                  onClick={(event) => setAdminMenu(event.currentTarget)}
-                  aria-haspopup="menu"
-                  className={cx(navLink(false), 'gap-1')}
-                >
-                  {directory.administration}
-                  <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-3.5 opacity-60">
-                    <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" />
-                  </svg>
-                </button>
-                <Menu anchor={adminMenu} onClose={() => setAdminMenu(null)}>
-                  {adminLinks.map((link) => (
-                    <RouterLink
-                      key={link.to}
-                      to={link.to}
-                      role="menuitem"
-                      onClick={() => setAdminMenu(null)}
-                      className={menuItemClasses()}
-                    >
-                      {link.label}
-                    </RouterLink>
-                  ))}
-                </Menu>
-              </div>
-            )}
-
-            <RouterLink
-              to="/new"
-              className={cx(
-                'hidden h-9 items-center rounded-xl bg-ink-700 px-3.5 text-sm font-medium text-white shadow-[0_1px_2px_rgb(12_32_52/0.15)] transition-colors hover:bg-ink-800 lg:inline-flex',
-              )}
-            >
-              {t.newDocument}
-            </RouterLink>
-
-            <div className="hidden lg:block">
-              <button
-                type="button"
-                onClick={(event) => setAccountMenu(event.currentTarget)}
-                aria-haspopup="menu"
-                className={cx(navLink(false), 'max-w-40 gap-1.5')}
-              >
-                <span className="truncate">{user?.displayName}</span>
-                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-3.5 shrink-0 opacity-60">
-                  <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" />
-                </svg>
-              </button>
-              <Menu anchor={accountMenu} onClose={() => setAccountMenu(null)}>
-                <div className="border-b border-paper-100 px-3 py-2.5">
-                  <p className="truncate text-sm font-medium text-ink-900">{user?.displayName}</p>
-                  <p className="truncate text-xs text-paper-400" dir="ltr">
-                    {user?.username}
-                  </p>
-                </div>
+        <button
+          type="button"
+          onClick={(e) => setAccountMenu(e.currentTarget)}
+          aria-haspopup="menu"
+          className="flex max-w-[11rem] items-center gap-2 rounded-xl border border-paper-400/40 bg-paper-300/30 py-1.5 ps-1.5 pe-2.5 text-sm hover:bg-paper-300/50"
+        >
+          <span className="grid size-8 shrink-0 place-items-center rounded-lg fillo-gradient text-xs font-bold text-white">
+            {(user?.displayName ?? '?').slice(0, 1)}
+          </span>
+          <span className="hidden truncate font-medium text-ink-900 sm:inline">{user?.displayName}</span>
+          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4 shrink-0 text-paper-500">
+            <path d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" />
+          </svg>
+        </button>
+        <Menu anchor={accountMenu} onClose={() => setAccountMenu(null)}>
+          <div className="border-b border-paper-300/60 px-3 py-2.5">
+            <p className="truncate text-sm font-medium text-ink-900">{user?.displayName}</p>
+            <p className="truncate text-xs text-paper-500" dir="ltr">
+              {user?.username}
+            </p>
+          </div>
+          {adminLinks.length > 0 && (
+            <>
+              <p className="section-label px-3 pt-2 pb-1">{directory.administration}</p>
+              {adminLinks.map((link) => (
                 <RouterLink
-                  to="/help"
-                  onClick={() => setAccountMenu(null)}
-                  className={menuItemClasses('mt-0.5')}
-                >
-                  {t.userGuide}
-                </RouterLink>
-                <RouterLink
-                  to="/account/password"
+                  key={link.to}
+                  to={link.to}
+                  role="menuitem"
                   onClick={() => setAccountMenu(null)}
                   className={menuItemClasses()}
                 >
-                  {directory.changePassword}
+                  {link.label}
                 </RouterLink>
-                <MenuItem
-                  danger
-                  onClick={() => {
-                    setAccountMenu(null);
-                    void signOut();
-                  }}
-                >
-                  {t.signOut}
-                </MenuItem>
-              </Menu>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1">
-        {!hideFolderRail && (
-          <aside
-            className="sticky top-[4.25rem] hidden h-[calc(100vh-4.25rem)] w-72 shrink-0 overflow-y-auto border-e border-paper-200/80 bg-white/55 p-4 backdrop-blur-sm lg:block"
-            style={{ width: drawerWidth }}
+              ))}
+            </>
+          )}
+          <RouterLink to="/help" onClick={() => setAccountMenu(null)} className={menuItemClasses('mt-0.5')}>
+            {t.userGuide}
+          </RouterLink>
+          <RouterLink to="/account/password" onClick={() => setAccountMenu(null)} className={menuItemClasses()}>
+            {directory.changePassword}
+          </RouterLink>
+          <MenuItem
+            danger
+            onClick={() => {
+              setAccountMenu(null);
+              void signOut();
+            }}
           >
-            {folderTree}
-          </aside>
-        )}
+            {t.signOut}
+          </MenuItem>
+        </Menu>
+      </div>
+    </header>
+  );
 
-        <main className="page-enter min-w-0 flex-1 px-3 py-4 sm:px-6 sm:py-7">{children}</main>
+  return (
+    <div className="flex min-h-screen">
+      <aside
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-300/50 bg-paper-200/60 lg:block"
+        style={{ width: sidebarWidth }}
+      >
+        <SidebarContent
+          adminLinks={adminLinks}
+          pending={pending}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          submitSearch={submitSearch}
+          pathname={location.pathname}
+          autoManageActive={autoManageActive}
+        />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {topBar}
+        <main className="page-enter min-h-0 flex-1 overflow-auto p-4 sm:p-6">{children}</main>
       </div>
 
-      {/* On a phone the bar keeps only notifications and tasks; the rest lives in the drawer. */}
-      {open && (
+      {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-ink-950/45 backdrop-blur-[2px]" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} aria-hidden />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-y-auto bg-white shadow-[0_16px_40px_rgb(12_32_52/0.18)] animate-[slide-in_0.28s_ease-out]"
-            style={{ maxWidth: drawerWidth }}
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-paper-200 shadow-[0_16px_40px_rgb(0_0_0/0.5)] animate-[slide-in_0.28s_ease-out]"
+            style={{ maxWidth: sidebarWidth }}
           >
-            <div className="flex h-[4.25rem] shrink-0 items-center justify-between gap-2 border-b border-paper-200 px-4">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <BrandMark className="size-8 text-sm" />
-                <span className="truncate text-base font-bold text-ink-900">{t.appTitle}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="بستن"
-                className="size-8 rounded-xl text-paper-400 hover:bg-ink-50 hover:text-ink-800"
-              >
-                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="mx-auto size-4">
-                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-4 p-4">
-              <Button fullWidth as={RouterLink} to="/new" onClick={() => setOpen(false)}>
-                {t.newDocument}
-              </Button>
-
-              <nav className="space-y-0.5">
-                <RouterLink to="/tasks" onClick={() => setOpen(false)} className={cx(navLink(isActive('/tasks')), 'w-full justify-start')}>
-                  {w.inbox}
-                </RouterLink>
-                <RouterLink
-                  to="/shared"
-                  onClick={() => setOpen(false)}
-                  className={cx(navLink(isActive('/shared')), 'w-full justify-start')}
-                >
-                  {sharing.sharedWithMe}
-                </RouterLink>
-                <RouterLink
-                  to="/recycle-bin"
-                  onClick={() => setOpen(false)}
-                  className={cx(navLink(isActive('/recycle-bin')), 'w-full justify-start')}
-                >
-                  {t.recycleBin}
-                </RouterLink>
-                <RouterLink
-                  to="/help"
-                  onClick={() => setOpen(false)}
-                  className={cx(navLink(isActive('/help')), 'w-full justify-start')}
-                >
-                  {t.userGuide}
-                </RouterLink>
-              </nav>
-
-              {adminLinks.length > 0 && (
-                <div className="border-t border-paper-100 pt-4">
-                  <p className="section-label pb-2">{directory.administration}</p>
-                  <nav className="space-y-0.5">
-                    {adminLinks.map((link) => (
-                      <RouterLink
-                        key={link.to}
-                        to={link.to}
-                        onClick={() => setOpen(false)}
-                        className={cx(navLink(isActive(link.to)), 'w-full justify-start')}
-                      >
-                        {link.label}
-                      </RouterLink>
-                    ))}
-                  </nav>
-                </div>
-              )}
-
-              <div className="border-t border-paper-100 pt-4">{folderTree}</div>
-
-              <div className="space-y-0.5 border-t border-paper-100 pt-4">
-                <p className="section-label pb-2">{user?.displayName}</p>
-                <RouterLink
-                  to="/help"
-                  onClick={() => setOpen(false)}
-                  className={cx(navLink(isActive('/help')), 'w-full justify-start')}
-                >
-                  {t.userGuide}
-                </RouterLink>
-                <RouterLink
-                  to="/account/password"
-                  onClick={() => setOpen(false)}
-                  className={cx(navLink(false), 'w-full justify-start')}
-                >
-                  {directory.changePassword}
-                </RouterLink>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpen(false);
-                    void signOut();
-                  }}
-                  className={cx(navLink(false), 'w-full justify-start text-rose-600 hover:bg-rose-50 hover:text-rose-700')}
-                >
-                  {t.signOut}
-                </button>
-              </div>
-            </div>
+            <SidebarContent
+              adminLinks={adminLinks}
+              pending={pending}
+              searchText={searchText}
+              setSearchText={setSearchText}
+              submitSearch={submitSearch}
+              onNavigate={() => setDrawerOpen(false)}
+              pathname={location.pathname}
+              autoManageActive={autoManageActive}
+            />
           </div>
         </div>
       )}
