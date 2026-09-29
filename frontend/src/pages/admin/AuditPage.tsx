@@ -7,7 +7,7 @@ import { api, type AuditEntry, type AuditFilter, type SealVerification } from '.
 import { formatDateTime, parseJalaliDate, toJalaliInput } from '../../lib/dates';
 import { useSession } from '../../session';
 import { describeError } from '../../strings';
-import { a } from './auditStrings';
+import { a, actionLabel, entityTypeLabel } from './auditStrings';
 
 const pageSize = 50;
 const verifyDays = 30;
@@ -132,8 +132,8 @@ export function AuditPage() {
             <Select className="sm:w-56" label={a.action} value={action} onChange={(event) => setAction(event.target.value)}>
               <option value="">{a.any}</option>
               {(actions.data ?? []).map((code) => (
-                <option key={code} value={code} dir="ltr">
-                  {code}
+                <option key={code} value={code}>
+                  {actionLabel(code)}
                 </option>
               ))}
             </Select>
@@ -225,8 +225,8 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
         className="grid cursor-pointer grid-cols-[1fr_auto] items-center gap-2 md:grid-cols-[11rem_1fr_7rem_12rem_10rem]"
       >
         <span className="min-w-0 text-sm text-paper-500">{formatDateTime(entry.occurredAt)}</span>
-        <span dir="ltr" className="col-start-1 row-start-2 min-w-0 font-mono text-sm break-all text-ink-800 md:col-auto md:row-auto">
-          {entry.action}
+        <span className="col-start-1 row-start-2 min-w-0 text-sm break-words text-ink-800 md:col-auto md:row-auto" title={entry.action}>
+          {actionLabel(entry.action)}
         </span>
         <span className="col-start-2 row-start-1 md:col-auto md:row-auto">
           <Chip
@@ -251,7 +251,19 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
               </RouterLink>
             </p>
           )}
-          <Detail label={a.entity} value={entry.entityType ? `${entry.entityType} ${entry.entityId ?? ''}` : null} />
+          {entry.entityType && (
+            <p className="text-sm text-ink-800">
+              {a.entity}: {entityTypeLabel(entry.entityType)}
+              {entry.entityId && (
+                <>
+                  {' '}
+                  <span dir="ltr" className="font-mono break-all text-paper-600">
+                    {entry.entityId}
+                  </span>
+                </>
+              )}
+            </p>
+          )}
           <Detail label={a.version} value={entry.versionId} />
           <Detail label={a.shareLink} value={entry.shareLinkId} />
           <Detail label={a.ip} value={entry.ipAddress} />

@@ -21,7 +21,8 @@ import { api, type DestructionCertificate, type PendingDisposalItem } from '../.
 import { formatDateTime } from '../../lib/dates';
 import { describeError } from '../../strings';
 import { useSession } from '../../session';
-import { d } from './dispositionStrings';
+import { actionLabel } from './auditStrings';
+import { d, recordStatusLabel } from './dispositionStrings';
 
 type DialogState =
   | { kind: 'request'; item: PendingDisposalItem }
@@ -170,7 +171,7 @@ export function DispositionPage() {
                       <div className="text-xs text-paper-500 font-mono ltr">{item.recordId}</div>
                     </TD>
                     <TD>
-                      <Chip label={item.status} color="primary" />
+                      <Chip label={recordStatusLabel(item.status)} color="primary" />
                     </TD>
                     <TD>{item.retentionExpiresAt ? formatDateTime(item.retentionExpiresAt) : d.none}</TD>
                     <TD>
@@ -277,7 +278,7 @@ export function DispositionPage() {
               {audit.data.map((entry) => (
                 <li key={entry.id} className="flex flex-wrap gap-2 border-b border-paper-100 pb-2">
                   <span className="font-mono ltr text-xs text-paper-500">{formatDateTime(entry.occurredAt)}</span>
-                  <Chip label={entry.action} color="secondary" />
+                  <Chip label={actionLabel(entry.action)} color="secondary" />
                   <span className="text-paper-600">{entry.outcome}</span>
                   <span className="text-paper-500">{entry.userName ?? entry.actorType}</span>
                 </li>

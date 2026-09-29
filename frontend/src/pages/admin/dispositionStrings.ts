@@ -1,19 +1,19 @@
 /** Persian copy for the disposition / Certificate of Destruction admin screen (phase 10.4). */
 export const d = {
-  menu: 'ابطال و امحا',
-  title: 'بررسی ابطال و امحای رکورد',
-  subtitle: 'رکوردهای منتظر امحا پس از پایان نگهداری؛ تخریب فقط پس از تأیید صریح.',
-  empty: 'رکوردی در صف امحا نیست.',
+  menu: 'امحای اسناد',
+  title: 'امحای اسناد پس از پایان نگهداری',
+  subtitle: 'اسنادی که دورهٔ نگهداری‌شان تمام شده؛ امحا فقط پس از درخواست، تأیید و تأیید نهایی.',
+  empty: 'سندی در صف امحا نیست.',
   recordTitle: 'عنوان',
-  status: 'وضعیت رکورد',
+  status: 'وضعیت',
   retentionExpiry: 'پایان نگهداری',
   legalHold: 'نگهداری قانونی',
   onHold: 'فعال',
   notOnHold: 'ندارد',
-  disposition: 'ابطال',
+  disposition: 'وضعیت درخواست امحا',
   noDisposition: 'بدون درخواست',
   finalVersion: 'نسخه‌ی نهایی',
-  request: 'درخواست ابطال',
+  request: 'درخواست امحا',
   approve: 'تأیید',
   reject: 'رد',
   destroy: 'امحا',
@@ -23,7 +23,7 @@ export const d = {
   rejectionRequired: 'برای رد، دلیل الزامی است.',
   confirmDestroyTitle: 'تأیید نهایی امحا',
   confirmDestroyBody:
-    'امحا برگشت‌ناپذیر است. محتوای فایل علامت حذف می‌گیرد، رکورد Destroyed می‌شود و گواهی امحا صادر می‌گردد.',
+    'امحا برگشت‌ناپذیر است. محتوای فایل علامت حذف می‌گیرد، وضعیت رکورد به «امحاشده» می‌رود و گواهی امحا صادر می‌گردد.',
   confirmDestroyLabel: 'برای ادامه عبارت «امحا» را بنویسید',
   confirmDestroyWord: 'امحا',
   cancel: 'انصراف',
@@ -39,15 +39,33 @@ export const d = {
   destroyedAt: 'زمان امحا',
   legalHoldCheckedAt: 'آخرین بررسی نگهداری قانونی',
   retentionPolicy: 'سیاست نگهداری',
-  auditHistory: 'سابقهٔ ممیزی ابطال',
+  auditHistory: 'سابقهٔ درخواست امحا',
   none: '—',
   pendingReview: 'در انتظار بررسی',
   approved: 'تأییدشده',
   rejected: 'ردشده',
   destroyed: 'امحاشده',
-  requested: 'درخواست ثبت شد.',
-  approvedOk: 'ابطال تأیید شد.',
-  rejectedOk: 'ابطال رد شد؛ رکورد به Expired بازگشت.',
-  destroyedOk: 'رکورد امحا شد و گواهی صادر گردید.',
+  pendingDisposal: 'منتظر امحا',
+  expired: 'منقضی',
+  active: 'فعال',
+  requested: 'درخواست امحا ثبت شد.',
+  approvedOk: 'درخواست امحا تأیید شد.',
+  rejectedOk: 'درخواست امحا رد شد؛ رکورد به وضعیت منقضی بازگشت.',
+  destroyedOk: 'سند امحا شد و گواهی صادر گردید.',
   exportJson: 'خروجی JSON',
+};
+
+export const recordStatusLabel = (status: string | null | undefined): string => {
+  switch (status) {
+    case 'PendingDisposal':
+      return d.pendingDisposal;
+    case 'Destroyed':
+      return d.destroyed;
+    case 'Expired':
+      return d.expired;
+    case 'Active':
+      return d.active;
+    default:
+      return status || d.none;
+  }
 };

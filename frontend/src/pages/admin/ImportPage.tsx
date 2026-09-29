@@ -22,7 +22,7 @@ import { api, type ImportJob, type ImportValidationReport } from '../../lib/api'
 import { formatDateTime } from '../../lib/dates';
 import { describeError } from '../../strings';
 import { useSession } from '../../session';
-import { i } from './importStrings';
+import { i, itemStatusLabel, jobStatusLabel } from './importStrings';
 
 /** Admin surface for legacy manifest import (phase 10.6). */
 export function ImportPage() {
@@ -151,7 +151,7 @@ export function ImportPage() {
                   >
                     <TD className="cursor-pointer font-medium">{job.name}</TD>
                     <TD className="cursor-pointer">{job.sourceSystem}</TD>
-                    <TD className="cursor-pointer">{job.status}</TD>
+                    <TD className="cursor-pointer">{jobStatusLabel(job.status)}</TD>
                     <TD className="cursor-pointer">
                       {progress(job)}% ({job.processedItems}/{job.totalItems})
                     </TD>
@@ -169,7 +169,7 @@ export function ImportPage() {
         <Card className="space-y-4 p-4">
           <div>
             <h2 className="text-lg font-semibold text-ink-900">
-              {selected.name} · {selected.status}
+              {selected.name} · {jobStatusLabel(selected.status)}
             </h2>
             <p className="mt-1 text-sm text-paper-600">
               {i.processed}: {selected.processedItems} · {i.succeeded}: {selected.succeededItems} · {i.failed}:{' '}
@@ -269,7 +269,7 @@ export function ImportPage() {
             {['Pending', 'Valid', 'Invalid', 'Ready', 'Running', 'Succeeded', 'Failed', 'Skipped', 'Retryable'].map(
               (status) => (
                 <option key={status} value={status}>
-                  {status}
+                  {itemStatusLabel(status)}
                 </option>
               ),
             )}
@@ -290,7 +290,7 @@ export function ImportPage() {
                   <TR key={item.id}>
                     <TD className="font-mono text-xs">{item.sourceId}</TD>
                     <TD>{item.sourcePath}</TD>
-                    <TD>{item.status}</TD>
+                    <TD>{itemStatusLabel(item.status)}</TD>
                     <TD className="text-sm">
                       {item.errorCode
                         ? `${item.errorCode}: ${item.errorMessage ?? ''}`

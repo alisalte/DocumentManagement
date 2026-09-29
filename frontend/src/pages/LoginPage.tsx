@@ -52,7 +52,7 @@ export function LoginPage() {
           </div>
           <h1 className="max-w-md text-4xl font-bold leading-tight tracking-tight xl:text-5xl">{t.appTitle}</h1>
           <p className="mt-5 max-w-sm text-base leading-7 text-white/70">
-            آرشیو سازمانی اسناد با نسخه‌بندی، دسترسی دقیق، گردش‌کار و رویدادنگاری کامل.
+            آرشیو سازمانی اسناد با نسخه‌بندی، دسترسی دقیق، گردش‌کار و سوابق فعالیت کامل.
           </p>
         </div>
 

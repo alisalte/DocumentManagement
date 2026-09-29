@@ -1,8 +1,8 @@
 import type { SealProblem } from '../../lib/api';
 
 export const a = {
-  title: 'رویدادنگاری',
-  menu: 'رویدادنگاری',
+  title: 'سوابق فعالیت',
+  menu: 'سوابق فعالیت',
   from: 'از تاریخ',
   to: 'تا تاریخ (شامل)',
   action: 'رویداد',
@@ -16,7 +16,7 @@ export const a = {
   empty: 'رویدادی با این شرایط پیدا نشد.',
   badDate: 'تاریخ را به شکل ۱۴۰۳/۰۷/۰۱ وارد کنید.',
   exportNeedsRange: 'برای خروجی گرفتن، بازه‌ی تاریخ را مشخص کنید.',
-  exported: 'فایل خروجی آماده شد. خروجی گرفتن هم در رویدادنگاری ثبت می‌شود.',
+  exported: 'فایل خروجی آماده شد. خروجی گرفتن هم در سوابق فعالیت ثبت می‌شود.',
   document: 'سند',
   entity: 'موضوع',
   version: 'نسخه',
@@ -26,7 +26,7 @@ export const a = {
   correlation: 'شناسه‌ی درخواست',
   outcomes: { SUCCESS: 'موفق', DENIED: 'ردشده', FAILED: 'ناموفق' } as Record<string, string>,
   actorTypes: { USER: 'کاربر', SHARELINK: 'پیوند بیرونی', SYSTEM: 'سامانه', ANONYMOUS: 'ناشناس' } as Record<string, string>,
-  seals: 'مهر و موم رویدادنگاری',
+  seals: 'مهر و موم سوابق',
   verify: (days: number) => `بررسی سلامت ${days.toLocaleString('fa-IR')} روز اخیر`,
   verifying: 'در حال بررسی…',
   keyed: 'مهر با کلید (HMAC)',
@@ -49,3 +49,145 @@ export const a = {
     RowsBeforeFirstSeal: 'رویدادهایی با تاریخ پیش از نخستین مهر',
   } as Record<SealProblem['kind'], string>,
 };
+
+/** Persian labels for audit action codes stored in English in the API. */
+export const actionLabels: Record<string, string> = {
+  LOGIN: 'ورود',
+  LOGIN_FAILED: 'ورود ناموفق',
+  LOGOUT: 'خروج',
+  TOKEN_REFRESHED: 'تمدید نشست',
+  TOKEN_REUSE_DETECTED: 'استفادهٔ دوباره از توکن',
+  ACCESS_DENIED: 'دسترسی رد شد',
+
+  DOCUMENT_CREATED: 'ایجاد سند',
+  DOCUMENT_VIEWED: 'مشاهدهٔ سند',
+  DOCUMENT_DOWNLOADED: 'دانلود سند',
+  DOCUMENT_UPDATED: 'به‌روزرسانی سند',
+  DOCUMENT_DELETED: 'حذف سند',
+  DOCUMENT_RESTORED: 'بازگردانی سند',
+  DOCUMENT_PURGED: 'حذف همیشگی سند',
+  DOCUMENT_TAGS_CHANGED: 'تغییر برچسب‌های سند',
+  DOCUMENT_PRINTED: 'چاپ سند',
+  DOCUMENT_SHARED: 'اشتراک‌گذاری سند',
+
+  VERSION_CREATED: 'ایجاد نسخه',
+  REVISION_CREATED: 'ایجاد بازنگری',
+  METADATA_UPDATED_IN_PLACE: 'ویرایش فراداده درجا',
+
+  RECORD_DECLARED: 'اعلام رکورد',
+  RECORD_STATUS_CHANGED: 'تغییر وضعیت رکورد',
+  RECORD_CLASS_CREATED: 'ایجاد کلاس رکورد',
+  RECORD_CLASS_UPDATED: 'به‌روزرسانی کلاس رکورد',
+  RECORD_SERIES_CREATED: 'ایجاد سری رکورد',
+  RECORD_SERIES_UPDATED: 'به‌روزرسانی سری رکورد',
+  RECORD_DESTROYED: 'امحای رکورد',
+
+  RETENTION_POLICY_CREATED: 'ایجاد سیاست نگهداری',
+  RETENTION_POLICY_UPDATED: 'به‌روزرسانی سیاست نگهداری',
+  RETENTION_ASSIGNED: 'اعمال سیاست نگهداری',
+  RETENTION_EXCEPTION_SET: 'ثبت استثنای نگهداری',
+  RETENTION_EXCEPTION_CLEARED: 'حذف استثنای نگهداری',
+
+  LEGAL_HOLD_PLACED: 'اعمال نگهداری قانونی',
+  LEGAL_HOLD_RELEASED: 'رفع نگهداری قانونی',
+
+  DISPOSITION_REQUESTED: 'درخواست امحا',
+  DISPOSITION_APPROVED: 'تأیید امحا',
+  DISPOSITION_REJECTED: 'رد درخواست امحا',
+  DISPOSITION_BLOCKED_BY_LEGAL_HOLD: 'امحا به‌خاطر نگهداری قانونی متوقف شد',
+  DESTRUCTION_ATTEMPTED: 'تلاش برای امحا',
+  DESTRUCTION_BLOCKED: 'امحا مسدود شد',
+  CERTIFICATE_CREATED: 'صدور گواهی امحا',
+
+  IMPORT_CREATED: 'ایجاد کار ورود از سامانهٔ قدیمی',
+  IMPORT_VALIDATION_STARTED: 'شروع اعتبارسنجی واردات',
+  IMPORT_VALIDATION_COMPLETED: 'پایان اعتبارسنجی واردات',
+  IMPORT_STARTED: 'شروع واردات',
+  IMPORT_ITEM_IMPORTED: 'ورود یک آیتم',
+  IMPORT_ITEM_SKIPPED: 'رد شدن یک آیتم',
+  IMPORT_ITEM_FAILED: 'خطای یک آیتم',
+  IMPORT_COMPLETED: 'پایان واردات',
+  IMPORT_COMPLETED_WITH_ERRORS: 'پایان واردات با خطا',
+  IMPORT_FAILED: 'شکست واردات',
+  IMPORT_RESUMED: 'ازسرگیری واردات',
+  IMPORT_REPORT_ACCESSED: 'مشاهدهٔ گزارش واردات',
+
+  DOCUMENT_TYPE_CREATED: 'ایجاد نوع سند',
+  DOCUMENT_TYPE_UPDATED: 'به‌روزرسانی نوع سند',
+  DOCUMENT_TYPE_DRAFT_SAVED: 'ذخیرهٔ پیش‌نویس نوع سند',
+  DOCUMENT_TYPE_PUBLISHED: 'انتشار نوع سند',
+
+  WORKFLOW_CREATED: 'ایجاد گردش‌کار',
+  WORKFLOW_DRAFT_SAVED: 'ذخیرهٔ پیش‌نویس گردش‌کار',
+  WORKFLOW_PUBLISHED: 'انتشار گردش‌کار',
+  WORKFLOW_STARTED: 'شروع گردش‌کار',
+  WORKFLOW_APPROVED: 'تأیید در گردش‌کار',
+  WORKFLOW_REJECTED: 'رد در گردش‌کار',
+  WORKFLOW_RETURNED: 'بازگرداندن در گردش‌کار',
+  WORKFLOW_REQUESTED_CHANGES: 'درخواست اصلاح در گردش‌کار',
+  WORKFLOW_FORWARDED: 'ارجاع در گردش‌کار',
+  WORKFLOW_CANCELLED: 'لغو گردش‌کار',
+  WORKFLOW_COMPLETED: 'پایان گردش‌کار',
+  WORKFLOW_NEEDS_ATTENTION: 'گردش‌کار نیازمند توجه',
+  WORKFLOW_TASK_OVERDUE: 'کار گردش‌کار سررسید گذشته',
+
+  FILE_INFECTED: 'فایل آلوده',
+  SEARCH_REINDEX_STARTED: 'شروع بازسازی نمایهٔ جستجو',
+
+  CATEGORY_CREATED: 'ایجاد پوشه',
+  CATEGORY_UPDATED: 'به‌روزرسانی پوشه',
+  CATEGORY_MOVED: 'جابه‌جایی پوشه',
+
+  USER_CREATED: 'ایجاد کاربر',
+  USER_UPDATED: 'به‌روزرسانی کاربر',
+  USER_ACTIVATED: 'فعال‌سازی کاربر',
+  USER_DEACTIVATED: 'غیرفعال‌سازی کاربر',
+  USER_PASSWORD_CHANGED: 'تغییر گذرواژه',
+  USER_PASSWORD_RESET: 'بازنشانی گذرواژه توسط مدیر',
+  USER_ADMIN_GRANTED: 'اعطای مدیر سامانه',
+  USER_ADMIN_REVOKED: 'لغو مدیر سامانه',
+
+  GROUP_CREATED: 'ایجاد گروه',
+  GROUP_UPDATED: 'به‌روزرسانی گروه',
+  GROUP_MEMBER_ADDED: 'افزودن عضو به گروه',
+  GROUP_MEMBER_REMOVED: 'حذف عضو از گروه',
+
+  ROLE_CREATED: 'ایجاد نقش',
+  ROLE_UPDATED: 'به‌روزرسانی نقش',
+  ROLE_PERMISSIONS_CHANGED: 'تغییر مجوزهای نقش',
+  ROLE_ASSIGNED: 'اختصاص نقش',
+  ROLE_UNASSIGNED: 'لغو نقش',
+
+  SHARE_REVOKED: 'لغو اشتراک',
+  SHARE_LINK_ACCESSED: 'باز شدن پیوند بیرونی',
+  SHARE_LINK_PASSWORD_FAILED: 'گذرواژهٔ پیوند نادرست',
+
+  PERMISSION_GRANTED: 'اعطای دسترسی',
+  PERMISSION_REVOKED: 'لغو دسترسی',
+
+  AUDIT_SEALS_VERIFIED: 'بررسی مهر سوابق',
+  AUDIT_EXPORTED: 'خروجی سوابق فعالیت',
+  ADMIN_PERMISSION_OVERRIDE: 'دور زدن دسترسی توسط مدیر',
+};
+
+export const actionLabel = (code: string) => actionLabels[code] ?? code;
+
+export const entityTypeLabels: Record<string, string> = {
+  Document: 'سند',
+  DocumentVersion: 'نسخهٔ سند',
+  Category: 'پوشه',
+  User: 'کاربر',
+  Group: 'گروه',
+  Role: 'نقش',
+  DocumentType: 'نوع سند',
+  Workflow: 'گردش‌کار',
+  Share: 'اشتراک',
+  ShareLink: 'پیوند بیرونی',
+  Record: 'رکورد',
+  Disposition: 'درخواست امحا',
+  ImportJob: 'کار واردات',
+  RetentionPolicy: 'سیاست نگهداری',
+  LegalHold: 'نگهداری قانونی',
+};
+
+export const entityTypeLabel = (code: string) => entityTypeLabels[code] ?? code;
