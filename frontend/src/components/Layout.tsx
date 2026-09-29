@@ -250,9 +250,9 @@ function SidebarContent({
         </div>
       </form>
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
         <SidebarNav
-          adminLinks={adminLinks}
+          adminLinks={[]}
           pending={pending}
           onNavigate={onNavigate}
           pathname={pathname}
@@ -260,13 +260,36 @@ function SidebarContent({
         />
 
         {showFolderTree && (
-          <div className="border-t border-paper-300/50 pt-4">
+          <div className="rounded-2xl border border-paper-300/50 bg-paper-300/20 p-3">
             <p className="section-label pb-2.5">{t.categories}</p>
             <CategoryTree
               categories={categories}
               selectedId={selectedCategory}
               onSelect={onSelectCategory}
             />
+          </div>
+        )}
+
+        {adminLinks.length > 0 && (
+          <div>
+            <p className="section-label pb-2">{directory.administration}</p>
+            <nav className="space-y-0.5">
+              {adminLinks.map((entry) => (
+                <RouterLink
+                  key={entry.to}
+                  to={entry.to}
+                  onClick={onNavigate}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors',
+                    pathname === entry.to || pathname.startsWith(`${entry.to}/`)
+                      ? 'bg-ink-500/15 font-medium text-ink-800'
+                      : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+                  )}
+                >
+                  {entry.label}
+                </RouterLink>
+              ))}
+            </nav>
           </div>
         )}
       </div>
