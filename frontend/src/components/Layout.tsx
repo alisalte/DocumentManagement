@@ -170,7 +170,7 @@ function StorageWidget() {
   const total = 100;
   const pct = (used / total) * 100;
   return (
-    <div className="rounded-2xl border border-paper-300/60 bg-paper-300/30 p-3.5">
+    <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-paper-600">فضای ذخیره‌سازی</p>
         <span className="text-[10px] text-paper-500">پایه</span>
@@ -242,7 +242,7 @@ function SidebarContent({
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="جستجو…"
             aria-label={t.searchEverything}
-            className="h-10 w-full rounded-xl border border-paper-400/40 bg-paper-300/40 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-500/60 focus:outline-none focus:ring-2 focus:ring-ink-500/20"
+            className="h-10 w-full rounded-xl border border-paper-200 bg-paper-100 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ink-500/15"
           />
           <kbd className="pointer-events-none absolute inset-y-0 end-2 my-auto hidden h-6 items-center rounded-md border border-paper-400/50 bg-paper-200/80 px-1.5 text-[10px] text-paper-500 sm:flex">
             ⌘K
@@ -260,7 +260,7 @@ function SidebarContent({
         />
 
         {showFolderTree && (
-          <div className="rounded-2xl border border-paper-300/50 bg-paper-300/20 p-3">
+          <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3">
             <p className="section-label pb-2.5">{t.categories}</p>
             <CategoryTree
               categories={categories}
@@ -310,9 +310,9 @@ function SidebarContent({
           </NavIcon>
           تنظیمات
         </RouterLink>
-        <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
-          <span className="text-sm text-paper-600">حالت تیره</span>
-          <Switch checked onChange={() => {}} aria-label="حالت تیره" />
+          <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
+          <span className="text-sm text-paper-600">حالت روشن</span>
+          <Switch checked={false} onChange={() => {}} aria-label="حالت روشن" />
         </div>
       </div>
     </div>
@@ -405,7 +405,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const topBar = (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-400/25 bg-paper-200/50 px-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-200 bg-white/70 px-4 sm:px-6 backdrop-blur-md">
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
@@ -443,7 +443,7 @@ export function Layout({ children }: { children: ReactNode }) {
           type="button"
           onClick={(e) => setAccountMenu(e.currentTarget)}
           aria-haspopup="menu"
-          className="flex max-w-[11rem] items-center gap-2 rounded-xl border border-paper-400/40 bg-paper-300/30 py-1.5 ps-1.5 pe-2.5 text-sm hover:bg-paper-300/50"
+          className="flex max-w-[11rem] items-center gap-2 rounded-xl border border-paper-200 bg-paper-50 py-1.5 ps-1.5 pe-2.5 text-sm hover:bg-ink-50"
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-lg fillo-gradient text-xs font-bold text-white">
             {(user?.displayName ?? '?').slice(0, 1)}
@@ -499,7 +499,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-400/25 bg-paper-200/90 lg:block"
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-200 bg-white/80 lg:block"
         style={{ width: sidebarWidth }}
       >
         <SidebarContent
@@ -529,7 +529,7 @@ export function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-paper-200 shadow-[0_16px_40px_rgb(0_0_0/0.5)] animate-[slide-in_0.28s_ease-out]"
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-white shadow-[0_16px_40px_rgb(31_22_56/0.18)] animate-[slide-in_0.28s_ease-out]"
             style={{ maxWidth: sidebarWidth }}
           >
             <SidebarContent

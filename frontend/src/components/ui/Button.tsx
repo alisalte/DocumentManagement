@@ -7,12 +7,12 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'fillo-gradient fillo-gradient-hover text-white shadow-[0_2px_12px_rgb(124_58_237/0.35)] hover:shadow-[0_4px_16px_rgb(124_58_237/0.45)] active:brightness-95',
+    'fillo-gradient fillo-gradient-hover text-white shadow-[0_2px_12px_rgb(124_58_237/0.28)] hover:shadow-[0_4px_16px_rgb(124_58_237/0.35)] active:brightness-95',
   secondary:
-    'bg-copper-600 text-white shadow-[0_1px_2px_rgb(0_0_0/0.2)] hover:bg-copper-500 active:bg-copper-600',
+    'bg-copper-600 text-white shadow-[0_1px_2px_rgb(58_38_26/0.12)] hover:bg-copper-500 active:bg-copper-600',
   outline:
-    'border border-paper-400/60 bg-paper-300/40 text-ink-900 shadow-sm hover:border-ink-500/50 hover:bg-paper-300/70 active:bg-paper-300',
-  ghost: 'text-paper-600 hover:bg-paper-300/50 hover:text-ink-900',
+    'border border-paper-300 bg-white text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
+  ghost: 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
   danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-500 active:bg-rose-700',
 };
 
@@ -117,8 +117,8 @@ export function IconButton({ label, variant = 'ghost', size = 'md', className, c
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-500',
         'disabled:pointer-events-none disabled:opacity-50',
         variant === 'outline'
-          ? 'border border-paper-400/60 bg-paper-300/40 text-paper-600 hover:border-ink-500/50 hover:bg-paper-300/70'
-          : 'text-paper-500 hover:bg-paper-300/50 hover:text-ink-900',
+          ? 'border border-paper-300 bg-white text-paper-600 hover:border-ink-300 hover:bg-ink-50'
+          : 'text-paper-500 hover:bg-ink-50 hover:text-ink-800',
         size === 'sm' ? 'size-7' : 'size-9',
         className,
       )}

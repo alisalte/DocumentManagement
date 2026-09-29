@@ -159,8 +159,8 @@ function TreeRow({
             <span
               className={cx(
                 'grid size-7 shrink-0 place-items-center rounded-lg',
-                selected ? 'bg-ink-500/25 text-copper-400' : 'bg-paper-300/40 text-copper-500',
-                open && hasChildren && !selected && 'bg-paper-300/50 text-copper-400',
+                selected ? 'bg-ink-100 text-copper-600' : 'bg-paper-100 text-copper-500',
+                open && hasChildren && !selected && 'bg-ink-50 text-copper-500',
               )}
             >
               <FolderIcon open={open && hasChildren} />

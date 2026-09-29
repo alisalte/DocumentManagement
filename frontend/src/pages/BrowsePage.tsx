@@ -55,7 +55,7 @@ function FolderCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group flex flex-col rounded-2xl border border-paper-300/60 bg-paper-200/70 p-4 text-start transition-all hover:border-ink-500/30 hover:bg-paper-300/40 hover:shadow-[0_8px_24px_rgb(0_0_0/0.25)]"
+      className="group flex flex-col rounded-2xl border border-paper-200 bg-white p-4 text-start transition-all hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[0_8px_24px_rgb(31_22_56/0.08)]"
     >
       <FolderIcon className="mx-auto h-16 w-20 transition-transform group-hover:scale-105" />
       <p className="mt-3 truncate text-sm font-semibold text-ink-900">{category.name}</p>
@@ -91,9 +91,9 @@ function AutoManageHome({
   return (
     <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
       <div className="w-full shrink-0 space-y-4 xl:w-[320px]">
-        <Card className="border-dashed border-paper-400/50 bg-paper-300/20">
+        <Card className="border-dashed border-paper-300 bg-paper-50">
           <div className="flex flex-col items-center py-4 text-center">
-            <span className="mb-3 grid size-14 place-items-center rounded-2xl bg-paper-300/50 text-paper-500">
+            <span className="mb-3 grid size-14 place-items-center rounded-2xl bg-ink-50 text-ink-500">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-8">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 4.5 4.5 0 0 1 4.5 4.5v.008H19.5a3 3 0 0 1 3 3v1.5a3 3 0 0 1-3 3H6.75Z" />
               </svg>

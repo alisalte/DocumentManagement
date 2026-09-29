@@ -4,10 +4,10 @@ import { cx } from './cx';
 export type AlertSeverity = 'error' | 'success' | 'warning' | 'info';
 
 const toneClasses: Record<AlertSeverity, string> = {
-  error: 'border-rose-500/30 bg-rose-950/40 text-rose-300',
-  success: 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300',
-  warning: 'border-amber-500/30 bg-amber-950/40 text-amber-300',
-  info: 'border-ink-500/30 bg-ink-500/10 text-ink-800',
+  error: 'border-rose-200 bg-rose-50 text-rose-800',
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  warning: 'border-amber-200 bg-amber-50 text-amber-800',
+  info: 'border-ink-200 bg-ink-50 text-ink-800',
 };
 
 const iconClasses: Record<AlertSeverity, string> = {
