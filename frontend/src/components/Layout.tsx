@@ -1,19 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { api } from '../lib/api';
+import { api, type CategoryNode } from '../lib/api';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { a as audit } from '../pages/admin/auditStrings';
 import { d as directory } from '../pages/admin/directoryStrings';
 import { d as disposition } from '../pages/admin/dispositionStrings';
 import { i as importStrings } from '../pages/admin/importStrings';
+import { CategoryTree } from './CategoryTree';
 import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
-import { Button, Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
+import { formatBytes, formatNumber } from '../lib/format';
+import { Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
-const sidebarWidth = 260;
+const sidebarWidth = 280;
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -164,28 +166,61 @@ function SidebarNav({
   );
 }
 
-function StorageWidget() {
-  const used = 38.5;
-  const total = 100;
-  const pct = (used / total) * 100;
+function StorageWidget({ demo }: { demo?: boolean }) {
+  const usage = useQuery({
+    queryKey: ['storage-usage'],
+    queryFn: api.storageUsage,
+    refetchInterval: 60_000,
+    enabled: !demo,
+    retry: demo ? false : 1,
+  });
+
+  const usedBytes = demo ? 0 : (usage.data?.usedBytes ?? 0);
+  const quotaBytes = demo ? 100 * 1024 * 1024 * 1024 : (usage.data?.quotaBytes ?? 0);
+  const pct =
+    quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 1000) / 10) : 0;
+  const loading = !demo && usage.isLoading && !usage.data;
+
   return (
-    <div className="rounded-2xl border border-paper-300/60 bg-paper-300/30 p-3.5">
+    <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-paper-600">فضای ذخیره‌سازی</p>
-        <span className="text-[10px] text-paper-500">پایه</span>
+        {quotaBytes > 0 && !loading && !usage.isError && (
+          <span className="text-[10px] text-paper-500">{formatNumber(pct)}٪</span>
+        )}
       </div>
-      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper-400/40">
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper-200">
         <div
-          className="h-full rounded-full bg-gradient-to-l from-ink-500 to-copper-500"
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full bg-gradient-to-l from-ink-500 to-copper-500 transition-[width] duration-300"
+          style={{
+            width: loading || usage.isError ? '0%' : `${quotaBytes > 0 ? pct : usedBytes > 0 ? 100 : 0}%`,
+          }}
         />
       </div>
       <p className="mt-2 text-xs text-paper-500">
-        <span className="font-semibold text-ink-900">{used}</span> از {total} گیگابایت
+        {demo ? (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(0)}</span>
+            {' از '}
+            {formatBytes(quotaBytes)}
+          </>
+        ) : usage.isError ? (
+          <span className="text-rose-600">خواندن فضا ممکن نشد</span>
+        ) : loading ? (
+          'در حال خواندن…'
+        ) : quotaBytes > 0 ? (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(usedBytes)}</span>
+            {' از '}
+            {formatBytes(quotaBytes)}
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(usedBytes)}</span>
+            {' مصرف‌شده'}
+          </>
+        )}
       </p>
-      <Button variant="outline" size="sm" fullWidth className="mt-3">
-        ارتقا
-      </Button>
     </div>
   );
 }
@@ -199,6 +234,11 @@ function SidebarContent({
   onNavigate,
   pathname,
   autoManageActive,
+  selectedCategory,
+  onSelectCategory,
+  categories,
+  showFolderTree,
+  demo,
 }: {
   adminLinks: { to: string; label: string }[];
   pending: number;
@@ -208,6 +248,11 @@ function SidebarContent({
   onNavigate?: () => void;
   pathname: string;
   autoManageActive: boolean;
+  selectedCategory: string | null;
+  onSelectCategory: (categoryId: string | null) => void;
+  categories: CategoryNode[];
+  showFolderTree: boolean;
+  demo?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col gap-4 p-4">
@@ -233,7 +278,7 @@ function SidebarContent({
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="جستجو…"
             aria-label={t.searchEverything}
-            className="h-10 w-full rounded-xl border border-paper-400/40 bg-paper-300/40 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-500/60 focus:outline-none focus:ring-2 focus:ring-ink-500/20"
+            className="h-10 w-full rounded-xl border border-paper-200 bg-paper-100 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ink-500/15"
           />
           <kbd className="pointer-events-none absolute inset-y-0 end-2 my-auto hidden h-6 items-center rounded-md border border-paper-400/50 bg-paper-200/80 px-1.5 text-[10px] text-paper-500 sm:flex">
             ⌘K
@@ -241,17 +286,51 @@ function SidebarContent({
         </div>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
         <SidebarNav
-          adminLinks={adminLinks}
+          adminLinks={[]}
           pending={pending}
           onNavigate={onNavigate}
           pathname={pathname}
           autoManageActive={autoManageActive}
         />
+
+        {showFolderTree && (
+          <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3">
+            <p className="section-label pb-2.5">{t.categories}</p>
+            <CategoryTree
+              categories={categories}
+              selectedId={selectedCategory}
+              onSelect={onSelectCategory}
+            />
+          </div>
+        )}
+
+        {adminLinks.length > 0 && (
+          <div>
+            <p className="section-label pb-2">{directory.administration}</p>
+            <nav className="space-y-0.5">
+              {adminLinks.map((entry) => (
+                <RouterLink
+                  key={entry.to}
+                  to={entry.to}
+                  onClick={onNavigate}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors',
+                    pathname === entry.to || pathname.startsWith(`${entry.to}/`)
+                      ? 'bg-ink-500/15 font-medium text-ink-800'
+                      : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+                  )}
+                >
+                  {entry.label}
+                </RouterLink>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
 
-      <StorageWidget />
+      <StorageWidget demo={demo} />
 
       <div className="space-y-2 border-t border-paper-300/50 pt-3">
         <RouterLink
@@ -267,9 +346,9 @@ function SidebarContent({
           </NavIcon>
           تنظیمات
         </RouterLink>
-        <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
-          <span className="text-sm text-paper-600">حالت تیره</span>
-          <Switch checked onChange={() => {}} aria-label="حالت تیره" />
+          <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
+          <span className="text-sm text-paper-600">حالت روشن</span>
+          <Switch checked={false} onChange={() => {}} aria-label="حالت روشن" />
         </div>
       </div>
     </div>
@@ -326,13 +405,29 @@ export function Layout({ children }: { children: ReactNode }) {
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
   const pending = tasks.data?.length ?? 0;
   const categoryId = searchParams.get('category');
-  const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: api.categories,
-    enabled: !!categoryId,
-  });
-  const categoryName = categories.data?.find((c) => c.id === categoryId)?.name ?? null;
+  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  const isDemo = import.meta.env.DEV && searchParams.get('demo') === '1';
+  const demoCategories: CategoryNode[] = [
+    { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+    { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+    { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+  ];
+  const folderCategories =
+    categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoCategories : [];
+  const categoryName =
+    folderCategories.find((c) => c.id === categoryId)?.name ?? null;
   const title = pageTitle(location.pathname, categoryName);
+  const showFolderTree = location.pathname !== '/help' && !location.pathname.startsWith('/help/');
+  const selectCategory = (id: string | null) => {
+    setDrawerOpen(false);
+    if (!id) {
+      navigate(isDemo ? '/?demo=1' : '/');
+      return;
+    }
+    navigate(isDemo ? `/?category=${id}&demo=1` : `/?category=${id}`);
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -346,7 +441,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const topBar = (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-300/50 px-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-200 bg-white/70 px-4 sm:px-6 backdrop-blur-md">
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
@@ -384,7 +479,7 @@ export function Layout({ children }: { children: ReactNode }) {
           type="button"
           onClick={(e) => setAccountMenu(e.currentTarget)}
           aria-haspopup="menu"
-          className="flex max-w-[11rem] items-center gap-2 rounded-xl border border-paper-400/40 bg-paper-300/30 py-1.5 ps-1.5 pe-2.5 text-sm hover:bg-paper-300/50"
+          className="flex max-w-[11rem] items-center gap-2 rounded-xl border border-paper-200 bg-paper-50 py-1.5 ps-1.5 pe-2.5 text-sm hover:bg-ink-50"
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-lg fillo-gradient text-xs font-bold text-white">
             {(user?.displayName ?? '?').slice(0, 1)}
@@ -440,7 +535,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-300/50 bg-paper-200/60 lg:block"
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-200 bg-white/80 lg:block"
         style={{ width: sidebarWidth }}
       >
         <SidebarContent
@@ -451,6 +546,11 @@ export function Layout({ children }: { children: ReactNode }) {
           submitSearch={submitSearch}
           pathname={location.pathname}
           autoManageActive={autoManageActive}
+          selectedCategory={categoryId}
+          onSelectCategory={selectCategory}
+          categories={folderCategories}
+          showFolderTree={showFolderTree}
+          demo={isDemo}
         />
       </aside>
 
@@ -466,7 +566,7 @@ export function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-paper-200 shadow-[0_16px_40px_rgb(0_0_0/0.5)] animate-[slide-in_0.28s_ease-out]"
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-white shadow-[0_16px_40px_rgb(31_22_56/0.18)] animate-[slide-in_0.28s_ease-out]"
             style={{ maxWidth: sidebarWidth }}
           >
             <SidebarContent
@@ -478,6 +578,11 @@ export function Layout({ children }: { children: ReactNode }) {
               onNavigate={() => setDrawerOpen(false)}
               pathname={location.pathname}
               autoManageActive={autoManageActive}
+              selectedCategory={categoryId}
+              onSelectCategory={selectCategory}
+              categories={folderCategories}
+              showFolderTree={showFolderTree}
+              demo={isDemo}
             />
           </div>
         </div>

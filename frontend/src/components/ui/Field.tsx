@@ -8,8 +8,8 @@ import type {
 import { cx } from './cx';
 
 const controlBase =
-  'w-full rounded-xl border bg-paper-300/50 text-sm text-ink-900 shadow-sm transition-colors placeholder:text-paper-500 focus:outline-none focus:ring-2 focus:ring-ink-500/25 disabled:cursor-not-allowed disabled:bg-paper-200 disabled:text-paper-500';
-const borderDefault = 'border-paper-400/50 focus:border-ink-500';
+  'w-full rounded-xl border bg-white text-sm text-ink-900 shadow-sm transition-colors placeholder:text-paper-400 focus:outline-none focus:ring-2 focus:ring-ink-500/20 disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500';
+const borderDefault = 'border-paper-300 focus:border-ink-500';
 const borderError = 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20';
 const sizes = { sm: 'h-9 px-3', md: 'h-10 px-3.5' } as const;
 

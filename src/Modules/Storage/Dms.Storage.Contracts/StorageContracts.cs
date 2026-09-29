@@ -131,7 +131,14 @@ public interface IStorageService
 
     /// <summary>Other objects with the same SHA-256. The caller filters by what the user may see.</summary>
     Task<IReadOnlyList<StorageObjectId>> FindByHashAsync(byte[] sha256, CancellationToken cancellationToken);
+
+    /// <summary>Live original-file bytes versus the configured plan quota.</summary>
+    Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken);
 }
+
+/// <param name="UsedBytes">Sum of original files still on disk (committed, staged, quarantined, pending deletion).</param>
+/// <param name="QuotaBytes">Configured plan size; zero means unlimited.</param>
+public sealed record StorageUsage(long UsedBytes, long QuotaBytes);
 
 public readonly record struct ByteRange(long From, long? To);
 

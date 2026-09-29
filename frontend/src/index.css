@@ -3,30 +3,30 @@
 @theme {
   --font-sans: 'Vazirmatn', 'Segoe UI', Tahoma, Arial, sans-serif;
 
-  /* Fillo dark surfaces */
-  --color-paper-50: #18181c;
-  --color-paper-100: #0a0a0c;
-  --color-paper-200: #141418;
-  --color-paper-300: #1c1c22;
-  --color-paper-400: #3f3f46;
-  --color-paper-500: #71717a;
-  --color-paper-600: #a1a1aa;
-  --color-paper-700: #d4d4d8;
-  --color-paper-800: #e4e4e7;
-  --color-paper-900: #fafafa;
+  /* Light Fillo surfaces */
+  --color-paper-50: #ffffff;
+  --color-paper-100: #f4f5f8;
+  --color-paper-200: #e8eaf0;
+  --color-paper-300: #d5d8e2;
+  --color-paper-400: #a8adbb;
+  --color-paper-500: #7b8194;
+  --color-paper-600: #5c6274;
+  --color-paper-700: #434857;
+  --color-paper-800: #2d3140;
+  --color-paper-900: #1a1d27;
 
-  /* Primary violet + light text on dark */
-  --color-ink-50: #2e1065;
-  --color-ink-100: #4c1d95;
-  --color-ink-200: #5b21b6;
-  --color-ink-300: #6d28d9;
-  --color-ink-400: #7c3aed;
-  --color-ink-500: #8b5cf6;
-  --color-ink-600: #a78bfa;
-  --color-ink-700: #7c3aed;
-  --color-ink-800: #e9d5ff;
-  --color-ink-900: #fafafa;
-  --color-ink-950: #ffffff;
+  /* Primary violet */
+  --color-ink-50: #f5f0ff;
+  --color-ink-100: #ebe3ff;
+  --color-ink-200: #d4c4fe;
+  --color-ink-300: #b49af8;
+  --color-ink-400: #9575f0;
+  --color-ink-500: #7c56e0;
+  --color-ink-600: #6d44c9;
+  --color-ink-700: #5b35ad;
+  --color-ink-800: #3f2580;
+  --color-ink-900: #1f1638;
+  --color-ink-950: #120d22;
 
   --color-copper-400: #fb923c;
   --color-copper-500: #f97316;
@@ -35,8 +35,8 @@
   --animate-progress: progress 1.4s ease-in-out infinite;
   --animate-fade-in: fade-in 0.35s ease-out both;
   --animate-slide-in: slide-in 0.28s ease-out both;
-  --shadow-surface: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px rgb(0 0 0 / 0.25);
-  --shadow-elevated: 0 4px 12px rgb(0 0 0 / 0.4), 0 16px 40px rgb(0 0 0 / 0.35);
+  --shadow-surface: 0 1px 2px rgb(31 22 56 / 0.04), 0 8px 24px rgb(31 22 56 / 0.06);
+  --shadow-elevated: 0 4px 12px rgb(31 22 56 / 0.08), 0 16px 40px rgb(31 22 56 / 0.1);
 }
 
 @keyframes progress {
@@ -78,8 +78,9 @@
   body {
     @apply bg-paper-100 text-ink-900 antialiased;
     background-image:
-      radial-gradient(ellipse 100% 70% at 100% 0%, rgb(124 58 237 / 0.12), transparent 50%),
-      radial-gradient(ellipse 80% 50% at 0% 100%, rgb(249 115 22 / 0.06), transparent 45%);
+      radial-gradient(ellipse 110% 80% at 100% -10%, rgb(124 58 237 / 0.1), transparent 55%),
+      radial-gradient(ellipse 90% 60% at -5% 100%, rgb(249 115 22 / 0.06), transparent 50%),
+      linear-gradient(180deg, #f7f8fb 0%, #eef0f5 100%);
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -95,7 +96,7 @@
   }
 
   ::selection {
-    background: rgb(124 58 237 / 0.35);
+    background: rgb(124 58 237 / 0.2);
   }
 }
 
@@ -105,7 +106,7 @@
   }
 
   .surface {
-    @apply rounded-2xl border border-paper-300/80 bg-paper-200/90 backdrop-blur-sm;
+    @apply rounded-2xl border border-paper-200/90 bg-white/90 backdrop-blur-sm;
     box-shadow: var(--shadow-surface);
   }
 
@@ -118,10 +119,10 @@
   }
 
   .fillo-gradient {
-    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 50%, #5b21b6 100%);
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #7c3aed 100%);
   }
 
   .fillo-gradient-hover:hover {
-    background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%);
+    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 45%, #8b5cf6 100%);
   }
 }

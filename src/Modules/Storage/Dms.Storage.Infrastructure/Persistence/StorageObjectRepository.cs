@@ -62,6 +62,14 @@ public sealed class StorageObjectRepository(StorageDbContext context) : IStorage
             .Where(item => item.DerivedFromId == source)
             .ToListAsync(cancellationToken);
 
+    public async Task<long> SumLiveOriginalBytesAsync(CancellationToken cancellationToken) =>
+        await context.StorageObjects.AsNoTracking()
+            .Where(item =>
+                item.Purpose == StorageObjectPurpose.Original
+                && item.Status != StorageObjectStatus.Deleted)
+            .SumAsync(item => (long?)item.Size, cancellationToken)
+        ?? 0;
+
     public void Add(StorageObject storageObject) => context.StorageObjects.Add(storageObject);
 }
 
