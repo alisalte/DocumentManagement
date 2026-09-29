@@ -1,0 +1,31 @@
+# Use when containers cannot reach each other on the compose bridge network
+# (common in nested Docker / some CI VMs: ping between containers times out, but
+# published host ports still work).
+#
+#   cd deploy
+#   docker compose -f docker-compose.yml -f compose.nested.yml up -d --build
+#
+# Postgres stays published on the host (${POSTGRES_PORT:-5433}). API, worker and
+# migrator connect through host.docker.internal instead of the service name.
+
+services:
+  migrator:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ConnectionStrings__Dms: >-
+        Host=host.docker.internal;Port=${POSTGRES_PORT:-5433};Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
+
+  api:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ConnectionStrings__Dms: >-
+        Host=host.docker.internal;Port=${POSTGRES_PORT:-5433};Database=${POSTGRES_DB:-dms};Username=dms_app;Password=${DMS_DB_APP_PASSWORD}
+
+  worker:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      ConnectionStrings__Dms: >-
+        Host=host.docker.internal;Port=${POSTGRES_PORT:-5433};Database=${POSTGRES_DB:-dms};Username=dms_app;Password=${DMS_DB_APP_PASSWORD}
