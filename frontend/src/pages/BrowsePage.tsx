@@ -1,6 +1,6 @@
-import { Alert, Button, Card, Pagination, ProgressBar, Select, Switch, TextField, cx } from '../components/ui';
+import { Alert, Button, Card, Pagination, ProgressBar, Switch, TextField, cx } from '../components/ui';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DocumentList } from '../components/DocumentList';
 import { FolderIcon } from '../components/FolderIcon';
@@ -10,20 +10,28 @@ import { describeError, t } from '../strings';
 
 const pageSize = 25;
 
-const demoUploads = [
-  { name: 'visual_brand_identity.pdf', size: 2_800_000, progress: 28 },
-  { name: 'marketing_assets.zip', size: 45_000_000, progress: 95 },
-  { name: 'annual_report.docx', size: 1_200_000, progress: 67 },
-  { name: 'logo_variations.svg', size: 890_000, progress: 42 },
-  { name: 'product_photos.jpg', size: 3_400_000, progress: 81 },
-];
+type QueueStatus = 'queued' | 'uploading' | 'done' | 'error';
+
+interface QueueItem {
+  id: string;
+  file: File;
+  progress: number;
+  status: QueueStatus;
+  error?: string;
+}
 
 function fileTypeIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase();
   const color =
-    ext === 'pdf' ? 'text-rose-400' : ext === 'docx' || ext === 'doc' ? 'text-sky-400' : ext === 'svg' ? 'text-violet-400' : 'text-amber-400';
+    ext === 'pdf'
+      ? 'text-rose-600 bg-rose-50'
+      : ext === 'docx' || ext === 'doc'
+        ? 'text-sky-600 bg-sky-50'
+        : ext === 'svg'
+          ? 'text-violet-600 bg-violet-50'
+          : 'text-amber-700 bg-amber-50';
   return (
-    <span className={cx('grid size-9 shrink-0 place-items-center rounded-lg bg-paper-300/50 text-xs font-bold uppercase', color)}>
+    <span className={cx('grid size-9 shrink-0 place-items-center rounded-lg text-xs font-bold uppercase', color)}>
       {ext?.slice(0, 3) ?? 'file'}
     </span>
   );
@@ -87,11 +95,73 @@ function AutoManageHome({
     () => categories.filter((c) => c.parentId === null && c.canView).sort((a, b) => a.sortOrder - b.sortOrder),
     [categories],
   );
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeIds = useRef(new Set<string>());
+
+  const updateItem = (id: string, patch: Partial<QueueItem>) => {
+    setQueue((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const startUpload = (item: QueueItem) => {
+    if (activeIds.current.has(item.id)) return;
+    activeIds.current.add(item.id);
+    updateItem(item.id, { status: 'uploading', progress: 0, error: undefined });
+    void api
+      .upload(item.file, (fraction) => updateItem(item.id, { progress: Math.round(fraction * 100) }))
+      .then(() => {
+        updateItem(item.id, { status: 'done', progress: 100 });
+      })
+      .catch((error: unknown) => {
+        updateItem(item.id, { status: 'error', error: describeError(error), progress: 0 });
+      })
+      .finally(() => {
+        activeIds.current.delete(item.id);
+      });
+  };
+
+  const enqueue = (files: FileList | File[]) => {
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    const next: QueueItem[] = list.map((file) => ({
+      id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+      file,
+      progress: 0,
+      status: 'queued' as const,
+    }));
+    setQueue((current) => [...next, ...current]);
+    for (const item of next) startUpload(item);
+  };
+
+  const removeItem = (id: string) => {
+    setQueue((current) => current.filter((item) => item.id !== id));
+    activeIds.current.delete(id);
+  };
+
+  const newDocHref = filingTarget ? `/new?category=${filingTarget}` : '/new';
+  const busyCount = queue.filter((item) => item.status === 'queued' || item.status === 'uploading').length;
+  const doneCount = queue.filter((item) => item.status === 'done').length;
 
   return (
     <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
       <div className="w-full shrink-0 space-y-4 xl:w-[320px]">
-        <Card className="border-dashed border-paper-300 bg-paper-50">
+        <Card
+          className={cx(
+            'border-dashed bg-paper-50 transition-colors',
+            dragOver ? 'border-ink-400 bg-ink-50/60' : 'border-paper-300',
+          )}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragOver(false);
+            enqueue(event.dataTransfer.files);
+          }}
+        >
           <div className="flex flex-col items-center py-4 text-center">
             <span className="mb-3 grid size-14 place-items-center rounded-2xl bg-ink-50 text-ink-500">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-8">
@@ -100,57 +170,94 @@ function AutoManageHome({
             </span>
             <p className="text-sm font-medium text-ink-900">بارگذاری فایل</p>
             <p className="mt-1 max-w-[16rem] text-xs leading-5 text-paper-500">
-              فایل‌ها را اینجا رها کنید تا در پوشه‌های مناسب مرتب شوند.
+              فایل را اینجا رها کنید یا انتخاب کنید؛ پیشرفت واقعی بارگذاری در فهرست زیر دیده می‌شود.
             </p>
-            <Button as={RouterLink} to={filingTarget ? `/new?category=${filingTarget}` : '/new'} className="mt-4" size="sm">
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(event) => {
+                if (event.target.files) enqueue(event.target.files);
+                event.target.value = '';
+              }}
+            />
+            <Button className="mt-4" size="sm" onClick={() => inputRef.current?.click()}>
               {t.chooseFile}
             </Button>
           </div>
         </Card>
 
         <Card flush className="overflow-hidden">
-          <p className="border-b border-paper-300/50 px-4 py-3 text-xs font-medium text-paper-500">بارگذاری‌های جاری</p>
-          <ul className="divide-y divide-paper-300/40">
-            {demoUploads.map((file) => (
-              <li key={file.name} className="flex items-start gap-3 px-4 py-3">
-                {fileTypeIcon(file.name)}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-ink-900" dir="ltr">
-                    {file.name}
-                  </p>
-                  <p className="text-xs text-paper-500">{formatBytes(file.size)}</p>
-                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-paper-400/40">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-l from-copper-500 to-ink-500"
-                      style={{ width: `${file.progress}%` }}
-                    />
+          <div className="flex items-center justify-between border-b border-paper-200 px-4 py-3">
+            <p className="text-xs font-medium text-paper-500">بارگذاری‌های جاری</p>
+            {busyCount > 0 && (
+              <span className="text-[10px] font-semibold text-ink-600">{formatNumber(busyCount)} در حال ارسال</span>
+            )}
+          </div>
+          {queue.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-paper-500">فعلاً فایلی در صف نیست.</p>
+          ) : (
+            <ul className="divide-y divide-paper-200">
+              {queue.map((item) => (
+                <li key={item.id} className="flex items-start gap-3 px-4 py-3">
+                  {fileTypeIcon(item.file.name)}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-ink-900" dir="ltr">
+                      {item.file.name}
+                    </p>
+                    <p className="text-xs text-paper-500">{formatBytes(item.file.size)}</p>
+                    {item.status === 'error' ? (
+                      <p className="mt-1 text-xs text-rose-600">{item.error ?? t.retry}</p>
+                    ) : (
+                      <>
+                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-paper-200">
+                          <div
+                            className={cx(
+                              'h-full rounded-full transition-[width] duration-200',
+                              item.status === 'done' ? 'bg-emerald-500' : 'bg-gradient-to-l from-copper-500 to-ink-500',
+                            )}
+                            style={{ width: `${item.progress}%` }}
+                          />
+                        </div>
+                        <p className="mt-1 text-[10px] text-paper-500">
+                          {item.status === 'done' ? 'بارگذاری شد' : `${formatNumber(item.progress)}٪`}
+                        </p>
+                      </>
+                    )}
+                    {item.status === 'error' && (
+                      <button
+                        type="button"
+                        className="mt-1 text-xs font-medium text-ink-600 hover:text-ink-800"
+                        onClick={() => startUpload(item)}
+                      >
+                        {t.retry}
+                      </button>
+                    )}
                   </div>
-                  <p className="mt-1 text-[10px] text-paper-500">{formatNumber(file.progress)}٪</p>
-                </div>
-                <button type="button" className="shrink-0 text-paper-500 hover:text-rose-400" aria-label="حذف">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="size-4">
-                    <path
-                      fillRule="evenodd"
-                      d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <button
+                    type="button"
+                    className="shrink-0 text-paper-400 hover:text-rose-600"
+                    aria-label="حذف"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="size-4">
+                      <path
+                        fillRule="evenodd"
+                        d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
-        <div className="space-y-3">
-          <Select label="مرتب‌سازی بر اساس" size="sm" defaultValue="ai">
-            <option value="ai">مرتب‌سازی خودکار با هوش مصنوعی</option>
-            <option value="type">نوع فایل</option>
-            <option value="date">تاریخ</option>
-          </Select>
-          <Button fullWidth size="lg">
-            سازماندهی
-          </Button>
-        </div>
+        <Button as={RouterLink} to={newDocHref} fullWidth size="lg">
+          {doneCount > 0 ? 'ثبت سند جدید' : t.newDocument}
+        </Button>
       </div>
 
       <div className="min-w-0 flex-1">
