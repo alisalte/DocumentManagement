@@ -1,9 +1,9 @@
 /** Persian copy for the legacy import admin screen (phase 10.6). */
 export const i = {
-  menu: 'واردات میراثی',
-  title: 'موتور واردات از سامانهٔ قدیمی',
-  subtitle: 'مانیفست، اعتبارسنجی خشک، اجرا، ازسرگیری و گزارش — بدون دور زدن ACL یا رکورد.',
-  create: 'ایجاد واردات',
+  menu: 'ورود از سامانهٔ قدیمی',
+  title: 'ورود اسناد از سامانهٔ قدیمی',
+  subtitle: 'با مانیفست JSON فایل‌ها را اعتبارسنجی کنید، وارد کنید و گزارش بگیرید — بدون دور زدن دسترسی‌ها.',
+  create: 'ایجاد کار ورود',
   name: 'نام کار',
   sourceSystem: 'سامانهٔ مبدأ',
   manifest: 'مانیفست JSON',
@@ -13,16 +13,16 @@ export const i = {
   continueOnError: 'ادامه با خطا',
   stopOnError: 'توقف با خطا',
   createCategories: 'ایجاد پوشه‌های مفقود',
-  dryRunOnly: 'فقط اعتبارسنجی (بدون واردات)',
+  dryRunOnly: 'فقط اعتبارسنجی (بدون ورود)',
   validate: 'اعتبارسنجی',
-  start: 'شروع واردات',
+  start: 'شروع ورود',
   pause: 'توقف موقت',
   resume: 'ازسرگیری',
   retry: 'تلاش مجدد خطاها',
   report: 'گزارش',
   refresh: 'بازخوانی',
-  jobs: 'کارهای واردات',
-  empty: 'هنوز کار وارداتی ثبت نشده است.',
+  jobs: 'کارهای ورود',
+  empty: 'هنوز کار ورودی ثبت نشده است.',
   status: 'وضعیت',
   progress: 'پیشرفت',
   processed: 'پردازش‌شده',
@@ -39,10 +39,37 @@ export const i = {
   error: 'خطا',
   validationTitle: 'گزارش اعتبارسنجی',
   warnings: 'هشدار',
-  confirmStart: 'شروع واردات، اسناد و رکورد واقعی ایجاد می‌کند. ادامه می‌دهید؟',
+  confirmStart: 'شروع ورود، اسناد واقعی ایجاد می‌کند. ادامه می‌دهید؟',
   cancel: 'انصراف',
   submit: 'ثبت',
   close: 'بستن',
   downloadReport: 'دانلود JSON گزارش',
   selectJob: 'یک کار را از فهرست انتخاب کنید.',
 };
+
+export const jobStatusLabels: Record<string, string> = {
+  Created: 'ایجادشده',
+  Validating: 'در حال اعتبارسنجی',
+  Ready: 'آماده',
+  ValidationFailed: 'اعتبارسنجی ناموفق',
+  Running: 'در حال اجرا',
+  Paused: 'متوقف موقت',
+  Completed: 'تمام‌شده',
+  CompletedWithErrors: 'تمام‌شده با خطا',
+  Failed: 'ناموفق',
+};
+
+export const itemStatusLabels: Record<string, string> = {
+  Pending: 'در انتظار',
+  Valid: 'معتبر',
+  Invalid: 'نامعتبر',
+  Ready: 'آماده',
+  Running: 'در حال اجرا',
+  Succeeded: 'موفق',
+  Failed: 'ناموفق',
+  Skipped: 'ردشده',
+  Retryable: 'قابل تلاش مجدد',
+};
+
+export const jobStatusLabel = (status: string) => jobStatusLabels[status] ?? status;
+export const itemStatusLabel = (status: string) => itemStatusLabels[status] ?? status;

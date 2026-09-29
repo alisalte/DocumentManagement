@@ -98,7 +98,7 @@ test.describe('administration', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'ایجاد' }).click();
 
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('checkbox', { name: /دیدن رویدادنگاری/ }).check();
+    await dialog.getByRole('checkbox', { name: /دیدن سوابق فعالیت/ }).check();
     await dialog.getByRole('button', { name: 'ذخیره', exact: true }).click();
     await expect(dialog.getByText('ذخیره شد.')).toBeVisible();
 
