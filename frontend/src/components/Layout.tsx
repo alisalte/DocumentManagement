@@ -12,7 +12,8 @@ import { CategoryTree } from './CategoryTree';
 import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
-import { Button, Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
+import { formatBytes, formatNumber } from '../lib/format';
+import { Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
 const sidebarWidth = 280;
 
@@ -165,28 +166,61 @@ function SidebarNav({
   );
 }
 
-function StorageWidget() {
-  const used = 38.5;
-  const total = 100;
-  const pct = (used / total) * 100;
+function StorageWidget({ demo }: { demo?: boolean }) {
+  const usage = useQuery({
+    queryKey: ['storage-usage'],
+    queryFn: api.storageUsage,
+    refetchInterval: 60_000,
+    enabled: !demo,
+    retry: demo ? false : 1,
+  });
+
+  const usedBytes = demo ? 0 : (usage.data?.usedBytes ?? 0);
+  const quotaBytes = demo ? 100 * 1024 * 1024 * 1024 : (usage.data?.quotaBytes ?? 0);
+  const pct =
+    quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 1000) / 10) : 0;
+  const loading = !demo && usage.isLoading && !usage.data;
+
   return (
     <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-paper-600">فضای ذخیره‌سازی</p>
-        <span className="text-[10px] text-paper-500">پایه</span>
+        {quotaBytes > 0 && !loading && !usage.isError && (
+          <span className="text-[10px] text-paper-500">{formatNumber(pct)}٪</span>
+        )}
       </div>
-      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper-400/40">
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper-200">
         <div
-          className="h-full rounded-full bg-gradient-to-l from-ink-500 to-copper-500"
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full bg-gradient-to-l from-ink-500 to-copper-500 transition-[width] duration-300"
+          style={{
+            width: loading || usage.isError ? '0%' : `${quotaBytes > 0 ? pct : usedBytes > 0 ? 100 : 0}%`,
+          }}
         />
       </div>
       <p className="mt-2 text-xs text-paper-500">
-        <span className="font-semibold text-ink-900">{used}</span> از {total} گیگابایت
+        {demo ? (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(0)}</span>
+            {' از '}
+            {formatBytes(quotaBytes)}
+          </>
+        ) : usage.isError ? (
+          <span className="text-rose-600">خواندن فضا ممکن نشد</span>
+        ) : loading ? (
+          'در حال خواندن…'
+        ) : quotaBytes > 0 ? (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(usedBytes)}</span>
+            {' از '}
+            {formatBytes(quotaBytes)}
+          </>
+        ) : (
+          <>
+            <span className="font-semibold text-ink-900">{formatBytes(usedBytes)}</span>
+            {' مصرف‌شده'}
+          </>
+        )}
       </p>
-      <Button variant="outline" size="sm" fullWidth className="mt-3">
-        ارتقا
-      </Button>
     </div>
   );
 }
@@ -204,6 +238,7 @@ function SidebarContent({
   onSelectCategory,
   categories,
   showFolderTree,
+  demo,
 }: {
   adminLinks: { to: string; label: string }[];
   pending: number;
@@ -217,6 +252,7 @@ function SidebarContent({
   onSelectCategory: (categoryId: string | null) => void;
   categories: CategoryNode[];
   showFolderTree: boolean;
+  demo?: boolean;
 }) {
   return (
     <div className="flex h-full flex-col gap-4 p-4">
@@ -294,7 +330,7 @@ function SidebarContent({
         )}
       </div>
 
-      <StorageWidget />
+      <StorageWidget demo={demo} />
 
       <div className="space-y-2 border-t border-paper-300/50 pt-3">
         <RouterLink
@@ -514,6 +550,7 @@ export function Layout({ children }: { children: ReactNode }) {
           onSelectCategory={selectCategory}
           categories={folderCategories}
           showFolderTree={showFolderTree}
+          demo={isDemo}
         />
       </aside>
 
@@ -545,6 +582,7 @@ export function Layout({ children }: { children: ReactNode }) {
               onSelectCategory={selectCategory}
               categories={folderCategories}
               showFolderTree={showFolderTree}
+              demo={isDemo}
             />
           </div>
         </div>

@@ -60,6 +60,9 @@ public interface IStorageObjectRepository
     /// <summary>Page images and extracted text made from this file.</summary>
     Task<IReadOnlyList<StorageObject>> ListDerivedFromAsync(StorageObjectId source, CancellationToken cancellationToken);
 
+    /// <summary>Bytes of original files that still occupy storage.</summary>
+    Task<long> SumLiveOriginalBytesAsync(CancellationToken cancellationToken);
+
     void Add(StorageObject storageObject);
 }
 
@@ -103,6 +106,9 @@ public sealed class StorageOptions
 
     /// <summary>Largest upload accepted, before any per-document-type limit.</summary>
     public long MaxUploadBytes { get; set; } = 2L * 1024 * 1024 * 1024;
+
+    /// <summary>Storage plan shown in the UI. Zero means unlimited (no percentage bar).</summary>
+    public long QuotaBytes { get; set; } = 100L * 1024 * 1024 * 1024;
 
     /// <summary>Staged objects never attached to a document are removed after this long.</summary>
     public TimeSpan StagingRetention { get; set; } = TimeSpan.FromHours(24);

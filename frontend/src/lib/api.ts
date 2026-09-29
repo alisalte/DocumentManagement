@@ -1025,6 +1025,9 @@ export const api = {
 
   tags: (search: string) => request<Tag[]>(`/api/v1/tags${query({ search })}`),
 
+  /** Live original-file bytes versus the configured plan quota. */
+  storageUsage: () => request<{ usedBytes: number; quotaBytes: number }>('/api/v1/storage/usage'),
+
   /**
    * Streams the file with XMLHttpRequest rather than fetch, because only XHR reports upload
    * progress, and on a phone a large upload without a progress bar looks like a hang.

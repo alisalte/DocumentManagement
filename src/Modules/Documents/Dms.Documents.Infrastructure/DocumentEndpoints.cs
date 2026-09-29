@@ -123,6 +123,15 @@ public static class DocumentEndpoints
             .DisableAntiforgery()
             .Accepts<IFormFile>("multipart/form-data")
             .WithSummary("Stage a file. Attach it with POST /documents or POST /documents/{id}/versions.");
+
+        endpoints.MapGet("/api/v1/storage/usage", async (IStorageService storage, CancellationToken ct) =>
+            {
+                var usage = await storage.GetUsageAsync(ct);
+                return Results.Ok(new { usedBytes = usage.UsedBytes, quotaBytes = usage.QuotaBytes });
+            })
+            .WithTags("Documents")
+            .RequireAuthorization()
+            .WithSummary("Live original-file storage used versus the configured plan quota.");
     }
 
     /// <summary>

@@ -240,6 +240,12 @@ public sealed class StorageService(
         return matches.Select(match => match.Id).ToList();
     }
 
+    public async Task<StorageUsage> GetUsageAsync(CancellationToken cancellationToken)
+    {
+        var used = await repository.SumLiveOriginalBytesAsync(cancellationToken);
+        return new StorageUsage(used, options.Value.QuotaBytes);
+    }
+
     private async Task TryDeleteAsync(ObjectLocation location, CancellationToken cancellationToken)
     {
         try
