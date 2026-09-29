@@ -19,6 +19,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // A reload drops the in-memory access token; the refresh token in sessionStorage restores it.
   useEffect(() => {
     let cancelled = false;
+    // Dev-only UI preview without a live API: open the app with ?demo=1.
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('demo') === '1') {
+      setUser({
+        id: 'demo',
+        username: 'johndoe',
+        displayName: 'John doe',
+        email: null,
+        isSystemAdmin: true,
+        mustChangePassword: false,
+        groupIds: [],
+        systemPermissions: [
+          'ADMIN_MANAGE_USERS',
+          'ADMIN_MANAGE_GROUPS',
+          'ADMIN_MANAGE_ROLES',
+          'ADMIN_MANAGE_CATEGORIES',
+        ],
+      });
+      setReady(true);
+      return;
+    }
+
     api
       .restoreSession()
       .then(async (restored) => (restored ? api.me() : null))

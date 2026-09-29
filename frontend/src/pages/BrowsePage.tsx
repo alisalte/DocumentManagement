@@ -230,16 +230,29 @@ export function BrowsePage() {
   const filingTarget =
     category?.canCreate ? category.id : categories.data?.find((item) => item.canCreate)?.id;
 
-  const showAutoHome = !categoryId && !search && categories.data;
+  const demoFolders: CategoryNode[] = [
+    { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+    { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+    { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+    { id: 'd5', parentId: null, name: 'کمپین‌های بازاریابی', code: 'mk', description: null, depth: 0, isActive: true, sortOrder: 5, canView: true, canCreate: true },
+    { id: 'd6', parentId: null, name: 'طراحی‌های فیگما', code: 'fg', description: null, depth: 0, isActive: true, sortOrder: 6, canView: true, canCreate: true },
+    { id: 'd7', parentId: null, name: 'گزارش‌های فصلی', code: 'qr', description: null, depth: 0, isActive: true, sortOrder: 7, canView: true, canCreate: true },
+    { id: 'd8', parentId: null, name: 'قراردادها و حقوقی', code: 'lg', description: null, depth: 0, isActive: true, sortOrder: 8, canView: true, canCreate: true },
+  ];
+  const isDemo = import.meta.env.DEV && params.get('demo') === '1';
+  const folderSource = categories.data?.length ? categories.data : isDemo ? demoFolders : undefined;
+  const showAutoHome = !categoryId && !search && folderSource;
 
   if (showAutoHome) {
     return (
       <AutoManageHome
-        categories={categories.data ?? []}
-        filingTarget={filingTarget}
+        categories={folderSource ?? []}
+        filingTarget={filingTarget ?? (isDemo ? 'd1' : undefined)}
         onOpenCategory={(id) => {
           const next = new URLSearchParams(params);
           next.set('category', id);
+          if (isDemo) next.set('demo', '1');
           setParams(next);
         }}
       />
