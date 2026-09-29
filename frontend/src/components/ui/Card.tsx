@@ -12,8 +12,8 @@ export function Card({ flush, className, children, ...rest }: CardProps) {
     <div
       {...rest}
       className={cx(
-        'rounded-2xl border border-paper-300/70 bg-paper-200/80 backdrop-blur-sm',
-        'shadow-[0_1px_2px_rgb(0_0_0/0.3),0_8px_24px_rgb(0_0_0/0.2)]',
+        'rounded-2xl border border-paper-400/30 bg-paper-200/95 backdrop-blur-sm',
+        'shadow-[0_1px_2px_rgb(0_0_0/0.16),0_8px_24px_rgb(0_0_0/0.12)]',
         !flush && 'p-4 sm:p-5',
         className,
       )}

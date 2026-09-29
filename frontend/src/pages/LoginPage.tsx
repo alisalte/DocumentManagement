@@ -31,7 +31,7 @@ export function LoginPage() {
           aria-hidden
           style={{
             backgroundImage:
-              'radial-gradient(ellipse 80% 60% at 20% 10%, rgb(124 58 237 / 0.35), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 90%, rgb(249 115 22 / 0.18), transparent 50%), linear-gradient(165deg, #0a0a0c 0%, #141418 55%, #1c1c22 100%)',
+              'radial-gradient(ellipse 80% 60% at 20% 10%, rgb(143 108 240 / 0.4), transparent 55%), radial-gradient(ellipse 70% 50% at 90% 90%, rgb(251 146 60 / 0.2), transparent 50%), linear-gradient(165deg, #22232b 0%, #2a2b34 55%, #32333c 100%)',
           }}
         />
 

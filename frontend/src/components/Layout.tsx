@@ -405,7 +405,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const topBar = (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-300/50 px-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-400/25 bg-paper-200/50 px-4 sm:px-6">
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
@@ -499,7 +499,7 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-300/50 bg-paper-200/60 lg:block"
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-400/25 bg-paper-200/90 lg:block"
         style={{ width: sidebarWidth }}
       >
         <SidebarContent
