@@ -47,14 +47,19 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
     image: dms-backend:latest
+    working_dir: /app/migrator
     entrypoint: ["dotnet", "/app/migrator/Dms.Migrator.dll"]
     environment:
+      # Override with DMS_DB_HOST / DMS_DB_PORT (see compose.nested.yml) when the
+      # compose bridge cannot route between containers.
       ConnectionStrings__Dms: >-
-        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
+        Host=${DMS_DB_HOST:-postgres};Port=${DMS_DB_PORT:-5432};Database=${POSTGRES_DB:-dms};Username=${POSTGRES_USER:-dms};Password=${POSTGRES_PASSWORD}
       Dms__Bootstrap__AdminUsername: ${DMS_ADMIN_USERNAME:-admin}
       Dms__Bootstrap__AdminPassword: ${DMS_ADMIN_PASSWORD:?set DMS_ADMIN_PASSWORD in .env}
       Dms__Database__AppRole: dms_app
       Dms__Database__AppRolePassword: ${DMS_DB_APP_PASSWORD:?set DMS_DB_APP_PASSWORD in .env}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,7 +74,7 @@ services:
     environment: &backend-environment
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ConnectionStrings__Dms: >-
-        Host=postgres;Port=5432;Database=${POSTGRES_DB:-dms};Username=dms_app;Password=${DMS_DB_APP_PASSWORD}
+        Host=${DMS_DB_HOST:-postgres};Port=${DMS_DB_PORT:-5432};Database=${POSTGRES_DB:-dms};Username=dms_app;Password=${DMS_DB_APP_PASSWORD}
       # Seals the audit log with HMAC; without it the seals are plain SHA-256 (see .env.example).
       Dms__Audit__SealKey: ${DMS_AUDIT_SEAL_KEY:-}
       Dms__Jwt__SigningKey: ${DMS_JWT_SIGNING_KEY:?set DMS_JWT_SIGNING_KEY in .env}
@@ -91,6 +96,8 @@ services:
       - object-data:/var/lib/dms/objects
     ports:
       - "${API_PORT:-5080}:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,6 +129,8 @@ services:
       Dms__Role: worker
     volumes:
       - object-data:/var/lib/dms/objects
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       api:
         condition: service_healthy

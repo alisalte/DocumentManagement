@@ -210,6 +210,21 @@ Two things specific to this machine:
 - The compose stack and `scripts/dev-db.sh` both publish port 5433, so run one or the other.
   `docker stop dms-postgres` frees it for compose; `docker compose down` frees it for the script.
 
+### Nested Docker / broken bridge networking
+
+If `dms-migrator-1` exits with a timeout to `Host=postgres` while Postgres is healthy, containers
+cannot reach each other on the compose bridge (common inside nested Docker / some CI VMs). Use the
+override that routes the DB through the published host port:
+
+```bash
+cd deploy
+docker compose -f docker-compose.yml -f compose.nested.yml up -d --build
+```
+
+That sets `ConnectionStrings__Dms` to `Host=host.docker.internal;Port=${POSTGRES_PORT}` for the
+migrator, API and worker. Alternatively set `DMS_DB_HOST=host.docker.internal` and
+`DMS_DB_PORT=5433` in `.env` (see `.env.example`).
+
 ## Layout
 
 ```
