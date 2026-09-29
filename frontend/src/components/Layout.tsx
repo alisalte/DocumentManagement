@@ -40,8 +40,8 @@ function NavIcon({ children }: { children: ReactNode }) {
   );
 }
 
-function pageTitle(pathname: string): string {
-  if (pathname === '/') return 'مدیریت خودکار';
+function pageTitle(pathname: string, categoryName?: string | null): string {
+  if (pathname === '/') return categoryName ?? 'مدیریت خودکار';
   if (pathname === '/new') return t.newDocument;
   if (pathname === '/tasks') return w.inbox;
   if (pathname === '/shared') return sharing.sharedWithMe;
@@ -325,7 +325,14 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
   const pending = tasks.data?.length ?? 0;
-  const title = pageTitle(location.pathname);
+  const categoryId = searchParams.get('category');
+  const categories = useQuery({
+    queryKey: ['categories'],
+    queryFn: api.categories,
+    enabled: !!categoryId,
+  });
+  const categoryName = categories.data?.find((c) => c.id === categoryId)?.name ?? null;
+  const title = pageTitle(location.pathname, categoryName);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
