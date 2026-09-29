@@ -1,19 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { api } from '../lib/api';
+import { api, type CategoryNode } from '../lib/api';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { a as audit } from '../pages/admin/auditStrings';
 import { d as directory } from '../pages/admin/directoryStrings';
 import { d as disposition } from '../pages/admin/dispositionStrings';
 import { i as importStrings } from '../pages/admin/importStrings';
+import { CategoryTree } from './CategoryTree';
 import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
 import { Button, Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
-const sidebarWidth = 260;
+const sidebarWidth = 280;
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -199,6 +200,10 @@ function SidebarContent({
   onNavigate,
   pathname,
   autoManageActive,
+  selectedCategory,
+  onSelectCategory,
+  categories,
+  showFolderTree,
 }: {
   adminLinks: { to: string; label: string }[];
   pending: number;
@@ -208,6 +213,10 @@ function SidebarContent({
   onNavigate?: () => void;
   pathname: string;
   autoManageActive: boolean;
+  selectedCategory: string | null;
+  onSelectCategory: (categoryId: string | null) => void;
+  categories: CategoryNode[];
+  showFolderTree: boolean;
 }) {
   return (
     <div className="flex h-full flex-col gap-4 p-4">
@@ -241,7 +250,7 @@ function SidebarContent({
         </div>
       </form>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto">
         <SidebarNav
           adminLinks={adminLinks}
           pending={pending}
@@ -249,6 +258,17 @@ function SidebarContent({
           pathname={pathname}
           autoManageActive={autoManageActive}
         />
+
+        {showFolderTree && (
+          <div className="border-t border-paper-300/50 pt-4">
+            <p className="section-label pb-2.5">{t.categories}</p>
+            <CategoryTree
+              categories={categories}
+              selectedId={selectedCategory}
+              onSelect={onSelectCategory}
+            />
+          </div>
+        )}
       </div>
 
       <StorageWidget />
@@ -326,13 +346,29 @@ export function Layout({ children }: { children: ReactNode }) {
   const tasks = useQuery({ queryKey: ['tasks'], queryFn: api.workflow.tasks, refetchInterval: 60_000 });
   const pending = tasks.data?.length ?? 0;
   const categoryId = searchParams.get('category');
-  const categories = useQuery({
-    queryKey: ['categories'],
-    queryFn: api.categories,
-    enabled: !!categoryId,
-  });
-  const categoryName = categories.data?.find((c) => c.id === categoryId)?.name ?? null;
+  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  const isDemo = import.meta.env.DEV && searchParams.get('demo') === '1';
+  const demoCategories: CategoryNode[] = [
+    { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+    { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+    { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+  ];
+  const folderCategories =
+    categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoCategories : [];
+  const categoryName =
+    folderCategories.find((c) => c.id === categoryId)?.name ?? null;
   const title = pageTitle(location.pathname, categoryName);
+  const showFolderTree = location.pathname !== '/help' && !location.pathname.startsWith('/help/');
+  const selectCategory = (id: string | null) => {
+    setDrawerOpen(false);
+    if (!id) {
+      navigate(isDemo ? '/?demo=1' : '/');
+      return;
+    }
+    navigate(isDemo ? `/?category=${id}&demo=1` : `/?category=${id}`);
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -451,6 +487,10 @@ export function Layout({ children }: { children: ReactNode }) {
           submitSearch={submitSearch}
           pathname={location.pathname}
           autoManageActive={autoManageActive}
+          selectedCategory={categoryId}
+          onSelectCategory={selectCategory}
+          categories={folderCategories}
+          showFolderTree={showFolderTree}
         />
       </aside>
 
@@ -478,6 +518,10 @@ export function Layout({ children }: { children: ReactNode }) {
               onNavigate={() => setDrawerOpen(false)}
               pathname={location.pathname}
               autoManageActive={autoManageActive}
+              selectedCategory={categoryId}
+              onSelectCategory={selectCategory}
+              categories={folderCategories}
+              showFolderTree={showFolderTree}
             />
           </div>
         </div>

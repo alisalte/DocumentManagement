@@ -61,7 +61,7 @@ export function CategoryTree({ categories, selectedId, onSelect }: Props) {
         onClick={() => onSelect(null)}
         className={rowClasses(selectedId === null, false)}
       >
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-ink-50 text-ink-700">
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-300/50 text-ink-600">
           <AllDocsIcon />
         </span>
         <span className="truncate">{t.allDocuments}</span>
@@ -142,7 +142,7 @@ function TreeRow({
                 event.stopPropagation();
                 onToggle(node.id);
               }}
-              className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-paper-500 transition-colors hover:bg-ink-50 hover:text-ink-800"
+              className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-paper-500 transition-colors hover:bg-paper-300/50 hover:text-ink-900"
             >
               <ChevronIcon open={open} />
             </button>
@@ -159,8 +159,8 @@ function TreeRow({
             <span
               className={cx(
                 'grid size-7 shrink-0 place-items-center rounded-lg',
-                selected ? 'bg-ink-200/80 text-ink-800' : 'bg-paper-100 text-paper-600',
-                open && hasChildren && !selected && 'bg-ink-50 text-ink-600',
+                selected ? 'bg-ink-500/25 text-copper-400' : 'bg-paper-300/40 text-copper-500',
+                open && hasChildren && !selected && 'bg-paper-300/50 text-copper-400',
               )}
             >
               <FolderIcon open={open && hasChildren} />
@@ -194,11 +194,11 @@ function TreeRow({
 const rowClasses = (selected: boolean, muted: boolean) =>
   cx(
     'flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-sm transition-all duration-150',
-    'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
+    'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-500',
     selected
-      ? 'bg-ink-100/90 font-semibold text-ink-800 shadow-[inset_-3px_0_0_0_rgb(30_74_117)]'
-      : 'text-ink-800 hover:bg-ink-50',
-    muted && !selected && 'text-paper-400',
+      ? 'bg-ink-500/15 font-semibold text-ink-800 shadow-[inset_0_0_0_1px_rgb(139_92_246/0.25)]'
+      : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+    muted && !selected && 'text-paper-500/70',
   );
 
 function buildTree(categories: CategoryNode[]): TreeNode[] {
