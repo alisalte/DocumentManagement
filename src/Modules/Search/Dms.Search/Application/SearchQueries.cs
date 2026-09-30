@@ -41,7 +41,8 @@ public sealed record SearchHitDto(
     bool IsEffective,
     string? ApprovalStatus,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<string> Highlights);
+    IReadOnlyList<string> Highlights,
+    int? MatchCount = null);
 
 public sealed record FacetBucket(string Key, long Count);
 
@@ -188,7 +189,7 @@ public sealed class SearchDocumentsHandler(
         var hits = new List<SearchHitDto>();
         foreach (var hit in result.Hits)
         {
-            if (await StillVisibleAsync(hit.Source, viewer, cancellationToken) && ToHit(hit) is { } dto)
+            if (await StillVisibleAsync(hit.Source, viewer, cancellationToken) && ToHit(hit, query.Text) is { } dto)
             {
                 hits.Add(dto);
             }
@@ -214,16 +215,7 @@ public sealed class SearchDocumentsHandler(
     {
         JsonNode match = string.IsNullOrWhiteSpace(text)
             ? new JsonObject { ["match_all"] = new JsonObject() }
-            : new JsonObject
-            {
-                ["multi_match"] = new JsonObject
-                {
-                    ["query"] = text.Trim(),
-                    ["fields"] = new JsonArray("title^4", "title.joined^4", "title.en^2", "tags.text^3", "file_name^2", "meta_text^2", "meta_text.joined^2", "description", "content", "content.joined", "content.en"),
-                    ["type"] = "best_fields",
-                    ["operator"] = "and",
-                },
-            };
+            : TextQuery(text);
 
         var aggregations = new JsonObject();
         foreach (var (name, field) in FacetFields)
@@ -237,7 +229,9 @@ public sealed class SearchDocumentsHandler(
             ["size"] = pageSize,
             ["track_total_hits"] = true,
             ["query"] = new JsonObject { ["bool"] = new JsonObject { ["must"] = new JsonArray(match), ["filter"] = filters } },
-            ["_source"] = new JsonObject { ["excludes"] = new JsonArray("content", "meta_text", "meta") },
+            // Content stays in the hit so the occurrence count can be computed, then it is dropped
+            // before the response leaves. meta_text is only a highlight source.
+            ["_source"] = new JsonObject { ["excludes"] = new JsonArray("meta_text", "meta") },
             ["sort"] = string.IsNullOrWhiteSpace(text)
                 ? new JsonArray(new JsonObject { ["updated_at"] = "desc" })
                 : new JsonArray("_score", new JsonObject { ["updated_at"] = "desc" }),
@@ -249,9 +243,11 @@ public sealed class SearchDocumentsHandler(
                 ["encoder"] = "html",
                 ["pre_tags"] = new JsonArray("<mark>"),
                 ["post_tags"] = new JsonArray("</mark>"),
+                ["type"] = "unified",
                 ["fields"] = new JsonObject
                 {
                     ["content"] = new JsonObject { ["fragment_size"] = 160, ["number_of_fragments"] = 2 },
+                    ["content.joined"] = new JsonObject { ["fragment_size"] = 160, ["number_of_fragments"] = 1 },
                     ["meta_text"] = new JsonObject { ["number_of_fragments"] = 1 },
                     ["title"] = new JsonObject { ["number_of_fragments"] = 0 },
                 },
@@ -351,7 +347,70 @@ public sealed class SearchDocumentsHandler(
         return (await authorizer.AuthorizeAsync(PermissionCodes.DocumentViewDraft, resource, cancellationToken)).Allowed;
     }
 
-    private static SearchHitDto? ToHit(EngineHit hit)
+    /// <summary>
+    /// Every word must occur, but a word may be only part of a longer indexed word ("قرار" finds
+    /// "قرارداد"). The exact-token clause stays, so a full word still ranks as itself.
+    /// </summary>
+    private static JsonObject TextQuery(string text)
+    {
+        var tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var must = new JsonArray();
+        foreach (var token in tokens.Take(12))
+        {
+            var should = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["multi_match"] = new JsonObject
+                    {
+                        ["query"] = token,
+                        ["fields"] = new JsonArray(SearchText.Fields.Select(field => (JsonNode?)JsonValue.Create(Boost(field))).ToArray()),
+                        ["type"] = "best_fields",
+                        ["operator"] = "and",
+                    },
+                },
+            };
+
+            if (SearchText.InfixPattern(token) is { } pattern)
+            {
+                foreach (var field in SearchText.Fields)
+                {
+                    should.Add(new JsonObject
+                    {
+                        ["wildcard"] = new JsonObject
+                        {
+                            [field] = new JsonObject { ["value"] = pattern },
+                        },
+                    });
+                }
+            }
+
+            must.Add(new JsonObject
+            {
+                ["bool"] = new JsonObject
+                {
+                    ["should"] = should,
+                    ["minimum_should_match"] = 1,
+                },
+            });
+        }
+
+        return new JsonObject { ["bool"] = new JsonObject { ["must"] = must } };
+    }
+
+    private static string? ReadString(JsonNode? node) =>
+        node is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;
+
+    private static string Boost(string field) => field switch
+    {
+        "title" or "title.joined" => field + "^4",
+        "title.en" => field + "^2",
+        "tags.text" => field + "^3",
+        "file_name" or "meta_text" or "meta_text.joined" => field + "^2",
+        _ => field,
+    };
+
+    private static SearchHitDto? ToHit(EngineHit hit, string? query)
     {
         var source = hit.Source;
         if (!Guid.TryParse(source["document_id"]?.GetValue<string>(), out var documentId)
@@ -361,13 +420,23 @@ public sealed class SearchDocumentsHandler(
         }
 
         var highlights = new List<string>();
-        foreach (var field in new[] { "content", "meta_text" })
+        foreach (var field in new[] { "content", "content.joined", "meta_text" })
         {
             if (hit.Highlight?[field] is JsonArray fragments)
             {
-                highlights.AddRange(fragments.Select(fragment => fragment!.GetValue<string>()));
+                foreach (var fragment in fragments.Select(item => item!.GetValue<string>()))
+                {
+                    if (!highlights.Contains(fragment))
+                    {
+                        highlights.Add(fragment);
+                    }
+                }
             }
         }
+
+        int? matchCount = string.IsNullOrWhiteSpace(query)
+            ? null
+            : SearchText.CountInContent(ReadString(source["content"]), query);
 
         return new SearchHitDto(
             documentId,
@@ -382,7 +451,8 @@ public sealed class SearchDocumentsHandler(
             source["is_effective"]?.GetValue<bool>() ?? false,
             source["approval_status"]?.GetValue<string>(),
             DateTimeOffset.TryParse(source["updated_at"]?.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var updated) ? updated : null,
-            highlights);
+            highlights,
+            matchCount);
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<FacetBucket>> Facets(JsonObject? aggregations)

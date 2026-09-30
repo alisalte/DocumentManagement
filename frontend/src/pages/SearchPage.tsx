@@ -5,6 +5,7 @@ import { Link as RouterLink, useSearchParams } from 'react-router';
 import { approvalLabels } from '../components/workflow/workflowStrings';
 import { api, type FacetBucket, type SearchHit } from '../lib/api';
 import { formatDateTime } from '../lib/dates';
+import { formatNumber } from '../lib/format';
 import { parseHighlight } from '../lib/highlight';
 import { describeError, t } from '../strings';
 
@@ -61,7 +62,9 @@ export function SearchPage() {
     <div className="max-w-[1000px] space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.searchEverything}</h1>
-        <p className="mt-1 text-sm text-paper-500">جستجو در عنوان، محتوا و فرادادهٔ اسناد قابل‌مشاهده.</p>
+        <p className="mt-1 text-sm text-paper-500">
+          جستجو در عنوان، محتوا و فراداده. نوشتن بخشی از کلمه هم کافی است؛ کنار هر نتیجه می‌آید آن عبارت چند بار در متن فایل آمده است.
+        </p>
       </div>
       <form onSubmit={submit}>
         <Card className="space-y-4">
@@ -216,6 +219,12 @@ function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | 
             <Chip size="small" variant="outlined" label={approvalLabels[hit.approvalStatus] ?? hit.approvalStatus} />
           )}
         </div>
+
+        {hit.matchCount != null && hit.matchCount > 0 && (
+          <p className="text-xs font-medium text-ink-700">
+            {formatNumber(hit.matchCount)} بار در متن این فایل
+          </p>
+        )}
 
         {hit.highlights.map((fragment, index) => (
           <p key={index} className="break-words text-sm text-paper-500">
