@@ -71,6 +71,20 @@ export function NewDocumentPage() {
   const selectedCategory = creatable.some((category) => category.id === categoryId) ? categoryId : '';
   const selectedType = documentTypeId || types.data?.find((type) => type.code === 'GENERAL')?.id || '';
 
+  // Prefer ?category= from the tree; otherwise keep a valid choice or fall back to the first
+  // creatable folder so «سند جدید» works without opening a folder first.
+  useEffect(() => {
+    if (creatable.length === 0) return;
+    const fromUrl = params.get('category');
+    if (fromUrl && creatable.some((category) => category.id === fromUrl)) {
+      setCategoryId(fromUrl);
+      return;
+    }
+    setCategoryId((current) =>
+      creatable.some((category) => category.id === current) ? current : creatable[0]!.id,
+    );
+  }, [creatable, params]);
+
   // The form is the latest published schema of the chosen type.
   const schema = useQuery({
     queryKey: ['schema-latest', selectedType],
@@ -189,7 +203,13 @@ export function NewDocumentPage() {
               value={selectedCategory}
               onChange={(event) => setCategoryId(event.target.value)}
               required
+              helperText={selectedCategory ? undefined : t.pickCategory}
             >
+              {!selectedCategory && (
+                <option value="" disabled>
+                  {t.pickCategory}
+                </option>
+              )}
               {creatable.map((category) => (
                 <option
                   key={category.id}

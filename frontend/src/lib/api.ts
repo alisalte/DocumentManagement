@@ -5,7 +5,9 @@
  * sessionStorage for the dev shell. Permissions returned by the API are used to hide UI that
  * would fail anyway, never to decide access: the server is the only authority.
  */
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5080';
+// Prefer same-origin `/api` (vite proxy or nginx). Absolute localhost breaks LAN access
+// (http://192.168.x.x:5173 would call the *client's* localhost).
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
 const refreshKey = 'dms.refreshToken';
 
 let accessToken: string | null = null;

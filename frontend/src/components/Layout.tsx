@@ -71,12 +71,14 @@ function SidebarNav({
   onNavigate,
   pathname,
   autoManageActive,
+  newDocumentHref,
 }: {
   adminLinks: { to: string; label: string }[];
   pending: number;
   onNavigate?: () => void;
   pathname: string;
   autoManageActive: boolean;
+  newDocumentHref: string;
 }) {
   const has = (path: string) =>
     path === '/' ? autoManageActive : pathname === path || pathname.startsWith(`${path}/`);
@@ -133,7 +135,7 @@ function SidebarNav({
         <div className="space-y-0.5">
           {link('/', 'مدیریت خودکار', has('/'), boltIcon)}
           {link('/search', t.searchEverything, has('/search'), gridIcon)}
-          {link('/new', t.newDocument, has('/new'), folderIcon)}
+          {link(newDocumentHref, t.newDocument, has('/new'), folderIcon)}
           {link('/tasks', w.inbox, has('/tasks'), taskIcon, pending)}
         </div>
       </div>
@@ -238,6 +240,7 @@ function SidebarContent({
   onSelectCategory,
   categories,
   showFolderTree,
+  newDocumentHref,
   demo,
 }: {
   adminLinks: { to: string; label: string }[];
@@ -252,6 +255,7 @@ function SidebarContent({
   onSelectCategory: (categoryId: string | null) => void;
   categories: CategoryNode[];
   showFolderTree: boolean;
+  newDocumentHref: string;
   demo?: boolean;
 }) {
   return (
@@ -293,6 +297,7 @@ function SidebarContent({
           onNavigate={onNavigate}
           pathname={pathname}
           autoManageActive={autoManageActive}
+          newDocumentHref={newDocumentHref}
         />
 
         {showFolderTree && (
@@ -420,6 +425,13 @@ export function Layout({ children }: { children: ReactNode }) {
     folderCategories.find((c) => c.id === categoryId)?.name ?? null;
   const title = pageTitle(location.pathname, categoryName);
   const showFolderTree = location.pathname !== '/help' && !location.pathname.startsWith('/help/');
+  const filingCategoryId =
+    (categoryId && folderCategories.some((c) => c.id === categoryId && c.canCreate)
+      ? categoryId
+      : null) ??
+    folderCategories.find((c) => c.canCreate)?.id ??
+    null;
+  const newDocumentHref = filingCategoryId ? `/new?category=${filingCategoryId}` : '/new';
   const selectCategory = (id: string | null) => {
     setDrawerOpen(false);
     if (!id) {
@@ -550,6 +562,7 @@ export function Layout({ children }: { children: ReactNode }) {
           onSelectCategory={selectCategory}
           categories={folderCategories}
           showFolderTree={showFolderTree}
+          newDocumentHref={newDocumentHref}
           demo={isDemo}
         />
       </aside>
@@ -582,6 +595,7 @@ export function Layout({ children }: { children: ReactNode }) {
               onSelectCategory={selectCategory}
               categories={folderCategories}
               showFolderTree={showFolderTree}
+              newDocumentHref={newDocumentHref}
               demo={isDemo}
             />
           </div>

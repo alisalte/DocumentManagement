@@ -5,7 +5,7 @@ import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DocumentList } from '../components/DocumentList';
 import { FolderIcon } from '../components/FolderIcon';
 import { api, type CategoryNode } from '../lib/api';
-import { formatBytes, formatNumber } from '../lib/format';
+import { formatBytes, formatNumber, newIdempotencyKey } from '../lib/format';
 import { describeError, t } from '../strings';
 
 const pageSize = 25;
@@ -125,7 +125,8 @@ function AutoManageHome({
     const list = Array.from(files);
     if (list.length === 0) return;
     const next: QueueItem[] = list.map((file) => ({
-      id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+      // newIdempotencyKey works on LAN HTTP; crypto.randomUUID does not (non-secure context).
+      id: `${file.name}-${file.size}-${file.lastModified}-${newIdempotencyKey()}`,
       file,
       progress: 0,
       status: 'queued' as const,
