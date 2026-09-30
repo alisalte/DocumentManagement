@@ -78,7 +78,7 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
         visibility: position ? 'visible' : 'hidden',
       }}
       className={cx(
-        'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-white py-1',
+        'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-paper-50 py-1',
         'shadow-[0_4px_12px_rgb(31_22_56/0.08),0_16px_40px_rgb(31_22_56/0.1)]',
         className,
       )}

@@ -98,7 +98,7 @@ function EntriesTab({ resourceType, resourceId }: { resourceType: AclResourceTyp
         {rows.map((entry) => (
           <div
             key={entry.id}
-            className={cx('rounded-lg border border-paper-200 bg-white p-3', entry.isInherited && 'opacity-[0.85]')}
+            className={cx('rounded-lg border border-paper-200 bg-paper-50 p-3', entry.isInherited && 'opacity-[0.85]')}
           >
             <div className="flex flex-wrap items-center gap-2">
               <Chip
@@ -303,7 +303,7 @@ function WhyTab({ resourceType, resourceId }: { resourceType: AclResourceType; r
       {explained.isError && <Alert severity="error">{describeError(explained.error)}</Alert>}
       <div className="space-y-2">
         {(explained.data ?? []).map((item) => (
-          <div key={item.permissionCode} className="rounded-lg border border-paper-200 bg-white p-3">
+          <div key={item.permissionCode} className="rounded-lg border border-paper-200 bg-paper-50 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Chip size="small" color={item.allowed ? 'success' : 'default'} label={item.allowed ? d.allowed : d.denied} />
               <span className="text-sm font-semibold text-ink-800">{permissionLabel(item.permissionCode)}</span>

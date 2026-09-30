@@ -85,7 +85,7 @@ export function ChipsInput({
       <div
         onClick={() => inputRef.current?.focus()}
         className={cx(
-          'flex min-h-10 w-full cursor-text flex-wrap items-center gap-1.5 rounded-lg border bg-white px-2 py-1.5 shadow-sm transition-colors',
+          'flex min-h-10 w-full cursor-text flex-wrap items-center gap-1.5 rounded-lg border bg-paper-50 px-2 py-1.5 shadow-sm transition-colors',
           'focus-within:ring-2 focus-within:ring-ink-500/20',
           error ? 'border-rose-400 focus-within:border-rose-500' : 'border-paper-300 focus-within:border-ink-500',
           disabled && 'cursor-not-allowed bg-paper-100 opacity-60',
@@ -113,7 +113,7 @@ export function ChipsInput({
         {loading && <Spinner size="sm" />}
       </div>
       {visible && (
-        <ul className="absolute z-40 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-paper-200 bg-white py-1 shadow-xl">
+        <ul className="absolute z-40 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-paper-200 bg-paper-50 py-1 shadow-xl">
           {loading && !suggestions.length && <li className="px-3 py-2 text-sm text-paper-400">در حال جستجو…</li>}
           {suggestions
             .filter((item) => !value.includes(item) && item.includes(text.trim()))

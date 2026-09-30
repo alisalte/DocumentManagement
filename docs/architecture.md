@@ -1112,10 +1112,11 @@ Every phase needs explicit approval before it starts.
 
 **Phase 8 as built.**
 
-- **Administration screens.** Users, groups, roles and categories under **مدیریت**, gated by the
-  matching `ADMIN_MANAGE_*` system permissions (or `is_system_admin`). The audit viewer and search
-  admin from earlier phases stay in the same menu. On a desktop the menu is a header dropdown; on
-  a phone it lives in the drawer, separate from the folder tree.
+- **Administration screens.** Users, groups, roles, categories, and the later audit, search,
+  disposition and import screens are tabs under **تنظیمات** (`/settings/...`). Each tab is shown
+  only when the account holds the matching system permission (or `is_system_admin`). Bookmarks
+  that still start with `/admin/` redirect to the same screen. The folder tree in the shell stays
+  for navigation and filing.
 - **Users.** Create, edit display name/email, activate/deactivate, reset password (forces change
   at next sign-in), assign groups and roles, and grant or revoke system administration. The server
   refuses privilege escalation through `ADMIN_MANAGE_USERS`, blocks touching another administrator

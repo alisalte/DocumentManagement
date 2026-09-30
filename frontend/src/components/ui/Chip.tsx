@@ -13,12 +13,12 @@ const filledClasses: Record<ChipColor, string> = {
 };
 
 const outlinedClasses: Record<ChipColor, string> = {
-  default: 'border border-paper-300 bg-white text-paper-600',
-  primary: 'border border-ink-200 bg-white text-ink-700',
-  secondary: 'border border-copper-200 bg-white text-copper-700',
-  success: 'border border-emerald-200 bg-white text-emerald-700',
-  warning: 'border border-amber-200 bg-white text-amber-700',
-  error: 'border border-rose-200 bg-white text-rose-700',
+  default: 'border border-paper-300 bg-paper-50 text-paper-600',
+  primary: 'border border-ink-200 bg-paper-50 text-ink-700',
+  secondary: 'border border-copper-200 bg-paper-50 text-copper-700',
+  success: 'border border-emerald-200 bg-paper-50 text-emerald-700',
+  warning: 'border border-amber-200 bg-paper-50 text-amber-700',
+  error: 'border border-rose-200 bg-paper-50 text-rose-700',
 };
 
 export interface ChipProps {

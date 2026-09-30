@@ -106,7 +106,7 @@
   }
 
   .surface {
-    @apply rounded-2xl border border-paper-200/90 bg-white/90 backdrop-blur-sm;
+    @apply rounded-2xl border border-paper-200/90 bg-paper-50/90 backdrop-blur-sm;
     box-shadow: var(--shadow-surface);
   }
 
@@ -130,4 +130,39 @@
   .fillo-gradient-hover:hover {
     background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 45%, #8b5cf6 100%);
   }
+}
+
+/* Dark mode remaps paper surfaces. Brand blocks keep --color-ink-* (bg-ink-900 stays violet). */
+html.dark {
+  color-scheme: dark;
+  --color-paper-50: #221f2b;
+  --color-paper-100: #16141c;
+  --color-paper-200: #322e3c;
+  --color-paper-300: #453f52;
+  --color-paper-400: #7a728c;
+  --color-paper-500: #a89fba;
+  --color-paper-600: #d2cbe0;
+  --color-paper-700: #e4dcf0;
+  --color-paper-800: #f1ebf8;
+  --color-paper-900: #faf8fd;
+}
+
+html.dark body {
+  background-image:
+    radial-gradient(ellipse 110% 80% at 100% -10%, rgb(124 58 237 / 0.22), transparent 55%),
+    radial-gradient(ellipse 90% 60% at -5% 100%, rgb(249 115 22 / 0.1), transparent 50%),
+    linear-gradient(180deg, #16141c 0%, #100e14 100%);
+}
+
+/* Unlayered so these beat Tailwind text utilities. Do not retarget --color-ink-* or --color-white. */
+html.dark :is(.text-ink-900, .hover\:text-ink-900:hover) {
+  color: #f6f3fb;
+}
+
+html.dark :is(.text-ink-800, .hover\:text-ink-800:hover) {
+  color: #e7dff4;
+}
+
+html.dark :is(.text-ink-700, .hover\:text-ink-700:hover) {
+  color: #d5c9ea;
 }

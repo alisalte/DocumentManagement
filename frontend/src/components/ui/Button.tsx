@@ -11,7 +11,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   secondary:
     'bg-copper-600 text-white shadow-[0_1px_2px_rgb(58_38_26/0.12)] hover:bg-copper-500 active:bg-copper-600',
   outline:
-    'border border-paper-300 bg-white text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
+    'border border-paper-300 bg-paper-50 text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
   ghost: 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
   danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-500 active:bg-rose-700',
 };
@@ -117,7 +117,7 @@ export function IconButton({ label, variant = 'ghost', size = 'md', className, c
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-500',
         'disabled:pointer-events-none disabled:opacity-50',
         variant === 'outline'
-          ? 'border border-paper-300 bg-white text-paper-600 hover:border-ink-300 hover:bg-ink-50'
+          ? 'border border-paper-300 bg-paper-50 text-paper-600 hover:border-ink-300 hover:bg-ink-50'
           : 'text-paper-500 hover:bg-ink-50 hover:text-ink-800',
         size === 'sm' ? 'size-7' : 'size-9',
         className,

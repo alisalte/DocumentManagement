@@ -46,7 +46,7 @@ export function Dialog({ open, onClose, title, children, footer, maxWidth = 'md'
         role="dialog"
         aria-modal="true"
         className={cx(
-          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-[0_4px_12px_rgb(31_22_56/0.08),0_16px_40px_rgb(31_22_56/0.12)] sm:rounded-2xl',
+          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-paper-50 shadow-[0_4px_12px_rgb(31_22_56/0.08),0_16px_40px_rgb(31_22_56/0.12)] sm:rounded-2xl',
           'animate-[fade-in_0.25s_ease-out]',
           maxWidths[maxWidth],
           className,

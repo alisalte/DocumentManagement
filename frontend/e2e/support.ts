@@ -33,16 +33,13 @@ export async function signIn(page: Page, username: string, password: string) {
 
 export const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1000) < 900;
 
-/** Opens an administration screen the way a person would: the menu on a desktop, the drawer on a phone. */
+/** Opens an administration tab from تنظیمات: the drawer on a phone, the sidebar link on a desktop. */
 export async function openAdmin(page: Page, label: string) {
   if (isPhone(page)) {
     await page.getByRole('button', { name: 'پوشه‌ها' }).click();
-    await page.getByRole('link', { name: label, exact: true }).click();
-  } else {
-    await page.getByRole('button', { name: 'مدیریت', exact: true }).click();
-    await page.getByRole('menuitem', { name: label, exact: true }).click();
   }
-
+  await page.getByRole('link', { name: 'تنظیمات', exact: true }).click();
+  await page.getByRole('tab', { name: label, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: label })).toBeVisible();
 }
 

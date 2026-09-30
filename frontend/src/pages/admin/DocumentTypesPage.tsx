@@ -26,7 +26,7 @@ export function DocumentTypesPage() {
             <button
               key={type.id}
               type="button"
-              onClick={() => navigate(`/admin/document-types/${type.id}`)}
+              onClick={() => navigate(`/settings/document-types/${type.id}`)}
               className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-paper-50"
             >
               <span className="min-w-0 flex-1">
@@ -44,7 +44,7 @@ export function DocumentTypesPage() {
         </div>
       </Card>
 
-      {creating && <CreateTypeDialog onClose={() => setCreating(false)} onCreated={(id) => navigate(`/admin/document-types/${id}`)} />}
+      {creating && <CreateTypeDialog onClose={() => setCreating(false)} onCreated={(id) => navigate(`/settings/document-types/${id}`)} />}
     </div>
   );
 }

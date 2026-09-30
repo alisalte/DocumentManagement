@@ -216,7 +216,7 @@ export function DocumentTypeEditorPage() {
             </div>
             {fields.length === 0 && <p className="py-8 text-center text-sm text-paper-500">{a.noFields}</p>}
             {fields.length > 0 && (
-              <ul className="divide-y divide-paper-100 overflow-hidden rounded-xl border border-paper-200 bg-white">
+              <ul className="divide-y divide-paper-100 overflow-hidden rounded-xl border border-paper-200 bg-paper-50">
                 {fields.map((field, index) => (
                   <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-4">
                     <div className="min-w-0 flex-1">
@@ -734,7 +734,7 @@ function RuleEditor({
         </Select>
         <div className="w-full">
           <label className="mb-1.5 block text-sm font-medium text-ink-800">{a.targets}</label>
-          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-white px-3.5 py-2.5 shadow-sm">
+          <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-paper-50 px-3.5 py-2.5 shadow-sm">
             {codes.length === 0 && <span className="text-sm text-paper-400">—</span>}
             {codes.map((code) => (
               <Checkbox
