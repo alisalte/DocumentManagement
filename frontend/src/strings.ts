@@ -26,6 +26,7 @@ export const t = {
   title: 'عنوان',
   description: 'توضیحات',
   category: 'پوشه',
+  pickCategory: 'پوشه را انتخاب کنید',
   documentType: 'نوع سند',
   tags: 'برچسب‌ها',
   tagsHelp: 'برای افزودن برچسب Enter بزنید.',
