@@ -118,6 +118,11 @@
     animation: var(--animate-fade-in);
   }
 
+  .dashboard-stagger {
+    animation: var(--animate-fade-in);
+    animation-fill-mode: both;
+  }
+
   .fillo-gradient {
     background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #7c3aed 100%);
   }
