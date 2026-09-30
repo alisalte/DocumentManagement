@@ -123,6 +123,15 @@ public sealed class DocumentRepository(DocumentsDbContext context) : IDocumentRe
 
     public void Add(Document document) => context.Documents.Add(document);
 
+    public Task LockContentHashAsync(byte[] sha256, CancellationToken cancellationToken)
+    {
+        // Released when the command transaction commits or rolls back.
+        var key = $"document.file:{Convert.ToHexStringLower(sha256)}";
+        return context.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({key}, 0))",
+            cancellationToken);
+    }
+
     public Task AllowInPlaceMetadataEditAsync(CancellationToken cancellationToken) =>
         context.Database.ExecuteSqlRawAsync("SELECT set_config('dms.metadata_in_place', 'on', true)", cancellationToken);
 

@@ -29,7 +29,8 @@ const filingPermissions = [
 /**
  * Two steps behind one button: the file streams to staging (with progress), then the document
  * is filed against the staged upload. A retry after a dropped connection reuses both the staged
- * upload and the Idempotency-Key, so it can never file the same document twice.
+ * upload and the Idempotency-Key. If that exact file is already a document the user can open,
+ * filing stops and the existing documents are named.
  */
 export function NewDocumentPage() {
   const navigate = useNavigate();
@@ -67,6 +68,7 @@ export function NewDocumentPage() {
 
   const staged = useRef<{ file: File; upload: UploadResult } | null>(null);
   const idempotencyKey = useRef(newIdempotencyKey());
+  const submitting = useRef(false);
 
   const selectedCategory = creatable.some((category) => category.id === categoryId) ? categoryId : '';
   const selectedType = documentTypeId || types.data?.find((type) => type.code === 'GENERAL')?.id || '';
@@ -101,12 +103,15 @@ export function NewDocumentPage() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (submitting.current) return;
     if (!file || !selectedCategory || !selectedType || !schema.data) return;
+    if (duplicates.length > 0) return;
 
     const local = clientErrors(schema.data, metadata);
     setFieldErrors(local);
     if (Object.keys(local).length > 0) return;
 
+    submitting.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -116,6 +121,10 @@ export function NewDocumentPage() {
         staged.current = { file, upload };
         idempotencyKey.current = newIdempotencyKey();
         setDuplicates(upload.duplicates);
+        if (upload.duplicates.length > 0) {
+          setProgress(null);
+          return;
+        }
       }
 
       setProgress(null);
@@ -140,6 +149,7 @@ export function NewDocumentPage() {
       if (caught instanceof ApiError) setFieldErrors(caught.fieldErrors);
       setProgress(null);
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -175,7 +185,7 @@ export function NewDocumentPage() {
           />
 
           {duplicates.length > 0 && (
-            <Alert severity="warning">
+            <Alert severity="error">
               {t.duplicateNotice}{' '}
               {duplicates.map((duplicate, index) => (
                 <span key={duplicate.documentId}>
@@ -268,7 +278,7 @@ export function NewDocumentPage() {
             <Button
               type="submit"
               loading={busy}
-              disabled={busy || !file || !selectedCategory || !selectedType || !title.trim()}
+              disabled={busy || !file || !selectedCategory || !selectedType || !title.trim() || duplicates.length > 0}
             >
               {busy ? t.saving : t.submit}
             </Button>
