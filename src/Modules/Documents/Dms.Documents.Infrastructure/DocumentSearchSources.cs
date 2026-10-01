@@ -86,6 +86,40 @@ public sealed class DocumentIndexSource(DocumentsDbContext context) : IDocumentI
         return ids.Select(document => document.Value).ToList();
     }
 
+    public async Task<IReadOnlyList<IndexedFileRef>> FilesInUseAsync(
+        IReadOnlyCollection<Guid> storageObjectIds,
+        CancellationToken cancellationToken)
+    {
+        if (storageObjectIds.Count == 0)
+        {
+            return [];
+        }
+
+        var ids = storageObjectIds.Select(id => new StorageObjectId(id)).ToArray();
+        var rows = await (
+            from version in context.DocumentVersions.AsNoTracking()
+            join document in context.Documents.IgnoreQueryFilters().AsNoTracking()
+                on version.DocumentId equals document.Id
+            where ids.Contains(version.StorageObjectId)
+            select new
+            {
+                StorageObjectId = version.StorageObjectId.Value,
+                DocumentId = document.Id.Value,
+                document.Title,
+                version.FileName,
+                document.DeletedAt,
+            }).ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(row => row.StorageObjectId)
+            .Select(group =>
+            {
+                var pick = group.FirstOrDefault(row => row.DeletedAt is null) ?? group.First();
+                return new IndexedFileRef(group.Key, pick.DocumentId, pick.Title, pick.FileName);
+            })
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<Guid>> ListIdsAsync(Guid? after, int batchSize, CancellationToken cancellationToken)
     {
         // Keyset paging on the uuid primary key; UUIDv7 keeps this roughly in creation order.

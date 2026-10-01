@@ -22,6 +22,7 @@ export function SearchPage() {
   const documentTypeId = params.get('type');
   const tag = params.get('tag');
   const allVersions = params.get('all') === '1';
+  const inFile = params.get('file') === '1';
   const page = Number(params.get('page') ?? '1') || 1;
 
   const [text, setText] = useState(q);
@@ -31,8 +32,8 @@ export function SearchPage() {
   const types = useQuery({ queryKey: ['document-types'], queryFn: api.documentTypes });
 
   const search = useQuery({
-    queryKey: ['search', q, categoryId, documentTypeId, tag, allVersions, page],
-    queryFn: () => api.search({ q, categoryId, documentTypeId, tag, allVersions, page, pageSize }),
+    queryKey: ['search', q, categoryId, documentTypeId, tag, allVersions, inFile, page],
+    queryFn: () => api.search({ q, categoryId, documentTypeId, tag, allVersions, inFile: inFile || undefined, page, pageSize }),
     placeholderData: keepPreviousData,
   });
 
@@ -61,7 +62,7 @@ export function SearchPage() {
     <div className="max-w-[1000px] space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.searchEverything}</h1>
-        <p className="mt-1 text-sm text-paper-500">جستجو در عنوان، محتوا و فرادادهٔ اسناد قابل‌مشاهده.</p>
+        <p className="mt-1 text-sm text-paper-500">{t.searchOcrHint}</p>
       </div>
       <form onSubmit={submit}>
         <Card className="space-y-4">
@@ -118,7 +119,12 @@ export function SearchPage() {
               ))}
             </Select>
 
-            <div className="shrink-0">
+            <div className="shrink-0 space-y-2">
+              <Switch
+                label={t.inFile}
+                checked={inFile}
+                onChange={(event) => update({ file: event.target.checked ? '1' : null })}
+              />
               <Switch
                 label={t.allVersions}
                 checked={allVersions}
@@ -126,6 +132,7 @@ export function SearchPage() {
               />
             </div>
           </div>
+          {inFile && <p className="text-xs text-paper-500">{t.inFileHelp}</p>}
 
           {tag && (
             <div>

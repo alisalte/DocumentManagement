@@ -74,6 +74,7 @@ public static class SearchModule
 
         services.AddScoped<IQueryHandler<SearchDocumentsQuery, Result<SearchResultDto>>, SearchDocumentsHandler>();
         services.AddScoped<IQueryHandler<SearchStatusQuery, Result<SearchStatusDto>>, SearchStatusHandler>();
+        services.AddScoped<IQueryHandler<ListExtractionsQuery, Result<IReadOnlyList<ExtractionActivityDto>>>, ListExtractionsHandler>();
         services.AddScoped<ICommandHandler<StartReindexCommand, Result>, StartReindexHandler>();
         services.AddScoped<ICommandHandler<RetryFailedExtractionsCommand, Result<int>>, RetryFailedExtractionsHandler>();
 
@@ -92,7 +93,8 @@ public static class SearchModule
         bool AllVersions,
         IReadOnlyList<MetadataFilterRequest>? Metadata,
         int? Page,
-        int? PageSize);
+        int? PageSize,
+        bool InFile = false);
 
     public sealed record MetadataFilterRequest(string Field, string Op, JsonElement Value);
 
@@ -109,12 +111,13 @@ public static class SearchModule
                 DateTimeOffset? from,
                 DateTimeOffset? to,
                 bool? allVersions,
+                bool? inFile,
                 int? page,
                 int? pageSize,
                 IDispatcher dispatcher,
                 CancellationToken ct) =>
             {
-                var query = new SearchDocumentsQuery(q, categoryId, documentTypeId, mimeType, tag, from, to, allVersions ?? false, null, page, pageSize);
+                var query = new SearchDocumentsQuery(q, categoryId, documentTypeId, mimeType, tag, from, to, allVersions ?? false, null, page, pageSize, inFile ?? false);
                 return (await dispatcher.QueryAsync(query, ct)).ToHttpResult();
             })
             .WithSummary("Full-text search over titles, metadata and file content, limited to what the caller may see.");
@@ -132,7 +135,8 @@ public static class SearchModule
                     request.AllVersions,
                     request.Metadata?.Select(filter => new MetadataFilter(filter.Field, filter.Op, filter.Value)).ToList(),
                     request.Page,
-                    request.PageSize);
+                    request.PageSize,
+                    request.InFile);
                 return (await dispatcher.QueryAsync(query, ct)).ToHttpResult();
             })
             .WithSummary("Search with typed metadata conditions (eq, gt, gte, lt, lte, contains) within one document type.");
@@ -144,7 +148,17 @@ public static class SearchModule
 
         admin.MapGet("/status", async (IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.QueryAsync(new SearchStatusQuery(), ct)).ToHttpResult())
-            .WithSummary("Engines, the live index, and text extraction counts by status.");
+            .WithSummary("Engines, the live index, and how much text OCR and the text layer have produced.");
+
+        admin.MapGet("/extractions", async (
+                string? q,
+                string? status,
+                string? method,
+                int? take,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new ListExtractionsQuery(q, status, method, take), ct)).ToHttpResult())
+            .WithSummary("Recent text extractions: which files OCR read, how many characters, and which failed.");
 
         admin.MapPost("/reindex", async (IDispatcher dispatcher, CancellationToken ct) =>
             {

@@ -159,6 +159,9 @@ public sealed record DocumentIndexData(
     IReadOnlyList<string> Tags,
     IReadOnlyList<VersionIndexData> Versions);
 
+/// <summary>The document a stored file belongs to, for showing OCR results to an administrator.</summary>
+public sealed record IndexedFileRef(Guid StorageObjectId, Guid DocumentId, string Title, string FileName);
+
 /// <summary>Read access for building and rebuilding the search index (section 8.4).</summary>
 public interface IDocumentIndexSource
 {
@@ -167,6 +170,9 @@ public interface IDocumentIndexSource
 
     /// <summary>Documents with a version on this stored file (content versions and their revisions).</summary>
     Task<IReadOnlyList<Guid>> DocumentsUsingObjectAsync(Guid storageObjectId, CancellationToken cancellationToken);
+
+    /// <summary>One live document per stored file. A deleted document is used only when nothing else remains.</summary>
+    Task<IReadOnlyList<IndexedFileRef>> FilesInUseAsync(IReadOnlyCollection<Guid> storageObjectIds, CancellationToken cancellationToken);
 
     /// <summary>All document ids after the given one, in id order, for batched rebuilds.</summary>
     Task<IReadOnlyList<Guid>> ListIdsAsync(Guid? after, int batchSize, CancellationToken cancellationToken);

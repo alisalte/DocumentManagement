@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Dms.Search.Application;
+using Dms.Search.Domain;
 using Shouldly;
 
 namespace Dms.IntegrationTests;
@@ -295,9 +298,88 @@ public sealed class SearchApiTests(DmsApiFactory factory)
     }
 
     [Fact]
+    public async Task Ocr_work_lists_how_much_text_was_read_and_keeps_the_error_when_it_fails()
+    {
+        const string recognised = "متن اسکن‌شده قرارداد";
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FixedExtractor(recognised, ExtractionMethod.Ocr));
+        var admin = await factory.AdminAsync();
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "ocr.list");
+        (await owner.GetAsync("/api/v1/admin/search/extractions")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var (documentId, _) = await owner.CreateDocumentAsync(categoryId, "اسکن قرارداد", fileName: "scan.png");
+        await host.Services.RunJobsAsync();
+
+        var status = await host.As(admin).GetFromJsonAsync<JsonElement>("/api/v1/admin/search/status");
+        status.GetProperty("ocr").GetProperty("ocrFiles").GetInt32().ShouldBeGreaterThan(0);
+        status.GetProperty("ocr").GetProperty("ocrCharacters").GetInt64().ShouldBeGreaterThanOrEqualTo(recognised.Length);
+
+        var rows = await host.As(admin).GetFromJsonAsync<JsonElement>("/api/v1/admin/search/extractions?method=Ocr&q=scan.png");
+        var row = rows.EnumerateArray().Single(item => item.GetProperty("documentId").GetGuid() == documentId);
+        row.GetProperty("fileName").GetString().ShouldBe("scan.png");
+        row.GetProperty("title").GetString().ShouldBe("اسکن قرارداد");
+        row.GetProperty("method").GetString().ShouldBe("Ocr");
+        row.GetProperty("status").GetString().ShouldBe("Completed");
+        row.GetProperty("charCount").GetInt32().ShouldBe(recognised.Length);
+        row.GetProperty("error").ValueKind.ShouldBe(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task A_failed_extraction_keeps_the_error_for_the_administrator()
+    {
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FailingExtractor());
+        var admin = await factory.AdminAsync();
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "ocr.fail");
+        await owner.CreateDocumentAsync(categoryId, "اسکن خراب", fileName: "broken.tif");
+        await host.Services.RunJobsAsync();
+
+        var rows = await host.As(admin).GetFromJsonAsync<JsonElement>("/api/v1/admin/search/extractions?status=Failed&q=broken.tif");
+        var row = rows.EnumerateArray().Single();
+        row.GetProperty("status").GetString().ShouldBe("Failed");
+        row.GetProperty("error").GetString()!.ShouldContain("tesseract exited 1");
+        row.GetProperty("fileName").GetString().ShouldBe("broken.tif");
+    }
+
+    [Fact]
+    public async Task File_text_search_matches_a_fragment_inside_a_longer_word()
+    {
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FakeTextExtractor());
+        var admin = await factory.AdminAsync();
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "ocr.find");
+        await owner.CreateDocumentAsync(categoryId, "سند");
+        await host.Services.RunJobsAsync();
+
+        var response = await host.As(owner).GetAsync("/api/v1/search?q=كتاب&inFile=true");
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        var query = engine.Queries[^1].ToJsonString(new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        query.ShouldContain("*کتاب*");
+        query.ShouldContain("content.joined");
+    }
+
+    [Fact]
     public async Task Search_needs_a_signed_in_caller()
     {
         var anonymous = factory.CreateClient();
         (await anonymous.GetAsync("/api/v1/search?q=x")).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
+}
+
+/// <summary>Returns a fixed extraction, so a test can pretend the file was OCR'd.</summary>
+internal sealed class FixedExtractor(string text, ExtractionMethod method) : ITextExtractor
+{
+    public bool IsEnabled => true;
+
+    public Task<ExtractedText> ExtractAsync(Stream content, string fileName, string mimeType, CancellationToken cancellationToken) =>
+        Task.FromResult(new ExtractedText(text, method, "tesseract"));
+}
+
+/// <summary>Fails the way a missing Tesseract binary would.</summary>
+internal sealed class FailingExtractor : ITextExtractor
+{
+    public bool IsEnabled => true;
+
+    public Task<ExtractedText> ExtractAsync(Stream content, string fileName, string mimeType, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("tesseract exited 1");
 }

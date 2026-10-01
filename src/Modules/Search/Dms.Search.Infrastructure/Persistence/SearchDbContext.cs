@@ -69,6 +69,48 @@ public sealed class ContentExtractionRepository(SearchDbContext context) : ICont
             .Select(group => new { group.Key, Count = group.Count() })
             .ToDictionaryAsync(row => row.Key, row => row.Count, cancellationToken);
 
+    public async Task<ExtractionMethodTotals> TotalsAsync(CancellationToken cancellationToken)
+    {
+        var rows = await context.Extractions.AsNoTracking()
+            .Where(extraction => extraction.Status == ExtractionStatus.Completed)
+            .GroupBy(extraction => extraction.Method)
+            .Select(group => new { group.Key, Count = group.Count(), Characters = group.Sum(extraction => (long)extraction.CharCount) })
+            .ToListAsync(cancellationToken);
+
+        int Count(ExtractionMethod method) => rows.FirstOrDefault(row => row.Key == method)?.Count ?? 0;
+        long Characters(ExtractionMethod method) => rows.FirstOrDefault(row => row.Key == method)?.Characters ?? 0;
+        return new ExtractionMethodTotals(
+            Count(ExtractionMethod.Ocr),
+            Count(ExtractionMethod.TextLayer),
+            Count(ExtractionMethod.None),
+            Characters(ExtractionMethod.Ocr),
+            Characters(ExtractionMethod.TextLayer));
+    }
+
+    public async Task<IReadOnlyList<ContentExtraction>> ListRecentAsync(
+        ExtractionStatus? status,
+        ExtractionMethod? method,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var query = context.Extractions.AsNoTracking().AsQueryable();
+        if (status is { } wantedStatus)
+        {
+            query = query.Where(extraction => extraction.Status == wantedStatus);
+        }
+
+        if (method is { } wantedMethod)
+        {
+            query = query.Where(extraction => extraction.Method == wantedMethod);
+        }
+
+        return await query
+            .OrderByDescending(extraction => extraction.CompletedAt)
+            .ThenByDescending(extraction => extraction.CreatedAt)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<ContentExtraction>> ListFailedAsync(int? belowAttempts, int limit, CancellationToken cancellationToken) =>
         await context.Extractions.AsNoTracking()
             .Where(extraction => extraction.Status == ExtractionStatus.Failed

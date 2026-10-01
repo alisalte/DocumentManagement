@@ -5,6 +5,9 @@ namespace Dms.Search.Application;
 
 public sealed record ExtractedText(string Text, ExtractionMethod Method, string Engine);
 
+/// <summary>How much text the worker has already read, split by OCR and by the file's own text layer.</summary>
+public sealed record ExtractionMethodTotals(int OcrFiles, int TextLayerFiles, int EmptyFiles, long OcrCharacters, long TextCharacters);
+
 /// <summary>Text from a file (Tika and/or local Tesseract OCR for scans). Infrastructure only.</summary>
 public interface ITextExtractor
 {
@@ -62,6 +65,16 @@ public interface IContentExtractionRepository
     Task<IReadOnlyDictionary<Guid, ContentExtraction>> FindManyAsync(IReadOnlyCollection<Guid> storageObjectIds, CancellationToken cancellationToken);
 
     Task<IReadOnlyDictionary<ExtractionStatus, int>> CountByStatusAsync(CancellationToken cancellationToken);
+
+    /// <summary>Completed extractions grouped by how the text was obtained.</summary>
+    Task<ExtractionMethodTotals> TotalsAsync(CancellationToken cancellationToken);
+
+    /// <summary>Newest activity first, optionally limited to one status or method.</summary>
+    Task<IReadOnlyList<ContentExtraction>> ListRecentAsync(
+        ExtractionStatus? status,
+        ExtractionMethod? method,
+        int limit,
+        CancellationToken cancellationToken);
 
     /// <summary>Failed extractions, oldest first; with <paramref name="belowAttempts"/>, only those tried fewer times.</summary>
     Task<IReadOnlyList<ContentExtraction>> ListFailedAsync(int? belowAttempts, int limit, CancellationToken cancellationToken);

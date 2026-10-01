@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Dms.Application;
@@ -26,7 +27,8 @@ public sealed record SearchDocumentsQuery(
     bool AllVersions,
     IReadOnlyList<MetadataFilter>? Metadata,
     int? Page,
-    int? PageSize) : IQuery<Result<SearchResultDto>>;
+    int? PageSize,
+    bool InFile = false) : IQuery<Result<SearchResultDto>>;
 
 public sealed record SearchHitDto(
     Guid DocumentId,
@@ -63,9 +65,27 @@ public sealed record SearchStatusDto(
     long IndexedVersions,
     IReadOnlyDictionary<string, int> Extractions,
     string EngineMode = "Disabled",
-    string? ExtractorMode = null);
+    string? ExtractorMode = null,
+    ExtractionMethodTotals? Ocr = null);
 
 public sealed record SearchStatusQuery : IQuery<Result<SearchStatusDto>>;
+
+/// <summary>One stored file's extraction, with the document an administrator can open.</summary>
+public sealed record ExtractionActivityDto(
+    Guid StorageObjectId,
+    Guid? DocumentId,
+    string? Title,
+    string? FileName,
+    string Status,
+    string Method,
+    int CharCount,
+    string? Engine,
+    string? Error,
+    int Attempts,
+    DateTimeOffset? CompletedAt);
+
+public sealed record ListExtractionsQuery(string? Text, string? Status, string? Method, int? Take)
+    : IQuery<Result<IReadOnlyList<ExtractionActivityDto>>>;
 
 public sealed record StartReindexCommand : ICommand<Result>;
 
@@ -171,7 +191,7 @@ public sealed class SearchDocumentsHandler(
             }
         }
 
-        var body = BuildQuery(query.Text, filters, page, pageSize);
+        var body = BuildQuery(query.Text, filters, page, pageSize, query.InFile);
 
         EngineResult result;
         try
@@ -210,20 +230,22 @@ public sealed class SearchDocumentsHandler(
             Terms("document_id", scope.DeniedResources),
         ]);
 
-    private static JsonObject BuildQuery(string? text, JsonArray filters, int page, int pageSize)
+    private static JsonObject BuildQuery(string? text, JsonArray filters, int page, int pageSize, bool inFile)
     {
         JsonNode match = string.IsNullOrWhiteSpace(text)
             ? new JsonObject { ["match_all"] = new JsonObject() }
-            : new JsonObject
-            {
-                ["multi_match"] = new JsonObject
+            : inFile
+                ? FileTextQuery.Match(text)
+                : new JsonObject
                 {
-                    ["query"] = text.Trim(),
-                    ["fields"] = new JsonArray("title^4", "title.joined^4", "title.en^2", "tags.text^3", "file_name^2", "meta_text^2", "meta_text.joined^2", "description", "content", "content.joined", "content.en"),
-                    ["type"] = "best_fields",
-                    ["operator"] = "and",
-                },
-            };
+                    ["multi_match"] = new JsonObject
+                    {
+                        ["query"] = text.Trim(),
+                        ["fields"] = new JsonArray("title^4", "title.joined^4", "title.en^2", "tags.text^3", "file_name^2", "meta_text^2", "meta_text.joined^2", "description", "content", "content.joined", "content.en"),
+                        ["type"] = "best_fields",
+                        ["operator"] = "and",
+                    },
+                };
 
         var aggregations = new JsonObject();
         foreach (var (name, field) in FacetFields)
@@ -251,7 +273,8 @@ public sealed class SearchDocumentsHandler(
                 ["post_tags"] = new JsonArray("</mark>"),
                 ["fields"] = new JsonObject
                 {
-                    ["content"] = new JsonObject { ["fragment_size"] = 160, ["number_of_fragments"] = 2 },
+                    ["content"] = new JsonObject { ["fragment_size"] = 180, ["number_of_fragments"] = inFile ? 3 : 2 },
+                    ["content.joined"] = new JsonObject { ["fragment_size"] = 180, ["number_of_fragments"] = inFile ? 2 : 1 },
                     ["meta_text"] = new JsonObject { ["number_of_fragments"] = 1 },
                     ["title"] = new JsonObject { ["number_of_fragments"] = 0 },
                 },
@@ -361,7 +384,7 @@ public sealed class SearchDocumentsHandler(
         }
 
         var highlights = new List<string>();
-        foreach (var field in new[] { "content", "meta_text" })
+        foreach (var field in new[] { "content", "content.joined", "meta_text" })
         {
             if (hit.Highlight?[field] is JsonArray fragments)
             {
@@ -470,6 +493,7 @@ public sealed class SearchStatusHandler(
             : "Enabled";
 
         var counts = await extractions.CountByStatusAsync(cancellationToken);
+        var totals = await extractions.TotalsAsync(cancellationToken);
         return Result.Success(new SearchStatusDto(
             engine.IsEnabled,
             extractor.IsEnabled,
@@ -477,8 +501,160 @@ public sealed class SearchStatusHandler(
             status.Count,
             counts.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value),
             engineMode,
-            extractorMode));
+            extractorMode,
+            totals));
     }
+}
+
+public sealed class ListExtractionsHandler(
+    IDmsAuthorizer authorizer,
+    IContentExtractionRepository extractions,
+    IDocumentIndexSource documents) : IQueryHandler<ListExtractionsQuery, Result<IReadOnlyList<ExtractionActivityDto>>>
+{
+    public async Task<Result<IReadOnlyList<ExtractionActivityDto>>> HandleAsync(ListExtractionsQuery query, CancellationToken cancellationToken)
+    {
+        var decision = await authorizer.AuthorizeSystemAsync(PermissionCodes.AdminManageSearch, cancellationToken);
+        if (!decision.Allowed)
+        {
+            return Result.Failure<IReadOnlyList<ExtractionActivityDto>>(Error.Forbidden("auth.forbidden", decision.Explanation));
+        }
+
+        var take = Math.Clamp(query.Take ?? 40, 1, 100);
+        var needle = query.Text?.Trim();
+        var window = string.IsNullOrEmpty(needle) ? take : Math.Min(take * 8, 200);
+        var rows = await extractions.ListRecentAsync(ParseStatus(query.Status), ParseMethod(query.Method), window, cancellationToken);
+        var files = await documents.FilesInUseAsync(rows.Select(row => row.StorageObjectId).Distinct().ToList(), cancellationToken);
+        var byObject = files.ToDictionary(file => file.StorageObjectId);
+
+        var mapped = rows.Select(row =>
+        {
+            byObject.TryGetValue(row.StorageObjectId, out var file);
+            return new ExtractionActivityDto(
+                row.StorageObjectId,
+                file?.DocumentId,
+                file?.Title,
+                file?.FileName,
+                row.Status.ToString(),
+                row.Method.ToString(),
+                row.CharCount,
+                row.Engine,
+                row.LastError,
+                row.Attempts,
+                row.CompletedAt);
+        });
+
+        if (!string.IsNullOrEmpty(needle))
+        {
+            mapped = mapped.Where(row =>
+                Contains(row.FileName, needle)
+                || Contains(row.Title, needle)
+                || Contains(row.Error, needle)
+                || Contains(row.Engine, needle));
+        }
+
+        return Result.Success<IReadOnlyList<ExtractionActivityDto>>(mapped.Take(take).ToList());
+    }
+
+    private static bool Contains(string? value, string needle) =>
+        value?.Contains(needle, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static ExtractionStatus? ParseStatus(string? value) =>
+        Enum.TryParse<ExtractionStatus>(value, ignoreCase: true, out var status) ? status : null;
+
+    private static ExtractionMethod? ParseMethod(string? value) =>
+        Enum.TryParse<ExtractionMethod>(value, ignoreCase: true, out var method) ? method : null;
+}
+
+/// <summary>
+/// File-text search for OCR. Each word the person types must occur, but a fragment is enough:
+/// the indexed term is matched as a whole or as an infix, so «قرار» finds «قرارداد» without a reindex.
+/// </summary>
+internal static class FileTextQuery
+{
+    public static JsonObject Match(string text)
+    {
+        var tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(8).ToArray();
+        var must = new JsonArray();
+        foreach (var token in tokens)
+        {
+            var should = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["multi_match"] = new JsonObject
+                    {
+                        ["query"] = token,
+                        ["fields"] = new JsonArray("content^4", "content.joined^4", "content.en^2", "title^2", "file_name"),
+                        ["type"] = "best_fields",
+                        ["operator"] = "and",
+                    },
+                },
+            };
+
+            var folded = Fold(token);
+            if (folded.Length >= 2)
+            {
+                var pattern = "*" + Escape(folded) + "*";
+                foreach (var field in new[] { "content", "content.joined" })
+                {
+                    should.Add(new JsonObject
+                    {
+                        ["wildcard"] = new JsonObject
+                        {
+                            [field] = new JsonObject { ["value"] = pattern },
+                        },
+                    });
+                }
+            }
+
+            must.Add(new JsonObject { ["bool"] = new JsonObject { ["should"] = should, ["minimum_should_match"] = 1 } });
+        }
+
+        return new JsonObject { ["bool"] = new JsonObject { ["must"] = must } };
+    }
+
+    /// <summary>Approximate the Persian analyzer so a wildcard, which is not analysed, hits the stored term.</summary>
+    internal static string Fold(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            switch (character)
+            {
+                case 'ي' or 'ى' or 'ئ':
+                    builder.Append('ی');
+                    break;
+                case 'ك':
+                    builder.Append('ک');
+                    break;
+                case 'أ' or 'إ' or 'آ':
+                    builder.Append('ا');
+                    break;
+                case 'ة':
+                    builder.Append('ه');
+                    break;
+                case 'ؤ':
+                    builder.Append('و');
+                    break;
+                case >= '۰' and <= '۹':
+                    builder.Append((char)('0' + (character - '۰')));
+                    break;
+                case >= '٠' and <= '٩':
+                    builder.Append((char)('0' + (character - '٠')));
+                    break;
+                case '\u200c' or '\u200d' or '\u0640':
+                    break;
+                default:
+                    builder.Append(char.ToLowerInvariant(character));
+                    break;
+            }
+        }
+
+        return builder.ToString();
+    }
+
+    private static string Escape(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("*", "\\*", StringComparison.Ordinal).Replace("?", "\\?", StringComparison.Ordinal);
 }
 
 public sealed class StartReindexHandler(IDmsAuthorizer authorizer, IJobQueue jobs, IAuditWriter audit)

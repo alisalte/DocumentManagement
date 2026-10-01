@@ -459,6 +459,8 @@ export interface SearchParams {
   mimeType?: string | null;
   tag?: string | null;
   allVersions?: boolean;
+  /** Match a fragment inside the file text, including OCR. */
+  inFile?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -486,6 +488,29 @@ export interface SearchStatus {
   engineMode?: string;
   /** Tika | LocalTesseract | Disabled | Enabled */
   extractorMode?: string;
+  ocr?: OcrTotals | null;
+}
+
+export interface OcrTotals {
+  ocrFiles: number;
+  textLayerFiles: number;
+  emptyFiles: number;
+  ocrCharacters: number;
+  textCharacters: number;
+}
+
+export interface ExtractionActivity {
+  storageObjectId: string;
+  documentId: string | null;
+  title: string | null;
+  fileName: string | null;
+  status: string;
+  method: string;
+  charCount: number;
+  engine: string | null;
+  error: string | null;
+  attempts: number;
+  completedAt: string | null;
 }
 
 export type SharePermission = 'View' | 'Download' | 'Print';
@@ -1352,6 +1377,8 @@ export const api = {
 
   searchAdmin: {
     status: () => request<SearchStatus>('/api/v1/admin/search/status'),
+    extractions: (params: { q?: string; status?: string; method?: string; take?: number }) =>
+      request<ExtractionActivity[]>(`/api/v1/admin/search/extractions${query(params)}`),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
   },

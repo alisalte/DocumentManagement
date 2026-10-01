@@ -796,6 +796,8 @@ Each job is idempotent and keyed by `storage_object_id`.
 - `SearchDocuments` builds the query, **ANDs in the access-scope filter from §5.7**, and hides versions the user cannot see (drafts).
 - It then re-checks the returned page in Postgres.
 - Facet counts are calculated only over documents in the user's access scope, so they reveal nothing about documents the user cannot see.
+- **File text.** `inFile` searches the stored text (the text layer and OCR) and accepts a fragment of a word, so «قرار» matches «قرارداد» on the existing index. Ordinary search stays whole-token.
+- **OCR operations.** `GET /admin/search/status` reports how many files were read by OCR versus the text layer and how many characters each produced. `GET /admin/search/extractions` lists recent files with status, method, character count and the error text when one failed.
 - The search engine is an additional enforcement layer, **never the source of truth** for authorization.
 
 **On the "12 billion" example:**
