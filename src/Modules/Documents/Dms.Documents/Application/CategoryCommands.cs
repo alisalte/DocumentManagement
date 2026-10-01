@@ -174,23 +174,20 @@ public sealed class MoveCategoryHandler(
             return Result.Failure(DocumentErrors.CategoryNotFound);
         }
 
-        // The seeded archive root stays put: an ACL on it is what covers folders created with
-        // no parent. Every other folder may be lifted to the top (no parent) or moved back down.
-        if (category.ParentId is null && category.CreatedBy is null)
+        // One parentless row is allowed (ux_categories_single_root). "No parent" therefore means
+        // directly under that archive root, which is as high as a folder can sit.
+        if (category.ParentId is null)
         {
             return Result.Failure(Error.Validation("category.root_fixed", "The archive root cannot be moved."));
         }
 
-        // No new parent means the top of the tree, not "under the seeded root". A folder that
-        // already sits directly under the archive root would otherwise appear not to move.
-        Category? newParent = null;
-        if (command.NewParentId is { } parentId)
+        var newParent = command.NewParentId is { } parentId
+            ? await categories.FindAsync(new CategoryId(parentId), cancellationToken)
+            : await categories.FindRootAsync(cancellationToken);
+
+        if (newParent is null)
         {
-            newParent = await categories.FindAsync(new CategoryId(parentId), cancellationToken);
-            if (newParent is null)
-            {
-                return Result.Failure(DocumentErrors.CategoryNotFound);
-            }
+            return Result.Failure(DocumentErrors.CategoryNotFound);
         }
 
         if (newParent?.Id == category.ParentId)

@@ -133,7 +133,7 @@ export function CategoriesPage() {
                       <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'edit', category })}>
                         {d.edit}
                       </Button>
-                      {!(category.parentId === null && category.code === 'ROOT') && (
+                      {category.parentId !== null && (
                         <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'move', category })}>
                           {d.move}
                         </Button>
@@ -266,9 +266,11 @@ function CategoryForm({ parent, category, onClose }: { parent?: CategoryNode | n
 
 function MoveDialog({ category, all, onClose }: { category: CategoryNode; all: CategoryNode[]; onClose: () => void }) {
   const queryClient = useQueryClient();
-  const [target, setTarget] = useState<string>(category.parentId ?? '');
+  const archiveRoot = all.find((candidate) => candidate.parentId === null) ?? null;
+  const [target, setTarget] = useState<string>(category.parentId ?? archiveRoot?.id ?? '');
   const [error, setError] = useState<string | null>(null);
   const excluded = descendantsOf(all, category.id);
+  const alreadyAtRoot = archiveRoot !== null && category.parentId === archiveRoot.id && target === archiveRoot.id;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -293,7 +295,7 @@ function MoveDialog({ category, all, onClose }: { category: CategoryNode; all: C
           <Button variant="ghost" onClick={onClose}>
             {d.cancel}
           </Button>
-          <Button type="submit" form="admin-move-category" disabled={target === (category.parentId ?? '')}>
+          <Button type="submit" form="admin-move-category" disabled={!target || target === (category.parentId ?? '')}>
             {d.move}
           </Button>
         </>
@@ -301,9 +303,13 @@ function MoveDialog({ category, all, onClose }: { category: CategoryNode; all: C
     >
       <form id="admin-move-category" onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
         <Select label={d.moveTo} value={target} onChange={(event) => setTarget(event.target.value)} className="sm:col-span-2">
-          <option value="">{d.root}</option>
+          {archiveRoot && !excluded.has(archiveRoot.id) && (
+            <option value={archiveRoot.id}>
+              {d.root}: {archiveRoot.name}
+            </option>
+          )}
           {all
-            .filter((candidate) => !excluded.has(candidate.id))
+            .filter((candidate) => candidate.id !== archiveRoot?.id && !excluded.has(candidate.id))
             .map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
                 {'\u00A0'.repeat(candidate.depth * 4)}
@@ -311,7 +317,12 @@ function MoveDialog({ category, all, onClose }: { category: CategoryNode; all: C
               </option>
             ))}
         </Select>
-        {target === '' && (
+        {alreadyAtRoot && (
+          <Alert severity="info" className="sm:col-span-2">
+            {d.alreadyAtRoot}
+          </Alert>
+        )}
+        {archiveRoot && target === archiveRoot.id && !alreadyAtRoot && (
           <Alert severity="info" className="sm:col-span-2">
             {d.moveRootHelp}
           </Alert>

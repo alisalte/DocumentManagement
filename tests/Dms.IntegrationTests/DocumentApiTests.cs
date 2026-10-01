@@ -470,7 +470,7 @@ public sealed class DocumentApiTests(DmsApiFactory factory)
     }
 
     [Fact]
-    public async Task Moving_a_folder_to_the_root_lifts_it_to_the_top_of_the_tree()
+    public async Task Moving_a_folder_to_the_root_places_it_directly_under_the_archive_root()
     {
         var admin = await factory.AdminAsync();
         var marker = Guid.NewGuid().ToString("N")[..8];
@@ -478,38 +478,40 @@ public sealed class DocumentApiTests(DmsApiFactory factory)
         var moving = await admin.CreateCategoryAsync(parent, $"برگ {marker}");
         var grandchild = await admin.CreateCategoryAsync(moving, $"نوه {marker}");
 
+        Guid rootId;
+        await using (var connection = await factory.OpenConnectionAsync())
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT id FROM documents.categories WHERE parent_id IS NULL AND code = 'ROOT'";
+            rootId = (Guid)(await command.ExecuteScalarAsync())!;
+        }
+
+        // No parent and the root's own id are the same destination: directly under the archive root.
         var toRoot = await admin.PostAsJsonAsync(
             $"/api/v1/admin/categories/{moving}/move",
             new { newParentId = (Guid?)null });
         toRoot.StatusCode.ShouldBe(HttpStatusCode.NoContent, await toRoot.Content.ReadAsStringAsync());
 
-        await using var connection = await factory.OpenConnectionAsync();
+        await using (var connection = await factory.OpenConnectionAsync())
         await using (var command = connection.CreateCommand())
         {
-            command.CommandText = "SELECT parent_id IS NULL, depth, path::text FROM documents.categories WHERE id = @id";
+            command.CommandText = "SELECT parent_id, depth FROM documents.categories WHERE id = @id";
             command.Parameters.AddWithValue("id", moving);
             await using var row = await command.ExecuteReaderAsync();
             (await row.ReadAsync()).ShouldBeTrue();
-            row.GetBoolean(0).ShouldBeTrue();
-            row.GetInt32(1).ShouldBe(0);
-            row.GetString(2).ShouldBe(moving.ToString("N"));
+            row.GetGuid(0).ShouldBe(rootId);
+            row.GetInt32(1).ShouldBe(1);
         }
 
+        await using (var connection = await factory.OpenConnectionAsync())
         await using (var command = connection.CreateCommand())
         {
             command.CommandText = "SELECT path::text, depth FROM documents.categories WHERE id = @id";
             command.Parameters.AddWithValue("id", grandchild);
             await using var row = await command.ExecuteReaderAsync();
             (await row.ReadAsync()).ShouldBeTrue();
-            row.GetString(0).ShouldBe($"{moving:N}.{grandchild:N}");
-            row.GetInt32(1).ShouldBe(1);
-        }
-
-        Guid rootId;
-        await using (var command = connection.CreateCommand())
-        {
-            command.CommandText = "SELECT id FROM documents.categories WHERE parent_id IS NULL AND code = 'ROOT'";
-            rootId = (Guid)(await command.ExecuteScalarAsync())!;
+            row.GetString(0).ShouldBe($"{rootId:N}.{moving:N}.{grandchild:N}");
+            row.GetInt32(1).ShouldBe(2);
         }
 
         var stuck = await admin.PostAsJsonAsync(
@@ -517,17 +519,11 @@ public sealed class DocumentApiTests(DmsApiFactory factory)
             new { newParentId = parent });
         stuck.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
 
-        var other = await admin.CreateCategoryAsync(name: $"دیگر {marker}");
-        var sameName = await admin.CreateCategoryAsync(other, $"برگ {marker}");
+        var sameName = await admin.CreateCategoryAsync(parent, $"برگ {marker}");
         var clash = await admin.PostAsJsonAsync(
             $"/api/v1/admin/categories/{sameName}/move",
-            new { newParentId = (Guid?)null });
+            new { newParentId = rootId });
         clash.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-
-        var back = await admin.PostAsJsonAsync(
-            $"/api/v1/admin/categories/{moving}/move",
-            new { newParentId = parent });
-        back.StatusCode.ShouldBe(HttpStatusCode.NoContent, await back.Content.ReadAsStringAsync());
     }
 
     [Fact]
