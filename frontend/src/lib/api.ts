@@ -435,6 +435,8 @@ export interface SearchHit {
   updatedAt: string | null;
   /** Engine fragments: HTML-escaped text with <mark> around the matches. */
   highlights: string[];
+  /** How many times the query occurs in this file's text. Null when there was no query. */
+  matchCount: number | null;
 }
 
 export interface FacetBucket {

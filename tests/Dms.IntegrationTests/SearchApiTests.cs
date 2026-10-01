@@ -28,6 +28,9 @@ public sealed class SearchApiTests(DmsApiFactory factory)
     private static IReadOnlyList<Guid> DocumentIds(JsonElement result) =>
         result.GetProperty("hits").EnumerateArray().Select(hit => hit.GetProperty("documentId").GetGuid()).ToList();
 
+    private static string QueryText(JsonObject query) =>
+        query.ToJsonString(new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+
     private async Task<(HttpClient Client, Guid UserId, Guid CategoryId)> OwnerOfNewCategoryAsync(HttpClient admin, string who, Guid? parentId = null)
     {
         var (client, userId) = await factory.CreateUserAsync(who);
@@ -83,6 +86,37 @@ public sealed class SearchApiTests(DmsApiFactory factory)
         reader.GetString(0).ShouldBe("Completed");
         reader.GetString(1).ShouldBe("TextLayer");
         reader.GetBoolean(2).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_partial_word_is_searched_inside_longer_words_and_counted_in_the_file()
+    {
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FakeTextExtractor());
+        var admin = await factory.AdminAsync();
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "partial.owner");
+
+        var text = "قرارداد فروش. قرارداد همکاری. كتابخانه. می‌شود و می‌شود";
+        var (documentId, _) = await owner.CreateDocumentAsync(
+            categoryId,
+            "متن فایل",
+            System.Text.Encoding.UTF8.GetBytes(text),
+            "body.txt");
+        await host.Services.RunJobsAsync();
+
+        var partial = await SearchAsync(host.As(owner), "q=" + Uri.EscapeDataString("قرار"));
+        var hit = partial.GetProperty("hits").EnumerateArray()
+            .Single(item => item.GetProperty("documentId").GetGuid() == documentId);
+        hit.GetProperty("matchCount").GetInt32().ShouldBe(2);
+        QueryText(engine.Queries[^1]).ShouldContain("*قرار*");
+
+        // Arabic kaf is folded onto the indexed Persian form before the infix match.
+        await SearchAsync(host.As(owner), "q=" + Uri.EscapeDataString("كتاب"));
+        QueryText(engine.Queries[^1]).ShouldContain("*کتاب*");
+
+        SearchText.CountInContent(text, "كتاب").ShouldBe(1);
+        SearchText.CountInContent(text, "می شود").ShouldBe(2);
+        SearchText.CountInContent("سال ۱۴۰۳", "1403").ShouldBe(1);
     }
 
     [Fact]

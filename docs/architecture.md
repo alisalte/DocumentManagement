@@ -795,6 +795,7 @@ Each job is idempotent and keyed by `storage_object_id`.
 ### 8.3 Querying
 
 - `SearchDocuments` builds the query, **ANDs in the access-scope filter from §5.7**, and hides versions the user cannot see (drafts).
+- A query word may be only part of an indexed word (`قرار` finds `قرارداد`), on the existing index, without a reindex. Each hit says how many times that phrase occurs in the file text.
 - It then re-checks the returned page in Postgres.
 - Facet counts are calculated only over documents in the user's access scope, so they reveal nothing about documents the user cannot see.
 - **File text.** `inFile` searches the stored text (the text layer and OCR) and accepts a fragment of a word, so «قرار» matches «قرارداد» on the existing index. Ordinary search stays whole-token.
