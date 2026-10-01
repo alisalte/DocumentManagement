@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router';
 import { Button, cx } from '../components/ui';
 import { guideIntro, guideSections, type GuideSection } from './helpGuideContent';
+import { guideShotLayout, type GuideArrow } from './guideShotLayout';
 
 /**
  * In-app graphical how-to: Persian, RTL, illustrated mocks of the real chrome
@@ -159,9 +160,15 @@ function GuideBlock({ section, index }: { section: GuideSection; index: number }
         )}
       </div>
 
-      <div className={cx('overflow-hidden rounded-2xl border border-paper-200/90 bg-gradient-to-b p-3 sm:p-4', toneRing)}>
-        <UiMock section={section} />
-        <p className="mt-3 text-center text-xs text-paper-500">{section.mock.caption}</p>
+      <div className={cx('space-y-4 rounded-2xl border border-paper-200/90 bg-gradient-to-b p-3 sm:p-4', toneRing)}>
+        {section.shots.map((shot) => (
+          <GuideFigure
+            key={shot.id}
+            id={shot.id}
+            caption={shot.caption}
+            arrows={guideShotLayout[shot.id]?.arrows ?? []}
+          />
+        ))}
       </div>
 
       <ol className="space-y-3">
@@ -185,118 +192,60 @@ function GuideBlock({ section, index }: { section: GuideSection; index: number }
   );
 }
 
-function UiMock({ section }: { section: GuideSection }) {
-  const spots = new Set(section.mock.highlights.map((item) => item.spot));
-  const label = (spot: GuideSection['mock']['highlights'][number]['spot']) =>
-    section.mock.highlights.find((item) => item.spot === spot)?.label;
-
+function GuideFigure({ id, caption, arrows }: { id: string; caption: string; arrows: GuideArrow[] }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-paper-300/80 bg-white shadow-[0_8px_28px_rgb(12_32_52/0.08)]">
-      <div className="flex items-center gap-1.5 border-b border-paper-100 bg-paper-50 px-3 py-2">
-        <span className="size-2 rounded-full bg-paper-300" />
-        <span className="size-2 rounded-full bg-paper-300" />
-        <span className="size-2 rounded-full bg-paper-300" />
-        <span className="ms-2 truncate text-[11px] text-paper-400">بایگانی اسناد — {section.title}</span>
-      </div>
-
-      <div className="grid gap-2 p-3 sm:grid-cols-[7.5rem_1fr]">
-        <div
-          className={cx(
-            'hidden space-y-2 rounded-lg border border-dashed p-2 sm:block',
-            spots.has('sidebar') ? 'border-copper-300 bg-copper-50/80 ring-2 ring-copper-300/40' : 'border-paper-200 bg-paper-50/60',
-          )}
-        >
-          <div className="h-2 w-12 rounded bg-paper-300/80" />
-          <div className="space-y-1.5">
-            <div className="h-2 w-full rounded bg-ink-200/70" />
-            <div className="h-2 w-4/5 rounded bg-paper-200" />
-            <div className="h-2 w-3/5 rounded bg-paper-200" />
-          </div>
-          {spots.has('sidebar') && <Callout>{label('sidebar')}</Callout>}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <div
-              className={cx(
-                'flex h-8 flex-1 items-center gap-2 rounded-lg border px-2',
-                spots.has('search')
-                  ? 'border-ink-400 bg-ink-50 ring-2 ring-ink-400/25'
-                  : 'border-paper-200 bg-paper-50',
-              )}
-            >
-              <span className="size-3 rounded-full border border-paper-400" />
-              <span className="h-1.5 w-24 rounded bg-paper-300" />
-              {spots.has('search') && <Callout className="ms-auto">{label('search')}</Callout>}
-            </div>
-            <div
-              className={cx(
-                'flex h-8 items-center rounded-lg px-2.5 text-[11px] font-semibold',
-                spots.has('nav') ? 'bg-ink-800 text-white ring-2 ring-ink-500/30' : 'bg-paper-100 text-paper-600',
-              )}
-            >
-              {label('nav') ?? 'نوار بالا'}
-            </div>
-            <div
-              className={cx(
-                'flex h-8 items-center rounded-lg px-2.5 text-[11px] font-semibold',
-                spots.has('action')
-                  ? 'bg-copper-600 text-white ring-2 ring-copper-400/40'
-                  : 'bg-ink-700 text-white/90',
-              )}
-            >
-              {label('action') ?? 'اقدام'}
-            </div>
-          </div>
-
-          <div
-            className={cx(
-              'min-h-[7.5rem] rounded-lg border p-3',
-              spots.has('viewer')
-                ? 'border-ink-300 bg-gradient-to-b from-ink-50 to-white ring-2 ring-ink-300/30'
-                : spots.has('list')
-                  ? 'border-copper-200 bg-copper-50/40 ring-2 ring-copper-200/50'
-                  : 'border-paper-200 bg-paper-50/50',
-            )}
-          >
-            {spots.has('viewer') ? (
-              <div className="space-y-2">
-                <div className="mx-auto h-16 w-[70%] rounded-md border border-ink-100 bg-white shadow-sm" />
-                <div className="mx-auto h-2 w-1/3 rounded bg-paper-300" />
-                <Callout>{label('viewer')}</Callout>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {[0, 1, 2].map((row) => (
-                  <div key={row} className="flex items-center gap-2 rounded-md bg-white/90 px-2 py-2 shadow-sm">
-                    <span className="size-6 rounded-md bg-ink-100" />
-                    <span className="h-2 flex-1 rounded bg-paper-200" />
-                    <span className="h-2 w-10 rounded bg-paper-100" />
-                  </div>
-                ))}
-                {(spots.has('list') || spots.has('action')) && (
-                  <Callout>{label('list') ?? label('action')}</Callout>
-                )}
-              </div>
-            )}
-          </div>
+    <figure className="overflow-hidden rounded-xl border border-paper-300/80 bg-white shadow-[0_8px_28px_rgb(12_32_52/0.08)]">
+      <div className="relative">
+        <img src={`/guide/${id}.jpg`} alt={caption} className="block w-full" />
+        <div className="pointer-events-none absolute inset-0" dir="ltr" aria-hidden>
+          {arrows.map((arrow) => (
+            <GuideArrow key={arrow.label} arrow={arrow} />
+          ))}
         </div>
       </div>
-    </div>
+      <figcaption className="border-t border-paper-100 bg-paper-50 px-3 py-2 text-center text-xs text-paper-600">
+        {caption}
+      </figcaption>
+    </figure>
   );
 }
 
-function Callout({ children, className }: { children: ReactNode; className?: string }) {
-  if (!children) return null;
+function GuideArrow({ arrow }: { arrow: GuideArrow }) {
+  const chip =
+    'inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-ink-900 px-2 py-1 text-[10px] font-bold leading-none text-white shadow-[0_4px_12px_rgb(12_32_52/0.35)] ring-2 ring-white sm:text-[11px]';
+  const icon = 'size-3.5 shrink-0 text-copper-400 drop-shadow';
+  const place =
+    arrow.from === 'top'
+      ? 'flex -translate-x-1/2 -translate-y-full flex-col items-center pb-1'
+      : arrow.from === 'bottom'
+        ? 'flex -translate-x-1/2 flex-col items-center pt-1'
+        : arrow.from === 'left'
+          ? 'flex -translate-x-full -translate-y-1/2 items-center pe-1'
+          : 'flex -translate-y-1/2 items-center ps-1';
+  const point =
+    arrow.from === 'top' ? 'rotate-180' : arrow.from === 'left' ? 'rotate-90' : arrow.from === 'right' ? '-rotate-90' : '';
+  const at = { left: `${arrow.x}%`, top: `${arrow.y}%` };
+
   return (
-    <span
-      className={cx(
-        'inline-flex max-w-full items-center rounded-full bg-ink-900 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-white shadow-sm',
-        'animate-[fade-in_0.45s_ease-out_both]',
-        className,
-      )}
-    >
-      {children}
-    </span>
+    <>
+      <span
+        className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-copper-500 shadow-[0_0_0_3px_white,0_0_0_5px_rgb(217_119_6/0.45)]"
+        style={at}
+      />
+      <span className={`absolute ${place}`} style={at}>
+        {arrow.from === 'right' || arrow.from === 'bottom' ? <ArrowIcon className={`${icon} ${point}`} /> : null}
+        <span className={chip}>{arrow.label}</span>
+        {arrow.from === 'left' || arrow.from === 'top' ? <ArrowIcon className={`${icon} ${point}`} /> : null}
+      </span>
+    </>
+  );
+}
+
+/** Arrow points up; callers rotate it toward the dot. */
+function ArrowIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className={className}>
+      <path d="M10.5 2.4a.7.7 0 0 0-1 0L4.2 8.1a.75.75 0 1 0 1.1 1L9.25 5v11.2a.75.75 0 0 0 1.5 0V5l3.95 4.1a.75.75 0 1 0 1.1-1L10.5 2.4Z" />
+    </svg>
   );
 }

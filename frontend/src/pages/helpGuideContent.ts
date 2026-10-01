@@ -14,11 +14,8 @@ export type GuideSection = {
   tryHref?: string;
   tryLabel?: string;
   steps: GuideStep[];
-  /** Short labels drawn on the mock UI */
-  mock: {
-    caption: string;
-    highlights: { label: string; spot: 'nav' | 'search' | 'sidebar' | 'action' | 'list' | 'viewer' }[];
-  };
+  /** Photos of the real screen, with arrow callouts from guideShotLayout. */
+  shots: { id: string; caption: string }[];
 };
 
 export const guideIntro = {
@@ -43,18 +40,14 @@ export const guideSections: GuideSection[] = [
         body: 'اگر پیام تغییر گذرواژه آمد، یک گذرواژهٔ جدید بگذارید؛ بعد از آن به بایگانی می‌رسید.',
       },
       {
-        title: 'نوار بالا',
-        body: 'عنوان «بایگانی اسناد»، جستجو، کارتابل، تنظیمات (بخش‌های مدیریت، در صورت دسترسی) و دکمهٔ «سند جدید» اینجاست.',
+        title: 'منوی کناری',
+        body: 'نشان سیستم، جستجو، «سند جدید»، کارتابل و تنظیمات در منوی سمت راست است. نوار بالای صفحه عنوان، راهنما و حساب کاربری را نشان می‌دهد.',
       },
     ],
-    mock: {
-      caption: 'صفحهٔ ورود و نوار اصلی',
-      highlights: [
-        { label: 'لوگو و نام سیستم', spot: 'nav' },
-        { label: 'جستجوی سراسری', spot: 'search' },
-        { label: 'سند جدید', spot: 'action' },
-      ],
-    },
+    shots: [
+      { id: 'start-login', caption: 'صفحهٔ ورود' },
+      { id: 'start-home', caption: 'منوی کناری بعد از ورود' },
+    ],
   },
   {
     id: 'browse',
@@ -75,14 +68,7 @@ export const guideSections: GuideSection[] = [
       },
       { title: 'باز کردن سند', body: 'روی ردیف سند بزنید تا پیش‌نمایش، مشخصات و تاریخچهٔ نسخه‌ها باز شود.' },
     ],
-    mock: {
-      caption: 'پوشه‌ها + فهرست اسناد',
-      highlights: [
-        { label: 'درخت پوشه‌ها', spot: 'sidebar' },
-        { label: 'فهرست اسناد', spot: 'list' },
-        { label: 'سند جدید', spot: 'action' },
-      ],
-    },
+    shots: [{ id: 'browse-list', caption: 'پوشه‌ها و فهرست اسناد' }],
   },
   {
     id: 'create',
@@ -92,7 +78,7 @@ export const guideSections: GuideSection[] = [
     tryHref: '/new',
     tryLabel: 'شروع ثبت سند',
     steps: [
-      { title: 'دکمهٔ سند جدید', body: 'از نوار بالا یا صفحهٔ پوشه، «سند جدید» را بزنید.' },
+      { title: 'دکمهٔ سند جدید', body: 'از منوی کناری یا صفحهٔ پوشه، «سند جدید» را بزنید.' },
       {
         title: 'پوشه و نوع',
         body: 'پوشه‌ای که اجازهٔ ثبت دارید و نوع سند مناسب را انتخاب کنید. بدون «دیدن» و «ثبت» روی همان پوشه، فرم باز نمی‌شود.',
@@ -103,14 +89,7 @@ export const guideSections: GuideSection[] = [
         body: 'اگر نوع سند فیلدهای اجباری دارد، آن‌ها را پر کنید؛ سپس «ثبت سند» را بزنید.',
       },
     ],
-    mock: {
-      caption: 'فرم ثبت سند',
-      highlights: [
-        { label: 'انتخاب فایل', spot: 'action' },
-        { label: 'پوشه و نوع سند', spot: 'list' },
-        { label: 'ثبت سند', spot: 'nav' },
-      ],
-    },
+    shots: [{ id: 'create-form', caption: 'فرم ثبت سند' }],
   },
   {
     id: 'search',
@@ -122,7 +101,7 @@ export const guideSections: GuideSection[] = [
     steps: [
       {
         title: 'کادر جستجو',
-        body: 'در نوار بالا عبارت را بنویسید و Enter بزنید، یا صفحهٔ «جستجو در اسناد» را باز کنید.',
+        body: 'در کادر جستجوی منوی کناری عبارت را بنویسید و Enter بزنید، یا صفحهٔ «جستجو در اسناد» را باز کنید.',
       },
       {
         title: 'نتیجه و هایلایت',
@@ -133,14 +112,7 @@ export const guideSections: GuideSection[] = [
         body: 'می‌توانید نتیجه را به یک پوشه، نوع سند یا برچسب محدود کنید. «جستجو در متن فایل» بخشی از کلمه را هم در متن OCR پیدا می‌کند.',
       },
     ],
-    mock: {
-      caption: 'جستجوی سراسری',
-      highlights: [
-        { label: 'عبارت جستجو', spot: 'search' },
-        { label: 'نتایج با هایلایت', spot: 'list' },
-        { label: 'فیلتر پوشه / نوع', spot: 'sidebar' },
-      ],
-    },
+    shots: [{ id: 'search-results', caption: 'نتیجهٔ جستجو، تعداد تکرار و هایلایت' }],
   },
   {
     id: 'document',
@@ -160,14 +132,7 @@ export const guideSections: GuideSection[] = [
         body: 'حذف سند را به سطل بازیافت می‌فرستد؛ از آنجا می‌توانید بازگردانی کنید (اگر اجازه داشته باشید).',
       },
     ],
-    mock: {
-      caption: 'صفحهٔ جزئیات سند',
-      highlights: [
-        { label: 'پیش‌نمایش', spot: 'viewer' },
-        { label: 'تاریخچهٔ نسخه‌ها', spot: 'list' },
-        { label: 'اشتراک / حذف', spot: 'action' },
-      ],
-    },
+    shots: [{ id: 'document-view', caption: 'پیش‌نمایش، نسخهٔ جدید و حذف' }],
   },
   {
     id: 'tasks',
@@ -177,17 +142,10 @@ export const guideSections: GuideSection[] = [
     tryHref: '/tasks',
     tryLabel: 'باز کردن کارتابل',
     steps: [
-      { title: 'نشان کارتابل', body: 'در نوار بالا تعداد کارهای باز با نشان کوچک دیده می‌شود.' },
+      { title: 'نشان کارتابل', body: 'در منوی کناری، کنار «کارتابل» تعداد کارهای باز دیده می‌شود.' },
       { title: 'انجام کار', body: 'کار را باز کنید، سند را ببینید، سپس تأیید، رد یا ارجاع را با توضیح ثبت کنید.' },
     ],
-    mock: {
-      caption: 'کارتابل تأیید',
-      highlights: [
-        { label: 'کارتابل', spot: 'nav' },
-        { label: 'فهرست کارها', spot: 'list' },
-        { label: 'تأیید / رد', spot: 'action' },
-      ],
-    },
+    shots: [{ id: 'tasks-inbox', caption: 'کارتابل و دکمه‌های تأیید و رد' }],
   },
   {
     id: 'share',
@@ -210,14 +168,10 @@ export const guideSections: GuideSection[] = [
         body: 'لینک همیشه تاریخ انقضا دارد؛ در صورت نیاز گذرواژه و سقف تعداد باز شدن هم دارد.',
       },
     ],
-    mock: {
-      caption: 'اشتراک با همکار یا لینک',
-      highlights: [
-        { label: 'اشتراک‌گذاری با من', spot: 'nav' },
-        { label: 'گیرنده یا لینک', spot: 'action' },
-        { label: 'سند اشتراک‌شده', spot: 'list' },
-      ],
-    },
+    shots: [
+      { id: 'document-share', caption: 'اشتراک با همکار و پیوند بیرونی، از صفحهٔ سند' },
+      { id: 'share-inbox', caption: 'اسنادی که با شما به اشتراک گذاشته شده' },
+    ],
   },
   {
     id: 'recycle',
@@ -227,17 +181,10 @@ export const guideSections: GuideSection[] = [
     tryHref: '/recycle-bin',
     tryLabel: 'رفتن به سطل بازیافت',
     steps: [
-      { title: 'باز کردن سطل', body: 'از نوار بالا یا منوی موبایل «سطل بازیافت» را انتخاب کنید.' },
+      { title: 'باز کردن سطل', body: 'از منوی کناری «سطل بازیافت» را انتخاب کنید.' },
       { title: 'بازگردانی', body: 'روی سند حذف‌شده «بازگردانی» بزنید تا دوباره در پوشهٔ خودش دیده شود.' },
     ],
-    mock: {
-      caption: 'سطل بازیافت',
-      highlights: [
-        { label: 'سطل بازیافت', spot: 'nav' },
-        { label: 'اسناد حذف‌شده', spot: 'list' },
-        { label: 'بازگردانی', spot: 'action' },
-      ],
-    },
+    shots: [{ id: 'recycle-bin', caption: 'سطل بازیافت و بازگردانی' }],
   },
   {
     id: 'admin',
@@ -260,13 +207,9 @@ export const guideSections: GuideSection[] = [
         body: 'از «جستجو و نمایه» وضعیت موتور و استخراج متن را ببینید و در صورت نیاز نمایه را بازسازی کنید.',
       },
     ],
-    mock: {
-      caption: 'تنظیمات',
-      highlights: [
-        { label: 'تنظیمات', spot: 'nav' },
-        { label: 'پوشه‌ها و ACL', spot: 'sidebar' },
-        { label: 'اعطای دسترسی', spot: 'action' },
-      ],
-    },
+    shots: [
+      { id: 'admin-folders', caption: 'تب‌های تنظیمات و دسترسی پوشه‌ها' },
+      { id: 'admin-ocr', caption: 'جستجو و نمایه: حجم OCR و خطاهای استخراج' },
+    ],
   },
 ];
