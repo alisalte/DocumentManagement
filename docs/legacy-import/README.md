@@ -20,6 +20,32 @@ See [manifest.example.json](manifest.example.json).
   - optional `classification`, `record`, `recordClassCode`, `recordSeriesCode`,
     `retentionPolicyCode`, `legalHoldReason`, `metadata`, `acl`, `versions`
 
+## When the old DMS keeps files in SQL (BLOB / `varbinary` / `bytea`)
+
+The importer **does not** open the legacy database. Binary columns must be exported to
+real files first, then referenced from the manifest.
+
+```text
+Legacy SQL (BLOB)  →  scripts/legacy-export-sql-blobs.py  →  FilesRoot + manifest.json
+                                                              ↓
+                                                    /admin/imports  (validate → start)
+```
+
+1. Export rows (see [sql-blobs.example.sql](sql-blobs.example.sql) for SQL Server / Postgres).
+2. Build the staging tree:
+
+```bash
+python3 scripts/legacy-export-sql-blobs.py \
+  --rows ./legacy-rows.jsonl \
+  --out-dir /var/lib/dms/import-staging/legacy \
+  --source old-sql-dms
+```
+
+Or pass `--sql` + `--dsn` when `pyodbc` / `psycopg` can reach the old server.
+
+3. Dry-run, then import in the UI with that `manifest.json` and relative root `legacy`
+   (if `FilesRoot` is `/var/lib/dms/import-staging`).
+
 ## Configuration
 
 ```json
