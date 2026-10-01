@@ -32,6 +32,17 @@ Legacy SQL (BLOB)  →  scripts/legacy-export-sql-blobs.py  →  FilesRoot + man
 ```
 
 1. Export rows (see [sql-blobs.example.sql](sql-blobs.example.sql) for SQL Server / Postgres).
+   The customer archive stores each attachment as `ID`, `IDTypeFile`, `IDSanad`,
+   `FileSize`, `Files` (the `IMAGE` / `VARBINARY` blob), and nullable `Sharh`.
+   A JSON or SQL row with those columns is recognised as-is: `sourceId` is
+   `sanad-{IDSanad}-file-{ID}` (one manifest entry per file, so a سند with
+   several files stays lossless and re-runs skip the same file), the title is
+   `Sharh` or `سند {IDSanad}` when `Sharh` is null, and `نوع فایل {IDTypeFile}`
+   is kept on the description. The blob header selects the extension
+   (PNG, PDF, JPEG, GIF, ZIP, OLE `.doc`, BMP, TIFF, WEBP; otherwise `.bin`).
+   `FileSize` must match the decoded length. The table name is not fixed —
+   point the example `SELECT` at the real table. Rows are filed as document
+   type `GENERAL` under the folder `واردات`.
 2. Build the staging tree:
 
 ```bash
