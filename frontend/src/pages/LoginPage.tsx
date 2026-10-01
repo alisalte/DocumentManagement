@@ -69,7 +69,7 @@ export function LoginPage() {
 
           <form
             onSubmit={submit}
-            className="space-y-4 rounded-2xl border border-paper-200 bg-white p-5 shadow-[0_8px_24px_rgb(31_22_56/0.08)]"
+            className="space-y-4 rounded-2xl border border-paper-200 bg-paper-50 p-5 shadow-[0_8px_24px_rgb(31_22_56/0.08)]"
           >
             {error && <Alert severity="error">{error}</Alert>}
             <TextField

@@ -83,7 +83,7 @@ function Metric({
   );
 
   const className = cx(
-    'dashboard-stagger block rounded-2xl border border-paper-200/90 bg-white/90 p-4 shadow-[var(--shadow-surface)] transition-all duration-200',
+    'dashboard-stagger block rounded-2xl border border-paper-200/90 bg-paper-50/90 p-4 shadow-[var(--shadow-surface)] transition-all duration-200',
     to && 'hover:-translate-y-0.5 hover:border-ink-300 hover:shadow-[var(--shadow-elevated)]',
   );
 
@@ -118,7 +118,7 @@ function FolderCard({
       type="button"
       onClick={onOpen}
       style={{ animationDelay: `${80 + index * 40}ms` }}
-      className="dashboard-stagger group flex flex-col rounded-2xl border border-paper-200 bg-white p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[var(--shadow-elevated)]"
+      className="dashboard-stagger group flex flex-col rounded-2xl border border-paper-200 bg-paper-50 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[var(--shadow-elevated)]"
     >
       <FolderIcon className="mx-auto h-14 w-16 transition-transform duration-300 group-hover:scale-105" />
       <p className="mt-3 truncate text-sm font-semibold text-ink-900">{category.name}</p>
@@ -135,7 +135,7 @@ function RecentDocs({ items, loading, error }: { items: DocumentListItem[]; load
   const navigate = useNavigate();
 
   return (
-    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-white/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '120ms' }}>
+    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between gap-3 border-b border-paper-100 px-4 py-3.5 sm:px-5">
         <div>
           <h2 className="text-base font-bold text-ink-900">اسناد اخیر</h2>
@@ -193,7 +193,7 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
   const preview = pending.slice(0, 4);
 
   return (
-    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-white/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '160ms' }}>
+    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '160ms' }}>
       <div className="flex items-center justify-between border-b border-paper-100 px-4 py-3">
         <div>
           <h2 className="text-sm font-bold text-ink-900">{w.inbox}</h2>
@@ -627,7 +627,7 @@ export function DashboardHome({
           <TasksPanel tasks={demo ? [] : (tasks.data ?? [])} loading={!demo && tasks.isLoading} />
 
           <section
-            className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-white/90 p-4 shadow-[var(--shadow-surface)]"
+            className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 p-4 shadow-[var(--shadow-surface)]"
             style={{ animationDelay: '200ms' }}
           >
             <p className="text-xs font-semibold tracking-wide text-paper-500 uppercase">میان‌برها</p>

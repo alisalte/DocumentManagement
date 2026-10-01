@@ -196,7 +196,7 @@ function MultiSelectField({
         {label}
         {required && <span className="text-rose-500"> *</span>}
       </label>
-      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-white px-3.5 py-2.5 shadow-sm">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-paper-300 bg-paper-50 px-3.5 py-2.5 shadow-sm">
         {options.map((option) => (
           <Checkbox
             key={option.value}

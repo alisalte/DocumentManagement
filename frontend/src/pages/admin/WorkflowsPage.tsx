@@ -24,7 +24,7 @@ export function WorkflowsPage() {
             <button
               key={workflow.id}
               type="button"
-              onClick={() => navigate(`/admin/workflows/${workflow.id}`)}
+              onClick={() => navigate(`/settings/workflows/${workflow.id}`)}
               className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-paper-50"
             >
               <span className="min-w-0 flex-1">
@@ -41,7 +41,7 @@ export function WorkflowsPage() {
           ))}
         </div>
       </Card>
-      {creating && <CreateDialog onClose={() => setCreating(false)} onCreated={(id) => navigate(`/admin/workflows/${id}`)} />}
+      {creating && <CreateDialog onClose={() => setCreating(false)} onCreated={(id) => navigate(`/settings/workflows/${id}`)} />}
     </div>
   );
 }

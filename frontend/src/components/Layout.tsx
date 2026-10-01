@@ -13,6 +13,7 @@ import { NotificationBell } from './notifications/NotificationBell';
 import { s as sharing } from './sharing/sharingStrings';
 import { w } from './workflow/workflowStrings';
 import { formatBytes, formatNumber } from '../lib/format';
+import { applyTheme, type Theme } from '../theme';
 import { Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
 const sidebarWidth = 280;
@@ -51,29 +52,28 @@ function pageTitle(pathname: string, categoryName?: string | null): string {
   if (pathname === '/search') return t.searchEverything;
   if (pathname === '/help') return t.userGuide;
   if (pathname.startsWith('/documents/')) return t.browse;
-  if (pathname.startsWith('/admin/users')) return directory.users;
-  if (pathname.startsWith('/admin/groups')) return directory.groups;
-  if (pathname.startsWith('/admin/roles')) return directory.roles;
-  if (pathname.startsWith('/admin/categories')) return directory.categories;
-  if (pathname.startsWith('/admin/document-types')) return t.documentTypes;
-  if (pathname.startsWith('/admin/workflows')) return w.workflows;
-  if (pathname.startsWith('/admin/search')) return t.searchAdmin;
-  if (pathname.startsWith('/admin/audit')) return audit.menu;
-  if (pathname.startsWith('/admin/disposition')) return disposition.menu;
-  if (pathname.startsWith('/admin/imports')) return importStrings.menu;
+  if (pathname.startsWith('/settings/users')) return directory.users;
+  if (pathname.startsWith('/settings/groups')) return directory.groups;
+  if (pathname.startsWith('/settings/roles')) return directory.roles;
+  if (pathname.startsWith('/settings/categories')) return directory.categories;
+  if (pathname.startsWith('/settings/document-types')) return t.documentTypes;
+  if (pathname.startsWith('/settings/workflows')) return w.workflows;
+  if (pathname.startsWith('/settings/search')) return t.searchAdmin;
+  if (pathname.startsWith('/settings/audit')) return audit.menu;
+  if (pathname.startsWith('/settings/disposition')) return disposition.menu;
+  if (pathname.startsWith('/settings/imports')) return importStrings.menu;
+  if (pathname.startsWith('/settings')) return 'تنظیمات';
   if (pathname.startsWith('/account/')) return directory.changePassword;
   return t.appTitle;
 }
 
 function SidebarNav({
-  adminLinks,
   pending,
   onNavigate,
   pathname,
   autoManageActive,
   newDocumentHref,
 }: {
-  adminLinks: { to: string; label: string }[];
   pending: number;
   onNavigate?: () => void;
   pathname: string;
@@ -122,12 +122,6 @@ function SidebarNav({
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25Z" />
     </svg>
   );
-  const usersIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.001a4.125 4.125 0 0 1 7.412-4.053M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-    </svg>
-  );
-
   return (
     <nav className="space-y-6">
       <div>
@@ -139,23 +133,6 @@ function SidebarNav({
           {link('/tasks', w.inbox, has('/tasks'), taskIcon, pending)}
         </div>
       </div>
-
-      {adminLinks.length > 0 && (
-        <div>
-          <p className="section-label pb-2">{directory.administration}</p>
-          <div className="space-y-0.5">
-            {adminLinks.slice(0, 5).map((entry) =>
-              link(
-                entry.to,
-                entry.label,
-                has(entry.to),
-                usersIcon,
-                entry.to.includes('users') ? 2 : undefined,
-              ),
-            )}
-          </div>
-        </div>
-      )}
 
       <div>
         <p className="section-label pb-2">اشتراک‌گذاری</p>
@@ -228,7 +205,6 @@ function StorageWidget({ demo }: { demo?: boolean }) {
 }
 
 function SidebarContent({
-  adminLinks,
   pending,
   searchText,
   setSearchText,
@@ -242,8 +218,10 @@ function SidebarContent({
   showFolderTree,
   newDocumentHref,
   demo,
+  theme,
+  onThemeChange,
+  themeInputId,
 }: {
-  adminLinks: { to: string; label: string }[];
   pending: number;
   searchText: string;
   setSearchText: (v: string) => void;
@@ -257,7 +235,11 @@ function SidebarContent({
   showFolderTree: boolean;
   newDocumentHref: string;
   demo?: boolean;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
+  themeInputId: string;
 }) {
+  const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
   return (
     <div className="flex h-full flex-col gap-4 p-4">
       <RouterLink to="/" onClick={onNavigate} className="flex items-center gap-2.5 px-1">
@@ -282,7 +264,7 @@ function SidebarContent({
             onChange={(e) => setSearchText(e.target.value)}
             placeholder="جستجو…"
             aria-label={t.searchEverything}
-            className="h-10 w-full rounded-xl border border-paper-200 bg-paper-100 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-ink-500/15"
+            className="h-10 w-full rounded-xl border border-paper-200 bg-paper-100 ps-9 pe-14 text-sm text-ink-900 placeholder:text-paper-500 focus:border-ink-400 focus:bg-paper-50 focus:outline-none focus:ring-2 focus:ring-ink-500/15"
           />
           <kbd className="pointer-events-none absolute inset-y-0 end-2 my-auto hidden h-6 items-center rounded-md border border-paper-400/50 bg-paper-200/80 px-1.5 text-[10px] text-paper-500 sm:flex">
             ⌘K
@@ -292,7 +274,6 @@ function SidebarContent({
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
         <SidebarNav
-          adminLinks={[]}
           pending={pending}
           onNavigate={onNavigate}
           pathname={pathname}
@@ -311,37 +292,20 @@ function SidebarContent({
           </div>
         )}
 
-        {adminLinks.length > 0 && (
-          <div>
-            <p className="section-label pb-2">{directory.administration}</p>
-            <nav className="space-y-0.5">
-              {adminLinks.map((entry) => (
-                <RouterLink
-                  key={entry.to}
-                  to={entry.to}
-                  onClick={onNavigate}
-                  className={cx(
-                    'flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm transition-colors',
-                    pathname === entry.to || pathname.startsWith(`${entry.to}/`)
-                      ? 'bg-ink-500/15 font-medium text-ink-800'
-                      : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
-                  )}
-                >
-                  {entry.label}
-                </RouterLink>
-              ))}
-            </nav>
-          </div>
-        )}
       </div>
 
       <StorageWidget demo={demo} />
 
       <div className="space-y-2 border-t border-paper-300/50 pt-3">
         <RouterLink
-          to="/help"
+          to="/settings"
           onClick={onNavigate}
-          className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-paper-600 hover:bg-paper-300/40 hover:text-ink-900"
+          className={cx(
+            'flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm',
+            settingsActive
+              ? 'bg-ink-500/15 font-medium text-ink-800'
+              : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+          )}
         >
           <NavIcon>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
@@ -351,9 +315,16 @@ function SidebarContent({
           </NavIcon>
           تنظیمات
         </RouterLink>
-          <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
-          <span className="text-sm text-paper-600">حالت روشن</span>
-          <Switch checked={false} onChange={() => {}} aria-label="حالت روشن" />
+        <div className="flex items-center justify-between rounded-xl px-2 py-1.5">
+          <label htmlFor={themeInputId} className="cursor-pointer text-sm text-paper-600">
+            حالت روشن
+          </label>
+          <Switch
+            id={themeInputId}
+            checked={theme === 'light'}
+            onChange={(event) => onThemeChange(event.target.checked ? 'light' : 'dark')}
+            aria-label="حالت روشن"
+          />
         </div>
       </div>
     </div>
@@ -373,33 +344,9 @@ export function Layout({ children }: { children: ReactNode }) {
   const autoManageActive =
     location.pathname === '/' && !searchParams.get('category') && !searchParams.get('q');
   const [searchText, setSearchText] = useState('');
-
-  const has = (code: string) => !!user && (user.isSystemAdmin || user.systemPermissions.includes(code));
-  const adminLinks = [
-    { to: '/admin/users', label: directory.users, allowed: has('ADMIN_MANAGE_USERS') },
-    { to: '/admin/groups', label: directory.groups, allowed: has('ADMIN_MANAGE_GROUPS') },
-    { to: '/admin/roles', label: directory.roles, allowed: has('ADMIN_MANAGE_ROLES') },
-    { to: '/admin/categories', label: directory.categories, allowed: has('ADMIN_MANAGE_CATEGORIES') },
-    { to: '/admin/document-types', label: t.documentTypes, allowed: has('ADMIN_MANAGE_DOCUMENT_TYPES') },
-    { to: '/admin/workflows', label: w.workflows, allowed: has('ADMIN_MANAGE_WORKFLOWS') },
-    { to: '/admin/search', label: t.searchAdmin, allowed: has('ADMIN_MANAGE_SEARCH') },
-    { to: '/admin/audit', label: audit.menu, allowed: has('AUDIT_VIEW') },
-    {
-      to: '/admin/disposition',
-      label: disposition.menu,
-      allowed:
-        has('DISPOSITION_REQUEST') ||
-        has('DISPOSITION_APPROVE') ||
-        has('DISPOSITION_DESTROY') ||
-        has('DISPOSITION_VIEW_CERTIFICATE') ||
-        has('ADMIN_MANAGE_RECORDS'),
-    },
-    {
-      to: '/admin/imports',
-      label: importStrings.menu,
-      allowed: has('IMPORT_VIEW') || has('IMPORT_RUN') || has('IMPORT_MANAGE'),
-    },
-  ].filter((link) => link.allowed);
+  const [theme, setTheme] = useState<Theme>(() =>
+    document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+  );
 
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
@@ -424,7 +371,14 @@ export function Layout({ children }: { children: ReactNode }) {
   const categoryName =
     folderCategories.find((c) => c.id === categoryId)?.name ?? null;
   const title = pageTitle(location.pathname, categoryName);
-  const showFolderTree = location.pathname !== '/help' && !location.pathname.startsWith('/help/');
+  const showFolderTree =
+    location.pathname !== '/help' &&
+    !location.pathname.startsWith('/help/') &&
+    !location.pathname.startsWith('/settings');
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
   const filingCategoryId =
     (categoryId && folderCategories.some((c) => c.id === categoryId && c.canCreate)
       ? categoryId
@@ -453,7 +407,7 @@ export function Layout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   const topBar = (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-200 bg-white/70 px-4 sm:px-6 backdrop-blur-md">
+    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-200 bg-paper-50/70 px-4 sm:px-6 backdrop-blur-md">
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
@@ -508,23 +462,10 @@ export function Layout({ children }: { children: ReactNode }) {
               {user?.username}
             </p>
           </div>
-          {adminLinks.length > 0 && (
-            <>
-              <p className="section-label px-3 pt-2 pb-1">{directory.administration}</p>
-              {adminLinks.map((link) => (
-                <RouterLink
-                  key={link.to}
-                  to={link.to}
-                  role="menuitem"
-                  onClick={() => setAccountMenu(null)}
-                  className={menuItemClasses()}
-                >
-                  {link.label}
-                </RouterLink>
-              ))}
-            </>
-          )}
-          <RouterLink to="/help" onClick={() => setAccountMenu(null)} className={menuItemClasses('mt-0.5')}>
+          <RouterLink to="/settings" onClick={() => setAccountMenu(null)} className={menuItemClasses('mt-0.5')}>
+            تنظیمات
+          </RouterLink>
+          <RouterLink to="/help" onClick={() => setAccountMenu(null)} className={menuItemClasses()}>
             {t.userGuide}
           </RouterLink>
           <RouterLink to="/account/password" onClick={() => setAccountMenu(null)} className={menuItemClasses()}>
@@ -547,11 +488,10 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <aside
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-200 bg-white/80 lg:block"
+        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-200 bg-paper-50/80 lg:block"
         style={{ width: sidebarWidth }}
       >
         <SidebarContent
-          adminLinks={adminLinks}
           pending={pending}
           searchText={searchText}
           setSearchText={setSearchText}
@@ -564,6 +504,9 @@ export function Layout({ children }: { children: ReactNode }) {
           showFolderTree={showFolderTree}
           newDocumentHref={newDocumentHref}
           demo={isDemo}
+          theme={theme}
+          onThemeChange={setTheme}
+          themeInputId="theme-light"
         />
       </aside>
 
@@ -579,11 +522,10 @@ export function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t.menu}
-            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-white shadow-[0_16px_40px_rgb(31_22_56/0.18)] animate-[slide-in_0.28s_ease-out]"
+            className="absolute inset-y-0 start-0 flex w-[85vw] max-w-xs flex-col overflow-hidden bg-paper-50 shadow-[0_16px_40px_rgb(31_22_56/0.18)] animate-[slide-in_0.28s_ease-out]"
             style={{ maxWidth: sidebarWidth }}
           >
             <SidebarContent
-              adminLinks={adminLinks}
               pending={pending}
               searchText={searchText}
               setSearchText={setSearchText}
@@ -597,6 +539,9 @@ export function Layout({ children }: { children: ReactNode }) {
               showFolderTree={showFolderTree}
               newDocumentHref={newDocumentHref}
               demo={isDemo}
+              theme={theme}
+              onThemeChange={setTheme}
+              themeInputId="theme-light-drawer"
             />
           </div>
         </div>

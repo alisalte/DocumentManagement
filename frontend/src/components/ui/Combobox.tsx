@@ -117,7 +117,7 @@ export function Combobox({
           }}
           onKeyDown={onKeyDown}
           className={cx(
-            'h-10 w-full rounded-xl border bg-white pe-9 ps-3.5 text-sm text-ink-900 shadow-sm transition-colors',
+            'h-10 w-full rounded-xl border bg-paper-50 pe-9 ps-3.5 text-sm text-ink-900 shadow-sm transition-colors',
             'placeholder:text-paper-400 focus:outline-none focus:ring-2 focus:ring-ink-500/20',
             'disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500',
             error ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20' : 'border-paper-300 focus:border-ink-500',
@@ -143,7 +143,7 @@ export function Combobox({
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-40 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-paper-200 bg-white py-1 shadow-xl"
+          className="absolute z-40 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-paper-200 bg-paper-50 py-1 shadow-xl"
         >
           {options.length === 0 && !loading && <li className="px-3 py-2 text-sm text-paper-400">{emptyText}</li>}
           {options.map((option, index) => (

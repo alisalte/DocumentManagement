@@ -44,7 +44,7 @@ export const guideSections: GuideSection[] = [
       },
       {
         title: 'نوار بالا',
-        body: 'عنوان «بایگانی اسناد»، جستجو، کارتابل، مدیریت (در صورت دسترسی) و دکمهٔ «سند جدید» اینجاست.',
+        body: 'عنوان «بایگانی اسناد»، جستجو، کارتابل، تنظیمات (بخش‌های مدیریت، در صورت دسترسی) و دکمهٔ «سند جدید» اینجاست.',
       },
     ],
     mock: {
@@ -242,9 +242,9 @@ export const guideSections: GuideSection[] = [
   {
     id: 'admin',
     title: 'اگر مدیر هستید',
-    summary: 'منوی «مدیریت» برای کاربران، نقش‌ها، پوشه‌ها، انواع سند، گردش‌کار و نمایهٔ جستجو است.',
+    summary: '«تنظیمات» بخش‌های مدیریت را در تب جدا نشان می‌دهد: کاربران، نقش‌ها، پوشه‌ها، انواع سند، گردش‌کار و نمایهٔ جستجو.',
     tone: 'copper',
-    tryHref: '/admin/categories',
+    tryHref: '/settings/categories',
     tryLabel: 'مدیریت پوشه‌ها و دسترسی',
     steps: [
       {
@@ -261,9 +261,9 @@ export const guideSections: GuideSection[] = [
       },
     ],
     mock: {
-      caption: 'منوی مدیریت',
+      caption: 'تنظیمات',
       highlights: [
-        { label: 'مدیریت', spot: 'nav' },
+        { label: 'تنظیمات', spot: 'nav' },
         { label: 'پوشه‌ها و ACL', spot: 'sidebar' },
         { label: 'اعطای دسترسی', spot: 'action' },
       ],

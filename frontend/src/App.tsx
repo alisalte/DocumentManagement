@@ -27,6 +27,8 @@ import { SearchAdminPage } from './pages/admin/SearchAdminPage';
 import { WorkflowEditorPage } from './pages/admin/WorkflowEditorPage';
 import { WorkflowsPage } from './pages/admin/WorkflowsPage';
 import { HelpGuidePage } from './pages/HelpGuidePage';
+import { SettingsHome, SettingsLayout } from './pages/SettingsPage';
+import { adminSections } from './pages/admin/sections';
 import { TasksPage } from './pages/TasksPage';
 import { SessionProvider, useSession } from './session';
 
@@ -64,6 +66,13 @@ export default function App() {
   );
 }
 
+/** Bookmarks and in-app links that still say /admin land on the same screen inside Settings. */
+function LegacyAdminRedirect() {
+  const { pathname, search } = useLocation();
+  const rest = pathname.replace(/^\/admin/, '') || '/';
+  return <Navigate to={`/settings${rest}${search}`} replace />;
+}
+
 function Shell() {
   const { user, ready } = useSession();
   const location = useLocation();
@@ -95,18 +104,7 @@ function Shell() {
   }
 
   // Only hides screens that would be refused anyway; the server checks every call.
-  const canManageTypes = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_DOCUMENT_TYPES');
-  const canManageWorkflows = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_WORKFLOWS');
-  const canManageSearch = user.isSystemAdmin || user.systemPermissions.includes('ADMIN_MANAGE_SEARCH');
-  const canViewAudit = user.isSystemAdmin || user.systemPermissions.includes('AUDIT_VIEW');
-  const has = (code: string) => user.isSystemAdmin || user.systemPermissions.includes(code);
-  const canDisposition =
-    has('DISPOSITION_REQUEST') ||
-    has('DISPOSITION_APPROVE') ||
-    has('DISPOSITION_DESTROY') ||
-    has('DISPOSITION_VIEW_CERTIFICATE') ||
-    has('ADMIN_MANAGE_RECORDS');
-  const canImport = has('IMPORT_VIEW') || has('IMPORT_RUN') || has('IMPORT_MANAGE');
+  const allowed = new Set(adminSections(user).filter((section) => section.allowed).map((section) => section.id));
 
   return (
     <Layout>
@@ -120,19 +118,23 @@ function Shell() {
         <Route path="/shared/:documentId/:versionId" element={<SharedVersionPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/help" element={<HelpGuidePage />} />
-        {canManageSearch && <Route path="/admin/search" element={<SearchAdminPage />} />}
-        {canViewAudit && <Route path="/admin/audit" element={<AuditPage />} />}
-        {canDisposition && <Route path="/admin/disposition" element={<DispositionPage />} />}
-        {canImport && <Route path="/admin/imports" element={<ImportPage />} />}
-        {has('ADMIN_MANAGE_USERS') && <Route path="/admin/users" element={<UsersPage />} />}
-        {has('ADMIN_MANAGE_GROUPS') && <Route path="/admin/groups" element={<GroupsPage />} />}
-        {has('ADMIN_MANAGE_ROLES') && <Route path="/admin/roles" element={<RolesPage />} />}
-        {has('ADMIN_MANAGE_CATEGORIES') && <Route path="/admin/categories" element={<CategoriesPage />} />}
         <Route path="/account/password" element={<ChangePasswordPage />} />
-        {canManageWorkflows && <Route path="/admin/workflows" element={<WorkflowsPage />} />}
-        {canManageWorkflows && <Route path="/admin/workflows/:id" element={<WorkflowEditorPage />} />}
-        {canManageTypes && <Route path="/admin/document-types" element={<DocumentTypesPage />} />}
-        {canManageTypes && <Route path="/admin/document-types/:id" element={<DocumentTypeEditorPage />} />}
+        <Route path="/settings" element={<SettingsLayout />}>
+          <Route index element={<SettingsHome />} />
+          {allowed.has('users') && <Route path="users" element={<UsersPage />} />}
+          {allowed.has('groups') && <Route path="groups" element={<GroupsPage />} />}
+          {allowed.has('roles') && <Route path="roles" element={<RolesPage />} />}
+          {allowed.has('categories') && <Route path="categories" element={<CategoriesPage />} />}
+          {allowed.has('document-types') && <Route path="document-types" element={<DocumentTypesPage />} />}
+          {allowed.has('document-types') && <Route path="document-types/:id" element={<DocumentTypeEditorPage />} />}
+          {allowed.has('workflows') && <Route path="workflows" element={<WorkflowsPage />} />}
+          {allowed.has('workflows') && <Route path="workflows/:id" element={<WorkflowEditorPage />} />}
+          {allowed.has('search') && <Route path="search" element={<SearchAdminPage />} />}
+          {allowed.has('audit') && <Route path="audit" element={<AuditPage />} />}
+          {allowed.has('disposition') && <Route path="disposition" element={<DispositionPage />} />}
+          {allowed.has('imports') && <Route path="imports" element={<ImportPage />} />}
+        </Route>
+        <Route path="/admin/*" element={<LegacyAdminRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

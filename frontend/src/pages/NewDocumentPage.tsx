@@ -359,7 +359,7 @@ function NoCreatableCategory({
             </Button>
           )}
           {canManageAcl && (
-            <Button variant="outline" as={RouterLink} to="/admin/categories">
+            <Button variant="outline" as={RouterLink} to="/settings/categories">
               {t.openCategoriesAdmin}
             </Button>
           )}
