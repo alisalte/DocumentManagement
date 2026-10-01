@@ -58,6 +58,12 @@ public interface IDocumentRepository
     void Add(Document document);
 
     /// <summary>
+    /// Serialises creators of the same file bytes until this transaction ends, so two filings of
+    /// one SHA-256 cannot both pass the duplicate check.
+    /// </summary>
+    Task LockContentHashAsync(byte[] sha256, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Declares that this transaction may rewrite version metadata in place (MetadataEditPolicy
     /// InPlace). Without it the immutability trigger refuses any change to dynamic_data.
     /// </summary>

@@ -22,7 +22,10 @@ public sealed record UploadResultDto(
     string Sha256,
     IReadOnlyList<DuplicateDto> Duplicates);
 
-/// <summary>"This exact file already exists as …", limited to documents the caller can see (section 7.5).</summary>
+/// <summary>
+/// "This exact file already exists as …", limited to documents the caller can see (section 7.5).
+/// A hit blocks filing a second document; it is not only a warning.
+/// </summary>
 public sealed record DuplicateDto(Guid DocumentId, string Title);
 
 public sealed record CreateDocumentCommand(
@@ -241,10 +244,38 @@ public sealed class TagResolver(ITagRepository tags, TimeProvider timeProvider)
     }
 }
 
+/// <summary>
+/// Exact-file matches (section 7.5). Names only documents the caller can view, so the check is
+/// not an oracle. Filing is refused when this list is not empty. A match the caller cannot see
+/// is omitted and does not block, or the refusal itself would reveal that the file exists.
+/// </summary>
+public sealed class FileDuplicates(IDocumentReadModel readModel, DocumentAccess access, IDocumentRepository documents)
+{
+    public static readonly Error AlreadyFiled = Error.Conflict(
+        "document.duplicate_file",
+        "This exact file is already registered as a document you can open.");
+
+    public Task LockAsync(byte[] sha256, CancellationToken cancellationToken) =>
+        documents.LockContentHashAsync(sha256, cancellationToken);
+
+    public async Task<IReadOnlyList<DuplicateDto>> VisibleAsync(byte[] sha256, CancellationToken cancellationToken)
+    {
+        var duplicates = new List<DuplicateDto>();
+        foreach (var candidate in await readModel.FindByFileHashAsync(sha256, cancellationToken))
+        {
+            if (await access.IsAllowedAsync(candidate.DocumentId, PermissionCodes.DocumentView, cancellationToken))
+            {
+                duplicates.Add(new DuplicateDto(candidate.DocumentId, candidate.Title));
+            }
+        }
+
+        return duplicates;
+    }
+}
+
 public sealed class RegisterUploadHandler(
     IStorageService storage,
-    IDocumentReadModel readModel,
-    DocumentAccess access,
+    FileDuplicates duplicates,
     ICurrentUser currentUser) : ICommandHandler<RegisterUploadCommand, Result<UploadResultDto>>
 {
     public async Task<Result<UploadResultDto>> HandleAsync(
@@ -257,16 +288,7 @@ public sealed class RegisterUploadHandler(
         }
 
         var staged = await storage.RegisterAsync(command.File, cancellationToken);
-
-        // The duplicate notice must not become an oracle for documents the caller cannot see.
-        var duplicates = new List<DuplicateDto>();
-        foreach (var candidate in await readModel.FindByFileHashAsync(command.File.Sha256, cancellationToken))
-        {
-            if (await access.IsAllowedAsync(candidate.DocumentId, PermissionCodes.DocumentView, cancellationToken))
-            {
-                duplicates.Add(new DuplicateDto(candidate.DocumentId, candidate.Title));
-            }
-        }
+        var existing = await duplicates.VisibleAsync(command.File.Sha256, cancellationToken);
 
         return Result.Success(new UploadResultDto(
             staged.Id.Value,
@@ -274,7 +296,7 @@ public sealed class RegisterUploadHandler(
             staged.MimeType,
             staged.Size,
             staged.Sha256Hex,
-            duplicates));
+            existing));
     }
 }
 
@@ -286,6 +308,7 @@ public sealed class CreateDocumentHandler(
     UploadAttachment uploads,
     TagResolver tagResolver,
     MetadataGate metadataGate,
+    FileDuplicates duplicates,
     IStorageService storage,
     IResourceAclWriter acl,
     IIdempotencyStore idempotency,
@@ -369,6 +392,13 @@ public sealed class CreateDocumentHandler(
         if (upload.IsFailure)
         {
             return Result.Failure<CreatedVersionDto>(upload.Error);
+        }
+
+        // Held until commit, so a second filing of these same bytes waits and then sees this one.
+        await duplicates.LockAsync(upload.Value.Sha256, cancellationToken);
+        if ((await duplicates.VisibleAsync(upload.Value.Sha256, cancellationToken)).Count > 0)
+        {
+            return Result.Failure<CreatedVersionDto>(FileDuplicates.AlreadyFiled);
         }
 
         var tagIds = await tagResolver.ResolveAsync(command.Tags, actor, cancellationToken);

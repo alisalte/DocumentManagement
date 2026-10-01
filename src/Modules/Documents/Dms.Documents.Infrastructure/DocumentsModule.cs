@@ -59,6 +59,7 @@ public static class DocumentsModule
         services.AddScoped<IResourceHierarchy, DocumentResourceHierarchy>();
 
         services.AddScoped<DocumentAccess>();
+        services.AddScoped<FileDuplicates>();
         services.AddScoped<UploadAttachment>();
         services.AddScoped<TagResolver>();
         services.AddScoped<MetadataGate>();

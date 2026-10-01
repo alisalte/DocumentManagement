@@ -56,7 +56,8 @@ export const t = {
   submit: 'ثبت سند',
   uploading: 'در حال بارگذاری فایل',
   saving: 'در حال ثبت…',
-  duplicateNotice: 'این فایل پیش‌تر در این سندها ثبت شده است:',
+  duplicateNotice: 'این فایل قبلاً ثبت شده و دوباره ثبت نمی‌شود:',
+  duplicateBlocked: 'این فایل قبلاً در سیستم ثبت شده است. به‌جای سند تازه، سند موجود را باز کنید.',
   notFound: 'سند پیدا نشد یا اجازه‌ی دیدن آن را ندارید.',
   forbidden: 'اجازه‌ی این کار را ندارید.',
   staleVersion: 'پس از باز کردن این صفحه، نسخه‌ی تازه‌تری ثبت شده است. صفحه را تازه کنید.',
@@ -162,6 +163,7 @@ export function describeError(error: unknown): string {
   if (error && typeof error === 'object' && 'status' in error) {
     const { status, code, message } = error as { status: number; code?: string; message: string };
     if (code === 'version.stale') return t.staleVersion;
+    if (code === 'document.duplicate_file') return t.duplicateBlocked;
     const shareMessage = describeShareError(code);
     if (shareMessage) return shareMessage;
     if (status === 404) return t.notFound;

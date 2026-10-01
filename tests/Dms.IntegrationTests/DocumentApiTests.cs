@@ -516,4 +516,47 @@ public sealed class DocumentApiTests(DmsApiFactory factory)
         var probe = await stranger.UploadAsync(bytes);
         probe.GetProperty("duplicates").GetArrayLength().ShouldBe(0);
     }
+
+    [Fact]
+    public async Task The_same_file_cannot_be_filed_again_when_the_uploader_can_see_it()
+    {
+        var (admin, owner, _, categoryId) = await ArrangeAsync("dup.block");
+        var bytes = Encoding.UTF8.GetBytes($"%PDF-1.7\n% same file {Guid.NewGuid()}\n");
+        var (documentId, _) = await owner.CreateDocumentAsync(categoryId, content: bytes);
+
+        var upload = await owner.UploadAsync(bytes);
+        upload.GetProperty("duplicates").EnumerateArray()
+            .Select(item => item.GetProperty("documentId").GetGuid()).ShouldContain(documentId);
+
+        var again = await owner.CreateDocumentRawAsync(
+            categoryId,
+            upload.GetProperty("uploadId").GetGuid(),
+            "سند تکراری");
+        again.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await again.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString()
+            .ShouldBe("document.duplicate_file");
+
+        // Someone who cannot see the original is not told it exists, and filing is not refused.
+        var (stranger, strangerId) = await factory.CreateUserAsync("dup.block.stranger");
+        var otherCategory = await admin.CreateCategoryAsync();
+        await admin.GrantAsync("Category", otherCategory, strangerId, "DOCUMENT_VIEW", inherit: true);
+        await admin.GrantAsync("Category", otherCategory, strangerId, "DOCUMENT_CREATE", inherit: true);
+        var hidden = await stranger.UploadAsync(bytes);
+        hidden.GetProperty("duplicates").GetArrayLength().ShouldBe(0);
+        var filed = await stranger.CreateDocumentRawAsync(
+            otherCategory,
+            hidden.GetProperty("uploadId").GetGuid(),
+            "نسخهٔ دیگر");
+        filed.StatusCode.ShouldBe(HttpStatusCode.Created, await filed.Content.ReadAsStringAsync());
+
+        // A removed document no longer occupies the file, so the same user can file it again.
+        (await owner.DeleteAsync($"/api/v1/documents/{documentId}?reason=replaced"))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        var restored = await owner.UploadAsync(bytes);
+        var refiled = await owner.CreateDocumentRawAsync(
+            categoryId,
+            restored.GetProperty("uploadId").GetGuid(),
+            "پس از حذف");
+        refiled.StatusCode.ShouldBe(HttpStatusCode.Created, await refiled.Content.ReadAsStringAsync());
+    }
 }
