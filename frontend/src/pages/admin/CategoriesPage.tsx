@@ -133,9 +133,11 @@ export function CategoriesPage() {
                       <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'edit', category })}>
                         {d.edit}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'move', category })}>
-                        {d.move}
-                      </Button>
+                      {!(category.parentId === null && category.code === 'ROOT') && (
+                        <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'move', category })}>
+                          {d.move}
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" onClick={() => setEditing({ kind: 'acl', category })}>
                         {d.permissionsTitle}
                       </Button>
@@ -309,6 +311,11 @@ function MoveDialog({ category, all, onClose }: { category: CategoryNode; all: C
               </option>
             ))}
         </Select>
+        {target === '' && (
+          <Alert severity="info" className="sm:col-span-2">
+            {d.moveRootHelp}
+          </Alert>
+        )}
         {error && (
           <Alert severity="error" className="sm:col-span-2">
             {error}

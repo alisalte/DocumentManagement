@@ -876,7 +876,7 @@ Every phase needs explicit approval before it starts.
   when ClamAV arrives in phase 5.
 - **Filesystem storage is the default provider** so the stack runs without MinIO. `S3FileStorage`
   is implemented behind the same `IFileStorage`; the bucket is not created automatically yet.
-- **One root category.** "No parent" means "under the root"; a unique index refuses a second root.
+- **One seeded root.** Creating a folder with no parent still places it under that root, so an ACL on it covers new folders. Moving a folder to «ریشه» lifts it to the top of the tree (no parent). The seeded root itself stays put.
 - **Owner defaults** (section 5.5) are the example set, VIEW, DOWNLOAD, EDIT and CREATE_VERSION,
   written as ordinary audited ACL rows by `IResourceAclWriter`. Phase 3 moves them onto the
   document type's permission policy.

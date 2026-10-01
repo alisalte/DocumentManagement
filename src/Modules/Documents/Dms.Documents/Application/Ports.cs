@@ -11,12 +11,14 @@ public interface ICategoryRepository
 {
     Task<Category?> FindAsync(CategoryId id, CancellationToken cancellationToken);
 
-    /// <summary>The single root seeded by the migrator. Everything else hangs below it.</summary>
+    /// <summary>The oldest root. A new folder with no parent is created under it.</summary>
     Task<Category?> FindRootAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Category>> ListAsync(CancellationToken cancellationToken);
 
     Task<Category?> FindSiblingByCodeAsync(CategoryId? parentId, string code, CancellationToken cancellationToken);
+
+    Task<Category?> FindSiblingByNameAsync(CategoryId? parentId, string name, CancellationToken cancellationToken);
 
     Task<bool> HasChildrenAsync(CategoryId id, CancellationToken cancellationToken);
 

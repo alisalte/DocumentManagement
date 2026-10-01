@@ -174,22 +174,48 @@ public sealed class MoveCategoryHandler(
             return Result.Failure(DocumentErrors.CategoryNotFound);
         }
 
-        if (category.ParentId is null)
+        // The seeded archive root stays put: an ACL on it is what covers folders created with
+        // no parent. Every other folder may be lifted to the top (no parent) or moved back down.
+        if (category.ParentId is null && category.CreatedBy is null)
         {
-            return Result.Failure(Error.Validation("category.root_fixed", "The root category cannot be moved."));
+            return Result.Failure(Error.Validation("category.root_fixed", "The archive root cannot be moved."));
         }
 
-        var newParent = command.NewParentId is { } parentId
-            ? await categories.FindAsync(new CategoryId(parentId), cancellationToken)
-            : await categories.FindRootAsync(cancellationToken);
-
-        if (newParent is null)
+        // No new parent means the top of the tree, not "under the seeded root". A folder that
+        // already sits directly under the archive root would otherwise appear not to move.
+        Category? newParent = null;
+        if (command.NewParentId is { } parentId)
         {
-            return Result.Failure(DocumentErrors.CategoryNotFound);
+            newParent = await categories.FindAsync(new CategoryId(parentId), cancellationToken);
+            if (newParent is null)
+            {
+                return Result.Failure(DocumentErrors.CategoryNotFound);
+            }
+        }
+
+        if (newParent?.Id == category.ParentId)
+        {
+            return Result.Success();
+        }
+
+        var codeTaken = await categories.FindSiblingByCodeAsync(newParent?.Id, category.Code, cancellationToken);
+        if (codeTaken is not null && codeTaken.Id != category.Id)
+        {
+            return Result.Failure(Error.Conflict(
+                "category.duplicate_code",
+                "A folder next to the destination already uses this code."));
+        }
+
+        var nameTaken = await categories.FindSiblingByNameAsync(newParent?.Id, category.Name, cancellationToken);
+        if (nameTaken is not null && nameTaken.Id != category.Id)
+        {
+            return Result.Failure(Error.Conflict(
+                "category.duplicate_name",
+                "A folder next to the destination already uses this name."));
         }
 
         // The whole subtree moves, so its deepest leaf has to fit under the new parent too.
-        var newDepth = newParent.Depth + 1;
+        var newDepth = newParent is null ? 0 : newParent.Depth + 1;
         if (newDepth + await categories.GetSubtreeHeightAsync(category, cancellationToken) > Category.MaxDepth)
         {
             return Result.Failure(Error.Validation(

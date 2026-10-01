@@ -164,6 +164,9 @@ export function describeError(error: unknown): string {
     const { status, code, message } = error as { status: number; code?: string; message: string };
     if (code === 'version.stale') return t.staleVersion;
     if (code === 'document.duplicate_file') return t.duplicateBlocked;
+    if (code === 'category.root_fixed') return 'پوشه‌ی ریشه‌ی سامانه جابه‌جا نمی‌شود.';
+    if (code === 'category.duplicate_code') return 'در مقصد پوشه‌ی دیگری با همین کد وجود دارد.';
+    if (code === 'category.duplicate_name') return 'در مقصد پوشه‌ی دیگری با همین نام وجود دارد.';
     const shareMessage = describeShareError(code);
     if (shareMessage) return shareMessage;
     if (status === 404) return t.notFound;

@@ -31,6 +31,14 @@ public sealed class CategoryRepository(DocumentsDbContext context) : ICategoryRe
             category => category.ParentId == parentId && category.Code == code,
             cancellationToken);
 
+    public Task<Category?> FindSiblingByNameAsync(
+        CategoryId? parentId,
+        string name,
+        CancellationToken cancellationToken) =>
+        context.Categories.FirstOrDefaultAsync(
+            category => category.ParentId == parentId && category.Name == name,
+            cancellationToken);
+
     public Task<bool> HasChildrenAsync(CategoryId id, CancellationToken cancellationToken) =>
         context.Categories.AnyAsync(category => category.ParentId == id, cancellationToken);
 
