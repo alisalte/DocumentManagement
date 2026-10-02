@@ -55,6 +55,7 @@ export function RecycleBinPage() {
                 categoryNameOf={(id) => categories.data?.find((category) => category.id === id)?.name}
                 dateOf={(item) => item.deletedAt ?? item.updatedAt}
                 dateLabel={t.deletedAt}
+                emptyHint="سندی در سطل بازیافت نیست."
                 renderAction={(item) => (
                   <Button size="sm" variant="ghost" onClick={() => restore(item.id)}>
                     {t.restore}

@@ -238,13 +238,16 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
         CancellationToken cancellationToken)
     {
         var total = await query.CountAsync(cancellationToken);
+        // IgnoreQueryFilters: Document's soft-delete filter otherwise hides versions of
+        // recycled documents through the required Document↔Version relationship, so the
+        // recycle bin would lose fileName / mimeType / size.
         var items = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(document => new
             {
                 Document = document,
-                Current = context.DocumentVersions
+                Current = context.DocumentVersions.IgnoreQueryFilters()
                     .Where(version => version.Id == document.CurrentVersionId)
                     .Select(version => new { version.VersionNumber, version.RevisionNumber, version.FileName, version.MimeType, version.FileSize })
                     .FirstOrDefault(),

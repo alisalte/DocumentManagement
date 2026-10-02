@@ -203,6 +203,10 @@ public sealed class DocumentApiTests(DmsApiFactory factory)
         var bin = await user.GetFromJsonAsync<JsonElement>("/api/v1/recycle-bin");
         var binned = bin.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("id").GetGuid() == documentId);
         binned.GetProperty("deleteReason").GetString().ShouldBe("duplicate");
+        binned.GetProperty("title").GetString().ShouldBe("برای حذف");
+        binned.GetProperty("fileName").ValueKind.ShouldNotBe(JsonValueKind.Null);
+        binned.GetProperty("fileName").GetString().ShouldNotBeNullOrWhiteSpace();
+        binned.GetProperty("mimeType").ValueKind.ShouldNotBe(JsonValueKind.Null);
 
         var restored = await user.PostAsync($"/api/v1/documents/{documentId}/restore", null);
         restored.StatusCode.ShouldBe(HttpStatusCode.NoContent);

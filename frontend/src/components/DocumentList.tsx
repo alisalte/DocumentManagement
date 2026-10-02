@@ -15,10 +15,12 @@ interface Props {
   renderAction?: (item: DocumentListItem) => ReactNode;
   dateOf?: (item: DocumentListItem) => string;
   dateLabel?: string;
+  /** Secondary empty-state line; defaults to the folder-browse copy. */
+  emptyHint?: string;
 }
 
 /**
- * One scannable row per document at any width: title first, folder + file details underneath,
+ * One scannable row per document at any width: title first, file name, then folder/size,
  * version, date and any per-row action on the trailing side. The whole row opens the document.
  */
 export function DocumentList({
@@ -28,6 +30,7 @@ export function DocumentList({
   renderAction,
   dateOf,
   dateLabel = t.updatedAt,
+  emptyHint,
 }: Props) {
   const dateFor = dateOf ?? ((item: DocumentListItem) => item.updatedAt);
 
@@ -35,7 +38,7 @@ export function DocumentList({
     return (
       <div className="px-4 py-14 text-center">
         <p className="text-sm font-medium text-paper-600">{t.noDocuments}</p>
-        <p className="mt-1 text-xs text-paper-400">هنوز سندی در این پوشه ثبت نشده است.</p>
+        <p className="mt-1 text-xs text-paper-400">{emptyHint ?? 'هنوز سندی در این پوشه ثبت نشده است.'}</p>
       </div>
     );
   }
@@ -44,7 +47,10 @@ export function DocumentList({
     <ul className="divide-y divide-paper-100">
       {items.map((item) => {
         const folder = categoryNameOf?.(item.categoryId)?.trim() || null;
-        const details = [item.fileName, formatBytes(item.fileSize)].filter(Boolean).join(' · ');
+        const fileLabel = item.fileName?.trim() || null;
+        const details = [folder ? `${t.category}: ${folder}` : null, formatBytes(item.fileSize), item.deleteReason ? `${t.deleteReason}: ${item.deleteReason}` : null]
+          .filter(Boolean)
+          .join(' · ');
 
         return (
           <li key={item.id}>
@@ -67,11 +73,14 @@ export function DocumentList({
                   }}
                   className="block w-full rounded text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-600"
                 >
-                  <span className="block truncate text-sm font-semibold text-ink-900">{item.title}</span>
+                  <span className="block break-words text-sm font-semibold text-ink-900">{item.title}</span>
                 </button>
-                <p className="mt-0.5 truncate text-xs text-paper-500">
-                  {[folder ? `${t.category}: ${folder}` : null, details].filter(Boolean).join(' · ')}
-                </p>
+                {fileLabel && (
+                  <p className="mt-0.5 break-all text-xs font-medium text-ink-700" dir="auto">
+                    {fileLabel}
+                  </p>
+                )}
+                {details && <p className="mt-0.5 break-words text-xs text-paper-500">{details}</p>}
               </div>
 
               {item.currentVersionLabel && (
