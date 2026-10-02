@@ -5,6 +5,7 @@ import { Link as RouterLink, useNavigate } from 'react-router';
 import { FileTypeBadge } from '../components/FileTypeBadge';
 import { FolderIcon } from '../components/FolderIcon';
 import { api, type CategoryNode, type DocumentListItem, type WorkflowTask } from '../lib/api';
+import { topLevelArchiveFolders } from '../lib/categories';
 import { formatDate, formatDateTime } from '../lib/dates';
 import { formatBytes, formatNumber, newIdempotencyKey } from '../lib/format';
 import { useSession } from '../session';
@@ -416,10 +417,8 @@ export function DashboardHome({
   demo?: boolean;
 }) {
   const { user } = useSession();
-  const roots = useMemo(
-    () => categories.filter((c) => c.parentId === null && c.canView).sort((a, b) => a.sortOrder - b.sortOrder),
-    [categories],
-  );
+  // Real folders sit under the fixed archive root («اسناد»), not at parentId null.
+  const roots = useMemo(() => topLevelArchiveFolders(categories), [categories]);
 
   const recent = useQuery({
     queryKey: ['dashboard-recent'],
@@ -567,7 +566,7 @@ export function DashboardHome({
         <Metric
           label="پوشه‌ها"
           value={formatNumber(folderTotal)}
-          hint={`${formatNumber(roots.length)} ریشه`}
+          hint={`${formatNumber(roots.length)} پوشهٔ اصلی`}
           accent="bg-copper-500"
           delay={80}
         />

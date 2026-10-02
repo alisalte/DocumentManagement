@@ -41,15 +41,16 @@ export function BrowsePage() {
   });
 
   const demoFolders: CategoryNode[] = [
-    { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-int', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
-    { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
-    { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
-    { id: 'd5', parentId: null, name: 'کمپین‌های بازاریابی', code: 'mk', description: null, depth: 0, isActive: true, sortOrder: 5, canView: true, canCreate: true },
-    { id: 'd6', parentId: null, name: 'طراحی‌های فیگما', code: 'fg', description: null, depth: 0, isActive: true, sortOrder: 6, canView: true, canCreate: true },
-    { id: 'd7', parentId: null, name: 'گزارش‌های فصلی', code: 'qr', description: null, depth: 0, isActive: true, sortOrder: 7, canView: true, canCreate: true },
-    { id: 'd8', parentId: null, name: 'قراردادها و حقوقی', code: 'lg', description: null, depth: 0, isActive: true, sortOrder: 8, canView: true, canCreate: true },
+    { id: 'root', parentId: null, name: 'اسناد', code: 'ROOT', description: 'ریشه‌ی بایگانی', depth: 0, isActive: true, sortOrder: 0, canView: true, canCreate: false },
+    { id: 'd1', parentId: 'root', name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-int', description: null, depth: 2, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd2', parentId: 'root', name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 1, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+    { id: 'd3', parentId: 'root', name: 'دارایی‌های برند', code: 'br', description: null, depth: 1, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+    { id: 'd4', parentId: 'root', name: 'مستندات محصول', code: 'pd', description: null, depth: 1, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+    { id: 'd5', parentId: 'root', name: 'کمپین‌های بازاریابی', code: 'mk', description: null, depth: 1, isActive: true, sortOrder: 5, canView: true, canCreate: true },
+    { id: 'd6', parentId: 'root', name: 'طراحی‌های فیگما', code: 'fg', description: null, depth: 1, isActive: true, sortOrder: 6, canView: true, canCreate: true },
+    { id: 'd7', parentId: 'root', name: 'گزارش‌های فصلی', code: 'qr', description: null, depth: 1, isActive: true, sortOrder: 7, canView: true, canCreate: true },
+    { id: 'd8', parentId: 'root', name: 'قراردادها و حقوقی', code: 'lg', description: null, depth: 1, isActive: true, sortOrder: 8, canView: true, canCreate: true },
   ];
   const demoDocs: DocumentListItem[] = [
     {
