@@ -12,6 +12,7 @@ export function RecycleBinPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
   const bin = useQuery({
     queryKey: ['recycle-bin', page],
     queryFn: () => api.recycleBin(page),
@@ -51,6 +52,7 @@ export function RecycleBinPage() {
             <div className="p-2 sm:p-0">
               <DocumentList
                 items={bin.data.items}
+                categoryNameOf={(id) => categories.data?.find((category) => category.id === id)?.name}
                 dateOf={(item) => item.deletedAt ?? item.updatedAt}
                 dateLabel={t.deletedAt}
                 renderAction={(item) => (

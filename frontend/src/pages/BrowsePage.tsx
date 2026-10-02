@@ -147,7 +147,11 @@ export function BrowsePage() {
               </div>
             ) : (
               documents.data && (
-                <DocumentList items={documents.data.items} onOpen={(item) => navigate(`/documents/${item.id}`)} />
+                <DocumentList
+                  items={documents.data.items}
+                  categoryNameOf={(id) => categories.data?.find((category) => category.id === id)?.name}
+                  onOpen={(item) => navigate(`/documents/${item.id}`)}
+                />
               )
             )}
           </div>
