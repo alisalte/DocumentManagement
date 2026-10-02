@@ -2,6 +2,7 @@ import { Alert, Button, Card, Chip, ProgressBar, cx } from '../components/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
+import { FileTypeBadge } from '../components/FileTypeBadge';
 import { FolderIcon } from '../components/FolderIcon';
 import { api, type CategoryNode, type DocumentListItem, type WorkflowTask } from '../lib/api';
 import { formatDate, formatDateTime } from '../lib/dates';
@@ -39,23 +40,6 @@ function countDescendants(categories: CategoryNode[], rootId: string): number {
     }
   }
   return n;
-}
-
-function fileTypeBadge(name: string | null | undefined) {
-  const ext = name?.split('.').pop()?.toLowerCase() ?? 'file';
-  const tone =
-    ext === 'pdf'
-      ? 'bg-rose-50 text-rose-700'
-      : ext === 'docx' || ext === 'doc'
-        ? 'bg-sky-50 text-sky-700'
-        : ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'webp'
-          ? 'bg-emerald-50 text-emerald-700'
-          : 'bg-amber-50 text-amber-800';
-  return (
-    <span className={cx('grid size-10 shrink-0 place-items-center rounded-xl text-[10px] font-bold uppercase', tone)}>
-      {ext.slice(0, 3)}
-    </span>
-  );
 }
 
 function Metric({
@@ -131,7 +115,17 @@ function FolderCard({
   );
 }
 
-function RecentDocs({ items, loading, error }: { items: DocumentListItem[]; loading: boolean; error: unknown }) {
+function RecentDocs({
+  items,
+  loading,
+  error,
+  categoryNameOf,
+}: {
+  items: DocumentListItem[];
+  loading: boolean;
+  error: unknown;
+  categoryNameOf?: (categoryId: string) => string | null | undefined;
+}) {
   const navigate = useNavigate();
 
   return (
@@ -159,29 +153,38 @@ function RecentDocs({ items, loading, error }: { items: DocumentListItem[]; load
         </div>
       ) : (
         <ul className="divide-y divide-paper-100">
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => navigate(`/documents/${item.id}`)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-ink-50/60 sm:px-5"
-              >
-                {fileTypeBadge(item.fileName)}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink-900">{item.title}</p>
-                  <p className="mt-0.5 truncate text-xs text-paper-500">
-                    {[item.fileName, formatBytes(item.fileSize)].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <div className="shrink-0 text-end">
-                  {item.currentVersionLabel && (
-                    <Chip size="small" variant="outlined" label={item.currentVersionLabel} dir="ltr" className="mb-1" />
-                  )}
-                  <p className="text-[11px] text-paper-500">{formatDateTime(item.updatedAt)}</p>
-                </div>
-              </button>
-            </li>
-          ))}
+          {items.map((item) => {
+            const folder = categoryNameOf?.(item.categoryId)?.trim() || null;
+            return (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/documents/${item.id}`)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-ink-50/60 sm:px-5"
+                >
+                  <FileTypeBadge fileName={item.fileName} mimeType={item.mimeType} className="size-10 rounded-xl" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-900">{item.title}</p>
+                    <p className="mt-0.5 truncate text-xs text-paper-500">
+                      {[
+                        folder ? `${t.category}: ${folder}` : null,
+                        item.fileName,
+                        formatBytes(item.fileSize),
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-end">
+                    {item.currentVersionLabel && (
+                      <Chip size="small" variant="outlined" label={item.currentVersionLabel} dir="ltr" className="mb-1" />
+                    )}
+                    <p className="text-[11px] text-paper-500">{formatDateTime(item.updatedAt)}</p>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
@@ -339,7 +342,7 @@ function UploadRail({
           <ul className="max-h-64 divide-y divide-paper-200 overflow-y-auto">
             {queue.map((item) => (
               <li key={item.id} className="flex items-start gap-3 px-4 py-3">
-                {fileTypeBadge(item.file.name)}
+                <FileTypeBadge fileName={item.file.name} mimeType={item.file.type} className="size-10 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-ink-900" dir="ltr">
                     {item.file.name}
@@ -588,7 +591,12 @@ export function DashboardHome({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
-          <RecentDocs items={recentItems} loading={!demo && recent.isLoading} error={!demo ? recent.error : null} />
+          <RecentDocs
+            items={recentItems}
+            loading={!demo && recent.isLoading}
+            error={!demo ? recent.error : null}
+            categoryNameOf={(id) => categories.find((category) => category.id === id)?.name}
+          />
 
           <section className="dashboard-stagger" style={{ animationDelay: '180ms' }}>
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

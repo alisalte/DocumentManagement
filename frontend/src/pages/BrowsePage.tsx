@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DocumentList } from '../components/DocumentList';
-import { api, type CategoryNode } from '../lib/api';
+import { api, type CategoryNode, type DocumentListItem } from '../lib/api';
 import { formatNumber } from '../lib/format';
 import { describeError, t } from '../strings';
 import { DashboardHome } from './DashboardHome';
@@ -31,22 +31,18 @@ export function BrowsePage() {
   }, [searchInput, params, setParams]);
 
   const search = params.get('q') ?? '';
-  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
+  const isDemo = import.meta.env.DEV && params.get('demo') === '1';
+  const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories, enabled: !isDemo });
   const documents = useQuery({
     queryKey: ['documents', categoryId, includeSubcategories, search, page],
     queryFn: () => api.documents({ categoryId, includeSubcategories, search, page, pageSize }),
     placeholderData: keepPreviousData,
-    enabled: !!(categoryId || search),
+    enabled: !isDemo && !!(categoryId || search),
   });
-
-  const category = categories.data?.find((item) => item.id === categoryId);
-  const heading = category?.name ?? t.allDocuments;
-  const pages = documents.data ? Math.max(1, Math.ceil(documents.data.total / pageSize)) : 1;
-  const filingTarget =
-    category?.canCreate ? category.id : categories.data?.find((item) => item.canCreate)?.id;
 
   const demoFolders: CategoryNode[] = [
     { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-int', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
     { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
     { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
     { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
@@ -55,9 +51,72 @@ export function BrowsePage() {
     { id: 'd7', parentId: null, name: 'گزارش‌های فصلی', code: 'qr', description: null, depth: 0, isActive: true, sortOrder: 7, canView: true, canCreate: true },
     { id: 'd8', parentId: null, name: 'قراردادها و حقوقی', code: 'lg', description: null, depth: 0, isActive: true, sortOrder: 8, canView: true, canCreate: true },
   ];
-  const isDemo = import.meta.env.DEV && params.get('demo') === '1';
+  const demoDocs: DocumentListItem[] = [
+    {
+      id: 'demo-1',
+      title: 'قرارداد خدمات ۱۴۰۴',
+      categoryId: 'd1a',
+      documentTypeId: 't',
+      ownerId: 'u',
+      currentVersionLabel: 'V1.2',
+      fileName: 'contract.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 240_000,
+      updatedAt: new Date().toISOString(),
+      deletedAt: null,
+      deleteReason: null,
+    },
+    {
+      id: 'demo-2',
+      title: 'گزارش فصلی فروش',
+      categoryId: 'd7',
+      documentTypeId: 't',
+      ownerId: 'u',
+      currentVersionLabel: 'V2.1',
+      fileName: 'report.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      fileSize: 88_000,
+      updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
+      deletedAt: null,
+      deleteReason: null,
+    },
+    {
+      id: 'demo-3',
+      title: 'اسلاید معرفی محصول',
+      categoryId: 'd4',
+      documentTypeId: 't',
+      ownerId: 'u',
+      currentVersionLabel: 'V1.0',
+      fileName: 'pitch.pptx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      fileSize: 1_500_000,
+      updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
+      deletedAt: null,
+      deleteReason: null,
+    },
+  ];
+
   const folderSource = categories.data?.length ? categories.data : isDemo ? demoFolders : undefined;
+  const category = folderSource?.find((item) => item.id === categoryId);
+  const heading = category?.name ?? t.allDocuments;
+  const listItems = isDemo
+    ? demoDocs.filter((item) => {
+        if (search && !item.title.includes(search) && !(item.fileName ?? '').includes(search)) return false;
+        if (!categoryId) return true;
+        if (!includeSubcategories) return item.categoryId === categoryId;
+        const allowed = new Set<string>([categoryId]);
+        for (const folder of folderSource ?? []) {
+          if (folder.parentId && allowed.has(folder.parentId)) allowed.add(folder.id);
+        }
+        return allowed.has(item.categoryId);
+      })
+    : (documents.data?.items ?? []);
+  const total = isDemo ? listItems.length : (documents.data?.total ?? 0);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const filingTarget =
+    category?.canCreate ? category.id : folderSource?.find((item) => item.canCreate)?.id;
   const showDashboard = !categoryId && !search && folderSource;
+  const categoryNameOf = (id: string) => folderSource?.find((folder) => folder.id === id)?.name;
 
   if (showDashboard) {
     return (
@@ -94,9 +153,7 @@ export function BrowsePage() {
           </button>
           <h1 className="text-2xl font-bold tracking-tight text-ink-900">
             {heading}
-            {documents.data && (
-              <span className="ms-2 text-sm font-normal text-paper-500">({formatNumber(documents.data.total)})</span>
-            )}
+            <span className="ms-2 text-sm font-normal text-paper-500">({formatNumber(total)})</span>
           </h1>
         </div>
         {filingTarget && (
@@ -129,8 +186,8 @@ export function BrowsePage() {
       </Card>
 
       <Card flush>
-        {documents.isFetching && <ProgressBar />}
-        {documents.isError ? (
+        {!isDemo && documents.isFetching && <ProgressBar />}
+        {!isDemo && documents.isError ? (
           <div className="p-3 sm:p-4">
             <Alert severity="error" action={<Button size="sm" onClick={() => documents.refetch()}>{t.retry}</Button>}>
               {describeError(documents.error)}
@@ -138,7 +195,7 @@ export function BrowsePage() {
           </div>
         ) : (
           <div className="p-2 sm:p-0">
-            {documents.data && documents.data.items.length === 0 ? (
+            {listItems.length === 0 ? (
               <div className="space-y-3 px-4 py-10 text-center">
                 <p className="text-sm text-paper-500">{t.noDocuments}</p>
                 <Button as={RouterLink} to="/help" variant="outline" size="sm">
@@ -146,9 +203,11 @@ export function BrowsePage() {
                 </Button>
               </div>
             ) : (
-              documents.data && (
-                <DocumentList items={documents.data.items} onOpen={(item) => navigate(`/documents/${item.id}`)} />
-              )
+              <DocumentList
+                items={listItems}
+                categoryNameOf={categoryNameOf}
+                onOpen={(item) => navigate(`/documents/${item.id}`)}
+              />
             )}
           </div>
         )}
