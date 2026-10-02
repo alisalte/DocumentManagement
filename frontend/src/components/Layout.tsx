@@ -360,11 +360,12 @@ export function Layout({ children }: { children: ReactNode }) {
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
   const isDemo = import.meta.env.DEV && searchParams.get('demo') === '1';
   const demoCategories: CategoryNode[] = [
-    { id: 'd1', parentId: null, name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 0, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd2', parentId: null, name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 0, isActive: true, sortOrder: 2, canView: true, canCreate: true },
-    { id: 'd3', parentId: null, name: 'دارایی‌های برند', code: 'br', description: null, depth: 0, isActive: true, sortOrder: 3, canView: true, canCreate: true },
-    { id: 'd4', parentId: null, name: 'مستندات محصول', code: 'pd', description: null, depth: 0, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+    { id: 'root', parentId: null, name: 'اسناد', code: 'ROOT', description: 'ریشه‌ی بایگانی', depth: 0, isActive: true, sortOrder: 0, canView: true, canCreate: false },
+    { id: 'd1', parentId: 'root', name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 2, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+    { id: 'd2', parentId: 'root', name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 1, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+    { id: 'd3', parentId: 'root', name: 'دارایی‌های برند', code: 'br', description: null, depth: 1, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+    { id: 'd4', parentId: 'root', name: 'مستندات محصول', code: 'pd', description: null, depth: 1, isActive: true, sortOrder: 4, canView: true, canCreate: true },
   ];
   const folderCategories =
     categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoCategories : [];
