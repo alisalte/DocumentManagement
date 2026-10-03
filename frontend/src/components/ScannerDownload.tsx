@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { downloadHostIsLocal, scannerDownloadUrl } from '../lib/apk-download';
 
-export function ScannerDownload() {
+export function ScannerDownload({ className = '' }: { className?: string }) {
   const origin = window.location.origin;
   const url = scannerDownloadUrl(origin);
   const local = downloadHostIsLocal(window.location.hostname);
@@ -19,7 +19,9 @@ export function ScannerDownload() {
   }, [url]);
 
   return (
-    <section className="mt-4 rounded-2xl border border-paper-200 bg-paper-50 p-4 text-center shadow-[0_8px_24px_rgb(31_22_56/0.08)]">
+    <section
+      className={`mt-4 rounded-2xl border border-paper-200 bg-paper-50 p-4 text-center shadow-[0_8px_24px_rgb(31_22_56/0.08)] ${className}`}
+    >
       <p className="text-sm font-semibold text-ink-900">دانلود اپ اسکنر</p>
       <p className="mt-1 text-xs leading-5 text-paper-500">با دوربین گوشی این کد را اسکن کنید تا برنامه دانلود شود.</p>
       {src && (
