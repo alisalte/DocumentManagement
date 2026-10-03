@@ -1,15 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Button } from 'react-native-paper';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { Text } from '../../src/components/AppText';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../src/components/Button';
+import { AuthField } from '../../src/components/AuthField';
 import { BrandMark } from '../../src/components/BrandMark';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
-import { Input } from '../../src/components/Input';
-import { useAuth } from '../../src/auth/AuthProvider';
-import { colors, space } from '../../src/theme';
+import { PaperBackground } from '../../src/components/PaperBackground';
+import { paperColors } from '../../src/theme/paper';
 import { ApiError, userMessage } from '../../src/utils/errors';
 import { loginSchema, type LoginValues } from '../../src/utils/validation';
 
@@ -35,77 +35,73 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <View style={styles.hero}>
-            <BrandMark />
-            <Text style={styles.title}>به اسکنر اسناد خوش آمدید</Text>
-            <Text style={styles.subtitle}>با همان حساب سامانهٔ بایگانی وارد شوید و سند را از گوشی ثبت کنید.</Text>
-          </View>
-          <View style={styles.form}>
-            <ErrorMessage message={error} />
-            <Controller
-              control={form.control}
-              name="username"
-              render={({ field, fieldState }) => (
-                <Input
-                  label="نام کاربری"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="username"
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="password"
-              render={({ field, fieldState }) => (
-                <Input
-                  label="رمز عبور"
-                  secureTextEntry
-                  textContentType="password"
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  error={fieldState.error?.message}
-                />
-              )}
-            />
-          </View>
-          <View style={styles.spacer} />
-          <Button label="ورود" onPress={form.handleSubmit(onSubmit)} loading={form.formState.isSubmitting} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <PaperBackground>
+      <BrandMark size={112} />
+      <Text style={styles.header}>خوش آمدید.</Text>
+      <View style={styles.full}>
+        <ErrorMessage message={error} />
+      </View>
+      <Controller
+        control={form.control}
+        name="username"
+        render={({ field, fieldState }) => (
+          <AuthField
+            label="نام کاربری"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="username"
+            returnKeyType="next"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+          />
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="password"
+        render={({ field, fieldState }) => (
+          <AuthField
+            label="رمز عبور"
+            secureTextEntry
+            textContentType="password"
+            returnKeyType="done"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+          />
+        )}
+      />
+      <Button
+        mode="contained"
+        buttonColor={paperColors.primary}
+        textColor="#ffffff"
+        style={styles.button}
+        contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
+        loading={form.formState.isSubmitting}
+        disabled={form.formState.isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      >
+        ورود
+      </Button>
+    </PaperBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  content: { flexGrow: 1, padding: space.lg, paddingBottom: space.xl },
-  hero: { alignItems: 'center', gap: space.sm, marginTop: space.lg },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.ink,
+  header: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: paperColors.primary,
     textAlign: 'center',
     writingDirection: 'rtl',
-    marginTop: space.md,
+    paddingVertical: 14,
   },
-  subtitle: {
-    color: colors.muted,
-    textAlign: 'center',
-    writingDirection: 'rtl',
-    fontSize: 16,
-    lineHeight: 26,
-    paddingHorizontal: space.sm,
-  },
-  form: { gap: space.md, marginTop: space.xl },
-  spacer: { flexGrow: 1, minHeight: space.lg },
+  button: { width: '100%', borderRadius: 4, marginTop: 12, marginBottom: 8 },
+  buttonContent: { height: 48 },
+  buttonLabel: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal' },
+  full: { width: '100%' },
 });

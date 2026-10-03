@@ -3,9 +3,11 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, View } from 'react-native';
+import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/auth/AuthProvider';
 import { vazirFontSources } from '../src/font-sources';
+import { paperTheme } from '../src/theme/paper';
 import { colors } from '../src/theme';
 
 const queryClient = new QueryClient({
@@ -23,14 +25,16 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <View style={styles.root}>
-            <StatusBar style="dark" />
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
-          </View>
-        </AuthProvider>
-      </QueryClientProvider>
+      <PaperProvider theme={paperTheme}>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <View style={styles.root}>
+              <StatusBar style="dark" />
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+            </View>
+          </AuthProvider>
+        </QueryClientProvider>
+      </PaperProvider>
     </SafeAreaProvider>
   );
 }
