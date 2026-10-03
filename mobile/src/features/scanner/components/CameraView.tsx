@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
+import { Text } from '../../../components/AppText';
 import { CameraView as ExpoCamera, useCameraPermissions } from 'expo-camera';
 import { BrandMark } from '../../../components/BrandMark';
 import { Button } from '../../../components/Button';

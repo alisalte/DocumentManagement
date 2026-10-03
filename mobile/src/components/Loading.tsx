@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { colors, space } from '../theme';
 
 export function Loading({ label = 'در حال بارگذاری...' }: { label?: string }) {

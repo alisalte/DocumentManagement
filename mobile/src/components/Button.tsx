@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './AppText';
 import { colors, radius, space } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';

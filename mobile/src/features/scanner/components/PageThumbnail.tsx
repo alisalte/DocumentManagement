@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../../../components/AppText';
 import { colors, radius, shadow, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
 import type { ScanPage } from '../scanner.types';

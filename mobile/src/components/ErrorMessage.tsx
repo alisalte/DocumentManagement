@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { colors, radius, space } from '../theme';
 
 export function ErrorMessage({ message }: { message?: string | null }) {
