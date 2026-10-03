@@ -214,6 +214,7 @@ archive login with the computer's LAN address (not `localhost`) and scan the QR 
 downloads `dms-scanner.apk`. After install, enter that same address in the app. Set
 `SCANNER_API_URL` in `.env` before the build to bake the address in, for example
 `http://192.168.1.10:8090/api/v1`. The first APK image build downloads the Android SDK.
+If `dl.google.com` answers 404, the same packages are fetched from a public mirror.
 
 Two things specific to this machine:
 

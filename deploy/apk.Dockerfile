@@ -1,14 +1,14 @@
 # Release APK for the phone scanner. The image build downloads the Android SDK, then a
 # tiny runtime stage copies the apk onto the shared volume nginx serves.
 #
-# Needs outbound access to dl.google.com, services.gradle.org, repo.maven.apache.org
-# and registry.npmjs.org. The first build is large.
+# SDK zips are taken from dl.google.com, then from mirrors.cloud.tencent.com when that
+# host answers 404. Gradle also tries the Aliyun Maven mirror before Google's Maven.
+# The first build is large (the NDK alone is about 700 MB).
 FROM eclipse-temurin:21-jdk-noble AS build
 
 ARG EXPO_PUBLIC_API_URL=
 ARG EXPO_PUBLIC_ALLOW_HTTP_API=1
 ARG NODE_VERSION=22.20.0
-ARG ANDROID_CMDLINE_TOOLS=13114758
 
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL \
     EXPO_PUBLIC_ALLOW_HTTP_API=$EXPO_PUBLIC_ALLOW_HTTP_API \
@@ -44,20 +44,46 @@ RUN set -eu; \
 RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
     | tar -xz -C /usr/local --strip-components=1
 
-RUN mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" \
- && curl -fsSL -o /tmp/cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS}_latest.zip" \
- && unzip -q /tmp/cmdtools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
- && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
- && rm /tmp/cmdtools.zip
-ENV PATH="${PATH}:${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin:${ANDROID_SDK_ROOT}/platform-tools"
-
-RUN yes | sdkmanager --licenses >/dev/null \
- && sdkmanager --install \
-      "platforms;android-36" \
-      "build-tools;36.0.0" \
-      "platform-tools" \
-      "ndk;27.1.12297006" \
-      "cmake;3.22.1"
+# sdkmanager always downloads from dl.google.com, which returns 404 on some networks.
+# Fetch the same packages directly and fall through to a mirror.
+ENV PATH="${PATH}:${ANDROID_SDK_ROOT}/platform-tools"
+RUN set -eu; \
+    fetch() { \
+      name="$1"; dest="$2"; \
+      for base in https://dl.google.com/android/repository https://mirrors.cloud.tencent.com/AndroidSDK; do \
+        echo "sdk: ${base}/${name}"; \
+        if curl -fL --retry 2 --retry-delay 2 --connect-timeout 20 -o "$dest" "${base}/${name}"; then \
+          return 0; \
+        fi; \
+        echo "sdk: failed ${base}/${name}"; \
+        rm -f "$dest"; \
+      done; \
+      return 1; \
+    }; \
+    mkdir -p "${ANDROID_SDK_ROOT}/platforms" "${ANDROID_SDK_ROOT}/build-tools" "${ANDROID_SDK_ROOT}/ndk" "${ANDROID_SDK_ROOT}/licenses"; \
+    fetch platform-36_r02.zip /tmp/platform.zip; \
+    unzip -q /tmp/platform.zip -d "${ANDROID_SDK_ROOT}/platforms"; \
+    rm /tmp/platform.zip; \
+    fetch build-tools_r36_linux.zip /tmp/build-tools.zip; \
+    unzip -q /tmp/build-tools.zip -d /tmp/build-tools; \
+    mv "$(find /tmp/build-tools -mindepth 1 -maxdepth 1 -type d)" "${ANDROID_SDK_ROOT}/build-tools/36.0.0"; \
+    grep -q '36.0.0' "${ANDROID_SDK_ROOT}/build-tools/36.0.0/source.properties"; \
+    rm -rf /tmp/build-tools /tmp/build-tools.zip; \
+    fetch cmake-3.22.1-linux.zip /tmp/cmake.zip; \
+    mkdir -p "${ANDROID_SDK_ROOT}/cmake/3.22.1"; \
+    unzip -q /tmp/cmake.zip -d "${ANDROID_SDK_ROOT}/cmake/3.22.1"; \
+    printf 'Pkg.Revision=3.22.1\n' > "${ANDROID_SDK_ROOT}/cmake/3.22.1/source.properties"; \
+    rm /tmp/cmake.zip; \
+    fetch platform-tools_r37.0.1-linux.zip /tmp/platform-tools.zip; \
+    unzip -q /tmp/platform-tools.zip -d "${ANDROID_SDK_ROOT}"; \
+    rm /tmp/platform-tools.zip; \
+    fetch android-ndk-r27b-linux.zip /tmp/ndk.zip; \
+    unzip -q /tmp/ndk.zip -d /tmp/ndk; \
+    mv "$(find /tmp/ndk -mindepth 1 -maxdepth 1 -type d)" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006"; \
+    test -f "${ANDROID_SDK_ROOT}/ndk/27.1.12297006/source.properties"; \
+    rm -rf /tmp/ndk /tmp/ndk.zip; \
+    printf '%s\n' 24333f8a63b6825ea9c5514f83c2829b004d1fee d56f5187479451eabf01fb78af6dfcb131a6481e \
+      > "${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
 
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -65,6 +91,10 @@ RUN npm ci --no-audit --no-fund
 
 COPY . .
 RUN npx expo prebuild --platform android --no-install --clean \
+ && find android -name '*.gradle' -print0 | xargs -0 sed -i \
+      -e "s|google()|maven { url 'https://maven.aliyun.com/repository/google' }; maven { url 'https://maven.aliyun.com/repository/public' }; google()|g" \
+      -e "s|mavenCentral()|maven { url 'https://maven.aliyun.com/repository/public' }; mavenCentral()|g" \
+      -e "s|gradlePluginPortal()|maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }; gradlePluginPortal()|g" \
  && cd android \
  && chmod +x ./gradlew \
  && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a \
