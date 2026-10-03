@@ -1,11 +1,14 @@
 import { http, withApi } from './client';
+import { toQuery } from './query';
 import type {
   CategoryNode,
   CreateDocumentBody,
   CreatedVersion,
   DocumentDetails,
+  DocumentListItem,
   DocumentType,
   DocumentTypeSchema,
+  Paged,
 } from '../types/document';
 
 export function listCategories(): Promise<CategoryNode[]> {
@@ -18,6 +21,16 @@ export function listDocumentTypes(): Promise<DocumentType[]> {
 
 export function getSchema(documentTypeId: string): Promise<DocumentTypeSchema> {
   return withApi(async () => (await http.get<DocumentTypeSchema>(`/document-types/${documentTypeId}/schema`)).data);
+}
+
+export function listDocuments(params: {
+  categoryId?: string | null;
+  includeSubcategories?: boolean;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<Paged<DocumentListItem>> {
+  return withApi(async () => (await http.get<Paged<DocumentListItem>>(`/documents${toQuery({ ...params })}`)).data);
 }
 
 export function getDocument(id: string): Promise<DocumentDetails> {
