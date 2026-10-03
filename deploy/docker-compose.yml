@@ -1,5 +1,5 @@
-# The whole stack: PostgreSQL, the migrator (one shot), the API, the background worker and the
-# web app. Processing services are opt-in through compose profiles, because their images are
+# The whole stack: PostgreSQL, the migrator (one shot), the API, the background worker, the
+# web app and the scanner web app. Processing services are opt-in through compose profiles, because their images are
 # large and not every machine can pull them:
 #
 #   search  OpenSearch and Tika (with Tesseract fas+eng): full-text search and OCR
@@ -192,6 +192,23 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8090}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # The phone scanner as a web app on http://localhost:${SCANNER_PORT:-8091}. Same pattern as
+  # `web`: nginx serves the Expo export and proxies /api, so the bundle's /api/v1 is same-origin.
+  # The camera works in a browser on localhost. A phone on the LAN still needs HTTPS, or Expo Go.
+  scanner:
+    build:
+      context: ../mobile
+      dockerfile: ../deploy/scanner.Dockerfile
+      additional_contexts:
+        nginxconf: ./nginx
+    image: dms-scanner:latest
+    restart: unless-stopped
+    ports:
+      - "${SCANNER_PORT:-8091}:8080"
     depends_on:
       api:
         condition: service_healthy
