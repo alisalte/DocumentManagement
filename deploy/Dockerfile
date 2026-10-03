@@ -19,12 +19,40 @@ WORKDIR /app
 # PDFium ships inside the PDFtoImage package. Npgsql probes for the Kerberos library at startup
 # and logs an error without it, although GSS is never used.
 # Tesseract fas+eng + poppler: local OCR when Tika is not configured (worker role).
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
+# archive.ubuntu.com on port 80 often resets (the "Connection failed [IP: … 80]" build error).
+# Rewrite the Ubuntu sources to HTTPS and, unless APT_MIRROR is set, try the next mirror.
+ARG APT_MIRROR=
+RUN set -eu; \
+    printf 'Acquire::Retries "1";\nAcquire::http::Timeout "20";\nAcquire::https::Timeout "20";\n' > /etc/apt/apt.conf.d/80-retries; \
+    if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then \
+      src=/etc/apt/sources.list.d/ubuntu.sources; \
+    else \
+      src=/etc/apt/sources.list; \
+    fi; \
+    cp "$src" /tmp/apt-sources.orig; \
+    if [ -n "$APT_MIRROR" ]; then \
+      mirrors="$APT_MIRROR"; \
+    else \
+      mirrors="https://archive.ubuntu.com/ubuntu https://mirror.arvancloud.ir/ubuntu https://mirrors.edge.kernel.org/ubuntu"; \
+    fi; \
+    ok=0; \
+    for mirror in $mirrors; do \
+      sed \
+        -e "s|http://archive.ubuntu.com/ubuntu|${mirror}|g" \
+        -e "s|http://security.ubuntu.com/ubuntu|${mirror}|g" \
+        -e "s|https://archive.ubuntu.com/ubuntu|${mirror}|g" \
+        -e "s|https://security.ubuntu.com/ubuntu|${mirror}|g" \
+        /tmp/apt-sources.orig > "$src"; \
+      echo "apt: trying ${mirror}"; \
+      if apt-get update; then ok=1; break; fi; \
+      echo "apt: ${mirror} failed"; \
+    done; \
+    test "$ok" = 1; \
+    apt-get install -y --no-install-recommends \
       libfontconfig1 fonts-dejavu-core libgssapi-krb5-2 \
       tesseract-ocr tesseract-ocr-fas tesseract-ocr-eng \
       poppler-utils \
- && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /tmp/apt-sources.orig
 
 # Never run as root. The object directory is created here, owned by dms, so a fresh named volume
 # mounted on it inherits that ownership.
