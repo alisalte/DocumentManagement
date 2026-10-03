@@ -8,8 +8,8 @@ export interface PdfIo {
 
 const defaultIo: PdfIo = {
   async readBase64(uri) {
-    const { File } = await import('expo-file-system');
-    return new File(uri).base64();
+    const FileSystem = await import('expo-file-system/legacy');
+    return FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
   },
   async printHtml(html) {
     const Print = await import('expo-print');

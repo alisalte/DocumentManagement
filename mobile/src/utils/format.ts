@@ -5,5 +5,8 @@ export function faDigits(value: string | number): string {
 }
 
 export function newIdempotencyKey(): string {
-  return crypto.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `idemp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
