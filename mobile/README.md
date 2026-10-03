@@ -69,15 +69,16 @@ npx expo start --ios
 
 ## اجرا با بقیهٔ سامانه در داکر
 
-همان `docker compose` که وب و API را بالا می‌آورد، اسکنر را هم می‌سازد و روی پورت `8091` سرو می‌کند. nginx داخل کانتینر `/api` را به API می‌فرستد، پس آدرس API در بیلد همان `/api/v1` است و CORS لازم نیست.
+همان `docker compose` که وب و API را بالا می‌آورد، اسکنر وب را هم می‌سازد و روی پورت `8091` سرو می‌کند. nginx داخل کانتینر `/api` را به API می‌فرستد، پس آدرس API در بیلد همان `/api/v1` است و CORS لازم نیست. ساخت APK اندروید پیش‌فرض نیست؛ فقط وقتی لازم است:
 
 ```bash
 cp deploy/.env.example deploy/.env
 cd deploy && docker compose up -d --build
+docker compose --profile apk build apk
+docker compose --profile apk run --rm apk
 ```
 
-بعد از بالا آمدن: بایگانی روی http://localhost:8090 و اسکنر روی http://localhost:8091. پورت را با `SCANNER_PORT` در `deploy/.env` عوض کنید.
-
+بعد از بالا آمدن: بایگانی روی http://localhost:8090 و اسکنر روی http://localhost:8091. پورت را با `SCANNER_PORT` در `deploy/.env` عوض کنید. APK از QR صفحهٔ ورود در پورت ۸۰۹۰ دانلود می‌شود.
 ## ساخت با EAS
 
 `eas.json` سه پروفایل دارد: `development`، `preview`، `production`. این مخزن چیزی را منتشر نمی‌کند و به فروشگاه نمی‌فرستد.

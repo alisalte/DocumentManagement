@@ -5,9 +5,11 @@
 #   search  OpenSearch and Tika (with Tesseract fas+eng): full-text search and OCR
 #   scan    ClamAV: malware scanning (decision D9)
 #   office  Gotenberg: previews of Word, Excel and PowerPoint files
+#   apk     Android scanner APK (slow: downloads the Android SDK on first build)
 #
-# Enable them with COMPOSE_PROFILES=search,scan,office in .env. Without them documents still file,
-# download and preview (PDF and images); search falls back to titles.
+# Enable them with COMPOSE_PROFILES=search,scan,office,apk in .env. Without them documents still file,
+# download and preview (PDF and images); search falls back to titles. The login QR for the APK
+# only works after you build with the apk profile once.
 #
 # Ports deliberately avoid the ranges used by the unrelated fleetvision stack on this machine
 # (5432, 6379, 3000-3013, 8080-8082, 9092): PostgreSQL is published on 5433 and the API on 5080.
@@ -185,8 +187,11 @@ services:
     command: ["gotenberg", "--chromium-deny-list=.*", "--api-timeout=120s"]
 
   # Builds the Android scanner and copies the apk onto a volume the web app serves.
-  # The first build downloads the Android SDK and is much slower than the other images.
+  # Opt-in: the first build downloads the Android SDK and is much slower than the other images.
+  #   docker compose --profile apk build apk
+  #   docker compose --profile apk run --rm apk
   apk:
+    profiles: ["apk"]
     build:
       context: ../mobile
       dockerfile: ../deploy/apk.Dockerfile
@@ -199,7 +204,8 @@ services:
     restart: "no"
 
   # The web app on http://localhost:${WEB_PORT:-8090}. nginx serves the built frontend and proxies
-  # /api to the API, so the browser sees one origin. /downloads/dms-scanner.apk is the phone build.
+  # /api to the API, so the browser sees one origin. /downloads/dms-scanner.apk is the phone build
+  # when the apk profile has been run at least once.
   web:
     build:
       context: ../frontend
@@ -215,8 +221,6 @@ services:
     depends_on:
       api:
         condition: service_healthy
-      apk:
-        condition: service_completed_successfully
 
   # The phone scanner as a web app on http://localhost:${SCANNER_PORT:-8091}. Same pattern as
   # `web`: nginx serves the Expo export and proxies /api, so the bundle's /api/v1 is same-origin.
