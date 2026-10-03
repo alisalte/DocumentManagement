@@ -69,16 +69,27 @@ npx expo start --ios
 
 ## اجرا با بقیهٔ سامانه در داکر
 
-همان `docker compose` که وب و API را بالا می‌آورد، اسکنر وب را هم می‌سازد و روی پورت `8091` سرو می‌کند. nginx داخل کانتینر `/api` را به API می‌فرستد، پس آدرس API در بیلد همان `/api/v1` است و CORS لازم نیست. ساخت APK اندروید پیش‌فرض نیست؛ فقط وقتی لازم است:
+همان `docker compose` که وب و API را بالا می‌آورد، برای کار روزمرهٔ بایگانی کافی است و موبایل را
+نمی‌سازد. اسکنر وب (`scanner`) و APK اندروید (`apk`) پروفایل اختیاری‌اند چون بیلدشان کند است
+(`npm` / Expo و SDK اندروید). nginx داخل کانتینر اسکنر `/api` را به API می‌فرستد، پس آدرس API در
+بیلد همان `/api/v1` است و CORS لازم نیست.
 
 ```bash
 cp deploy/.env.example deploy/.env
-cd deploy && docker compose up -d --build
+cd deploy
+docker compose up -d --build
+
+# فقط وقتی اسکنر وب لازم است (:8091)
+docker compose --profile scanner up -d --build scanner
+
+# فقط وقتی APK لازم است
 docker compose --profile apk build apk
 docker compose --profile apk run --rm apk
 ```
 
-بعد از بالا آمدن: بایگانی روی http://localhost:8090 و اسکنر روی http://localhost:8091. پورت را با `SCANNER_PORT` در `deploy/.env` عوض کنید. APK از QR صفحهٔ ورود در پورت ۸۰۹۰ دانلود می‌شود.
+بعد از بالا آمدن: بایگانی روی http://localhost:8090. با پروفایل `scanner`، اسکنر روی
+http://localhost:8091. پورت را با `SCANNER_PORT` در `deploy/.env` عوض کنید. APK از QR صفحهٔ ورود
+در پورت ۸۰۹۰ دانلود می‌شود.
 ## ساخت با EAS
 
 `eas.json` سه پروفایل دارد: `development`، `preview`، `production`. این مخزن چیزی را منتشر نمی‌کند و به فروشگاه نمی‌فرستد.

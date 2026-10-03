@@ -1,15 +1,18 @@
-# The whole stack: PostgreSQL, the migrator (one shot), the API, the background worker, the
-# web app and the scanner web app. Processing services are opt-in through compose profiles, because their images are
-# large and not every machine can pull them:
+# The whole stack: PostgreSQL, the migrator (one shot), the API, the background worker and the
+# web archive. Mobile-related images are opt-in through compose profiles — they are slow to build
+# (npm/Expo export, and the Android SDK for the APK) and are not needed for everyday archive use:
 #
-#   search  OpenSearch and Tika (with Tesseract fas+eng): full-text search and OCR
-#   scan    ClamAV: malware scanning (decision D9)
-#   office  Gotenberg: previews of Word, Excel and PowerPoint files
-#   apk     Android scanner APK (slow: downloads the Android SDK on first build)
+#   search    OpenSearch and Tika (with Tesseract fas+eng): full-text search and OCR
+#   scan      ClamAV: malware scanning (decision D9)
+#   office    Gotenberg: previews of Word, Excel and PowerPoint files
+#   scanner   phone scanner as a web app on :8091 (Expo export)
+#   apk       Android scanner APK (slow: downloads the Android SDK on first build)
+#   mobile    convenience profile: both `scanner` and `apk`
 #
-# Enable them with COMPOSE_PROFILES=search,scan,office,apk in .env. Without them documents still file,
-# download and preview (PDF and images); search falls back to titles. The login QR for the APK
-# only works after you build with the apk profile once.
+# Enable them with COMPOSE_PROFILES=search,scan,office in .env. A plain `docker compose up --build`
+# only builds postgres/migrator/api/worker/web. Build mobile pieces only when you need them:
+#   docker compose --profile scanner up -d --build scanner
+#   docker compose --profile apk build apk && docker compose --profile apk run --rm apk
 #
 # Ports deliberately avoid the ranges used by the unrelated fleetvision stack on this machine
 # (5432, 6379, 3000-3013, 8080-8082, 9092): PostgreSQL is published on 5433 and the API on 5080.
@@ -191,7 +194,7 @@ services:
   #   docker compose --profile apk build apk
   #   docker compose --profile apk run --rm apk
   apk:
-    profiles: ["apk"]
+    profiles: ["apk", "mobile"]
     build:
       context: ../mobile
       dockerfile: ../deploy/apk.Dockerfile
@@ -224,8 +227,11 @@ services:
 
   # The phone scanner as a web app on http://localhost:${SCANNER_PORT:-8091}. Same pattern as
   # `web`: nginx serves the Expo export and proxies /api, so the bundle's /api/v1 is same-origin.
+  # Opt-in: `npm ci` + `expo export` make this image slow; skip it for everyday archive work.
+  #   docker compose --profile scanner up -d --build scanner
   # The camera works in a browser on localhost. A phone on the LAN still needs HTTPS, or Expo Go.
   scanner:
+    profiles: ["scanner", "mobile"]
     build:
       context: ../mobile
       dockerfile: ../deploy/scanner.Dockerfile
