@@ -184,8 +184,22 @@ services:
     # Converts only what we send it; no outbound fetching of remote URLs.
     command: ["gotenberg", "--chromium-deny-list=.*", "--api-timeout=120s"]
 
+  # Builds the Android scanner and copies the apk onto a volume the web app serves.
+  # The first build downloads the Android SDK and is much slower than the other images.
+  apk:
+    build:
+      context: ../mobile
+      dockerfile: ../deploy/apk.Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: ${SCANNER_API_URL:-}
+        EXPO_PUBLIC_ALLOW_HTTP_API: ${SCANNER_ALLOW_HTTP:-1}
+    image: dms-scanner-apk:latest
+    volumes:
+      - scanner-apk:/apk
+    restart: "no"
+
   # The web app on http://localhost:${WEB_PORT:-8090}. nginx serves the built frontend and proxies
-  # /api to the API, so the browser sees one origin.
+  # /api to the API, so the browser sees one origin. /downloads/dms-scanner.apk is the phone build.
   web:
     build:
       context: ../frontend
@@ -196,9 +210,13 @@ services:
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-8090}:8080"
+    volumes:
+      - scanner-apk:/usr/share/nginx/html/downloads:ro
     depends_on:
       api:
         condition: service_healthy
+      apk:
+        condition: service_completed_successfully
 
   # The phone scanner as a web app on http://localhost:${SCANNER_PORT:-8091}. Same pattern as
   # `web`: nginx serves the Expo export and proxies /api, so the bundle's /api/v1 is same-origin.
@@ -222,3 +240,4 @@ volumes:
   object-data:
   search-data:
   clamav-data:
+  scanner-apk:

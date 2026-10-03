@@ -15,4 +15,8 @@ describe('resolveApiUrl', () => {
   it('allows http while developing', () => {
     expect(resolveApiUrl('http://10.0.2.2:5080/api/v1', false)).toBe('http://10.0.2.2:5080/api/v1');
   });
+
+  it('allows a deliberate http API in a sideloaded release build', () => {
+    expect(resolveApiUrl('http://192.168.1.10:8090/api/v1', true, true)).toBe('http://192.168.1.10:8090/api/v1');
+  });
 });

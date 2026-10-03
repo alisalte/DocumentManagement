@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Button } from 'react-native-paper';
 import { useAuth } from '../../src/auth/AuthProvider';
 import { Text } from '../../src/components/AppText';
@@ -9,13 +9,15 @@ import { AuthField } from '../../src/components/AuthField';
 import { BrandMark } from '../../src/components/BrandMark';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { PaperBackground } from '../../src/components/PaperBackground';
+import { currentApiUrl, saveServerUrl } from '../../src/config/server-url-store';
 import { paperColors } from '../../src/theme/paper';
-import { ApiError, userMessage } from '../../src/utils/errors';
+import { userMessage } from '../../src/utils/errors';
 import { loginSchema, type LoginValues } from '../../src/utils/validation';
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [server, setServer] = useState(() => (Platform.OS === 'web' ? '' : currentApiUrl()));
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: '', password: '' },
@@ -24,10 +26,11 @@ export default function LoginScreen() {
   async function onSubmit(values: LoginValues) {
     setError(null);
     try {
+      if (Platform.OS !== 'web') await saveServerUrl(server);
       await login(values.username, values.password);
     } catch (caught) {
-      if (caught instanceof ApiError && caught.code === 'auth.account_locked') {
-        setError(userMessage(caught));
+      if (caught instanceof Error && /server url/.test(caught.message)) {
+        setError('آدرس سرور معتبر نیست. همان آدرس صفحه ورود را وارد کنید، مثل http://192.168.1.10:8090');
         return;
       }
       setError(userMessage(caught));
@@ -41,6 +44,19 @@ export default function LoginScreen() {
       <View style={styles.full}>
         <ErrorMessage message={error} />
       </View>
+      {Platform.OS !== 'web' && (
+        <AuthField
+          label="آدرس سرور"
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+          textContentType="URL"
+          returnKeyType="next"
+          value={server}
+          onChangeText={setServer}
+          onBlur={() => undefined}
+        />
+      )}
       <Controller
         control={form.control}
         name="username"
