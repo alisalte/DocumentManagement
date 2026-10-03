@@ -195,8 +195,8 @@ This builds the images and starts the stack, plus the optional processing servic
 | `dms-migrator-1` | applies migrations and seeds, then exits | — |
 | `dms-api-1` | API | `localhost:5080` |
 | `dms-worker-1` | background jobs: scan, previews, OCR, indexing | — |
-| `dms-web-1` | nginx: the web app, proxying `/api` to the API, and the scanner APK | **http://localhost:8090** |
-| `dms-apk-1` | builds the Android scanner, copies the APK, then exits | — |
+| `dms-web-1` | nginx: the web app, proxying `/api` to the API, and the scanner APK when built | **http://localhost:8090** |
+| `dms-apk-1` | profile `apk`: builds the Android scanner, copies the APK, then exits | — |
 | `dms-scanner-1` | nginx: the phone scanner in the browser, also proxying `/api` | **http://localhost:8091** |
 | `opensearch`, `tika` | profile `search`: full-text search and OCR | — |
 | `clamav` | profile `scan`: malware scanning | — |
@@ -204,17 +204,23 @@ This builds the images and starts the stack, plus the optional processing servic
 
 Enable the profiles with `COMPOSE_PROFILES=search,scan,office` in `.env` and set the matching
 `DMS_OPENSEARCH_URL`, `DMS_TIKA_URL`, `DMS_GOTENBERG_URL` and `DMS_SCAN_ENABLED` (see
-`.env.example`).
+`.env.example`). The Android APK is **not** built with a normal `docker compose up`; add `apk`
+to `COMPOSE_PROFILES`, or run it once when you need the phone install:
+
+```bash
+docker compose --profile apk build apk
+docker compose --profile apk run --rm apk
+```
 
 Open **http://localhost:8090** for the archive and **http://localhost:8091** for the scanner.
 Sign in as `DMS_ADMIN_USERNAME` / `DMS_ADMIN_PASSWORD`. Each site talks to one origin, so no CORS
 setup is needed; nginx streams uploads to the API without buffering them. Files live on the
-`object-data` volume. The scanner camera works in the browser on localhost. From a phone, open the
-archive login with the computer's LAN address (not `localhost`) and scan the QR code. That
-downloads `dms-scanner.apk`. After install, enter that same address in the app. Set
-`SCANNER_API_URL` in `.env` before the build to bake the address in, for example
-`http://192.168.1.10:8090/api/v1`. The first APK image build downloads the Android SDK.
-If `dl.google.com` answers 404, the same packages are fetched from a public mirror.
+`object-data` volume. The scanner camera works in the browser on localhost. From a phone, after
+the APK profile has been built, open the archive login with the computer's LAN address (not
+`localhost`) and scan the QR code. That downloads `dms-scanner.apk`. After install, enter that
+same address in the app. Set `SCANNER_API_URL` in `.env` before the APK build to bake the address
+in, for example `http://192.168.1.10:8090/api/v1`. The first APK image build downloads the Android
+SDK. If `dl.google.com` answers 404, the same packages are fetched from a public mirror.
 
 Two things specific to this machine:
 
