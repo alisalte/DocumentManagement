@@ -182,7 +182,7 @@ cd deploy && docker compose up -d --build
 `openssl rand -base64 64`. `DMS_AUDIT_SEAL_KEY` (`openssl rand -base64 32`) is optional but
 recommended; keep it out of the database backups.
 
-This builds the images and starts five containers, plus the optional processing services:
+This builds the images and starts the stack, plus the optional processing services:
 
 | Container | What | Where |
 |---|---|---|
@@ -191,6 +191,7 @@ This builds the images and starts five containers, plus the optional processing 
 | `dms-api-1` | API | `localhost:5080` |
 | `dms-worker-1` | background jobs: scan, previews, OCR, indexing | — |
 | `dms-web-1` | nginx: the web app, proxying `/api` to the API | **http://localhost:8090** |
+| `dms-scanner-1` | nginx: the phone scanner in the browser, also proxying `/api` | **http://localhost:8091** |
 | `opensearch`, `tika` | profile `search`: full-text search and OCR | — |
 | `clamav` | profile `scan`: malware scanning | — |
 | `gotenberg` | profile `office`: previews of Office files | — |
@@ -199,9 +200,12 @@ Enable the profiles with `COMPOSE_PROFILES=search,scan,office` in `.env` and set
 `DMS_OPENSEARCH_URL`, `DMS_TIKA_URL`, `DMS_GOTENBERG_URL` and `DMS_SCAN_ENABLED` (see
 `.env.example`).
 
-Open **http://localhost:8090** and sign in as `DMS_ADMIN_USERNAME` / `DMS_ADMIN_PASSWORD`. The
-browser talks to one origin, so no CORS setup is needed; nginx streams uploads to the API without
-buffering them. Files live on the `object-data` volume.
+Open **http://localhost:8090** for the archive and **http://localhost:8091** for the scanner.
+Sign in as `DMS_ADMIN_USERNAME` / `DMS_ADMIN_PASSWORD`. Each site talks to one origin, so no CORS
+setup is needed; nginx streams uploads to the API without buffering them. Files live on the
+`object-data` volume. The scanner camera works in the browser on localhost. From a phone on the
+network, use Expo Go against the API instead: plain HTTP on a LAN address is not a secure context,
+so the browser will not open the camera.
 
 Two things specific to this machine:
 

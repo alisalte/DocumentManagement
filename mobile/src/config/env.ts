@@ -1,5 +1,3 @@
-const raw = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/$/, '') ?? '';
-
 /** Test runs are not production builds, even when `__DEV__` is unset. */
 export function isProductionBuild(): boolean {
   if (process.env.NODE_ENV === 'test') return false;
@@ -13,14 +11,23 @@ export function isDevLogEnabled(): boolean {
 
 /**
  * API origin including `/api/v1`. Empty when unset so the UI can explain it
- * instead of calling a guessed host. Production builds refuse plain HTTP.
+ * instead of calling a guessed host.
+ *
+ * A path such as `/api/v1` is the Docker/nginx setup: the page and the API share
+ * one origin, so the bundle does not bake a host. Any other production URL must
+ * be HTTPS.
  */
-export function resolveApiUrl(): string {
-  if (!raw) return '';
-  if (isProductionBuild() && !raw.startsWith('https://')) {
+export function resolveApiUrl(
+  value = process.env.EXPO_PUBLIC_API_URL,
+  production = isProductionBuild(),
+): string {
+  const url = value?.trim().replace(/\/$/, '') ?? '';
+  if (!url) return '';
+  if (url.startsWith('/')) return url;
+  if (production && !url.startsWith('https://')) {
     throw new Error('EXPO_PUBLIC_API_URL must use HTTPS in production.');
   }
-  return raw;
+  return url;
 }
 
 export const env = {
