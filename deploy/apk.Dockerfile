@@ -132,11 +132,16 @@ RUN npm ci --no-audit --no-fund
 COPY . .
 RUN npx expo prebuild --platform android --no-install --clean \
  && sed -i '/foojay-resolver-convention/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts \
- && find android node_modules/@react-native/gradle-plugin \( -name '*.gradle' -o -name '*.gradle.kts' \) -print0 \
+ && find android node_modules/@react-native/gradle-plugin -name '*.gradle' -print0 \
     | xargs -0 sed -i \
       -e "s|google()|maven { url 'https://maven.aliyun.com/repository/google' }; maven { url 'https://maven.aliyun.com/repository/public' }; google()|g" \
       -e "s|mavenCentral()|maven { url 'https://maven.aliyun.com/repository/public' }; mavenCentral()|g" \
       -e "s|gradlePluginPortal()|maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }; gradlePluginPortal()|g" \
+ && find node_modules/@react-native/gradle-plugin -name '*.gradle.kts' -print0 \
+    | xargs -0 sed -i \
+      -e 's|google()|maven { url = uri("https://maven.aliyun.com/repository/google") }; maven { url = uri("https://maven.aliyun.com/repository/public") }; google()|g' \
+      -e 's|mavenCentral()|maven { url = uri("https://maven.aliyun.com/repository/public") }; mavenCentral()|g' \
+      -e 's|gradlePluginPortal()|maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }; gradlePluginPortal()|g' \
  && cd android \
  && chmod +x ./gradlew \
  && ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a \
