@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import type { AuthTokens, StoredSession } from '../types/auth';
 
 const options: SecureStore.SecureStoreOptions = {
@@ -19,15 +20,36 @@ export interface TokenStorage {
   clear(): Promise<void>;
 }
 
+function browserStorage(): Storage | null {
+  if (typeof localStorage === 'undefined') return null;
+  return localStorage;
+}
+
 async function put(key: string, value: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    browserStorage()?.setItem(key, value);
+    return;
+  }
   await SecureStore.setItemAsync(key, value, options);
 }
 
+async function readKey(key: string): Promise<string | null> {
+  if (Platform.OS === 'web') return browserStorage()?.getItem(key) ?? null;
+  return SecureStore.getItemAsync(key, options);
+}
+
 async function remove(key: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    browserStorage()?.removeItem(key);
+    return;
+  }
   await SecureStore.deleteItemAsync(key, options);
 }
 
-/** Tokens live in SecureStore. Passwords are never written. */
+/**
+ * Tokens live in SecureStore on a device. The web build has no keychain, so it
+ * uses localStorage. Passwords are never written.
+ */
 export const secureTokenStorage: TokenStorage = {
   async save(tokens) {
     await Promise.all([
@@ -41,11 +63,11 @@ export const secureTokenStorage: TokenStorage = {
 
   async read() {
     const [accessToken, accessTokenExpiresAt, refreshToken, refreshTokenExpiresAt, userJson] = await Promise.all([
-      SecureStore.getItemAsync(keys.accessToken, options),
-      SecureStore.getItemAsync(keys.accessTokenExpiresAt, options),
-      SecureStore.getItemAsync(keys.refreshToken, options),
-      SecureStore.getItemAsync(keys.refreshTokenExpiresAt, options),
-      SecureStore.getItemAsync(keys.user, options),
+      readKey(keys.accessToken),
+      readKey(keys.accessTokenExpiresAt),
+      readKey(keys.refreshToken),
+      readKey(keys.refreshTokenExpiresAt),
+      readKey(keys.user),
     ]);
 
     if (!refreshToken || !accessToken || !accessTokenExpiresAt || !refreshTokenExpiresAt || !userJson) {
