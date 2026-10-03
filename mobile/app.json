@@ -41,6 +41,7 @@
           "barcodeScannerEnabled": false
         }
       ],
+      "expo-file-system",
       [
         "expo-image-picker",
         {

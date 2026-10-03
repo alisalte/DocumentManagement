@@ -12,12 +12,13 @@ interface Props {
   pageCount: number;
   onCapture: (photo: { uri: string; width: number; height: number }) => Promise<void> | void;
   onImport: () => void;
+  onSystemCamera?: () => void;
   onFinish: () => void;
 }
 
-export function CameraView({ pageCount, onCapture, onImport, onFinish }: Props) {
+export function CameraView({ pageCount, onCapture, onImport, onSystemCamera, onFinish }: Props) {
   const camera = useRef<ExpoCamera>(null);
-  const ready = useRef(false);
+  const [ready, setReady] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,19 +45,40 @@ export function CameraView({ pageCount, onCapture, onImport, onFinish }: Props) 
     );
   }
 
+  async function takePhoto() {
+    const view = camera.current;
+    if (!view) throw new Error('camera_missing');
+
+    try {
+      return await view.takePictureAsync({ quality: 0.7, shutterSound: false });
+    } catch {
+      // Some Android devices fail while re-encoding the frame; raw capture still works.
+      return await view.takePictureAsync({ skipProcessing: true, shutterSound: false });
+    }
+  }
+
   async function capture() {
-    if (!ready.current || !camera.current || busy) return;
+    if (busy) return;
+    if (!ready || !camera.current) {
+      setError('دوربین هنوز آماده نیست. یک لحظه صبر کنید و دوباره بزنید.');
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
-      const photo = await camera.current.takePictureAsync({ quality: 0.7 });
+      const photo = await takePhoto();
       if (!photo?.uri) {
-        setError('عکس ذخیره نشد. دوباره تلاش کنید.');
+        setError('عکس ذخیره نشد. دوباره تلاش کنید یا از گالری انتخاب کنید.');
         return;
       }
-      await onCapture({ uri: photo.uri, width: photo.width, height: photo.height });
+      await onCapture({
+        uri: photo.uri,
+        width: photo.width || 0,
+        height: photo.height || 0,
+      });
     } catch {
-      setError('گرفتن عکس ناموفق بود. دوباره تلاش کنید.');
+      setError('گرفتن عکس ناموفق بود. از «دوربین گوشی» یا گالری استفاده کنید.');
     } finally {
       setBusy(false);
     }
@@ -69,18 +91,28 @@ export function CameraView({ pageCount, onCapture, onImport, onFinish }: Props) 
         style={styles.camera}
         facing="back"
         mode="picture"
-        onCameraReady={() => {
-          ready.current = true;
+        onCameraReady={() => setReady(true)}
+        onMountError={() => {
+          setReady(false);
+          setError('دوربین باز نشد. از «دوربین گوشی» یا گالری استفاده کنید.');
         }}
       />
       <View style={styles.bar}>
         <Text style={styles.count}>{pageCount === 0 ? 'هنوز صفحه‌ای گرفته نشده' : `${faDigits(pageCount)} صفحه`}</Text>
         <ErrorMessage message={error} />
-        <Button label={busy ? 'در حال گرفتن عکس...' : 'گرفتن عکس'} onPress={() => void capture()} loading={busy} />
+        <Button
+          label={busy ? 'در حال گرفتن عکس...' : ready ? 'گرفتن عکس' : 'آماده‌سازی دوربین...'}
+          onPress={() => void capture()}
+          loading={busy}
+          disabled={!ready || busy}
+        />
         <View style={styles.row}>
           <Button label="از گالری" variant="secondary" onPress={onImport} style={styles.flex} disabled={busy} />
-          <Button label="پایان اسکن" variant="secondary" onPress={onFinish} style={styles.flex} disabled={busy || pageCount === 0} />
+          {onSystemCamera ? (
+            <Button label="دوربین گوشی" variant="secondary" onPress={onSystemCamera} style={styles.flex} disabled={busy} />
+          ) : null}
         </View>
+        <Button label="پایان اسکن" variant="secondary" onPress={onFinish} disabled={busy || pageCount === 0} />
       </View>
     </View>
   );
