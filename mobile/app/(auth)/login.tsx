@@ -1,13 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button } from '../../src/components/Button';
-import { ErrorMessage } from '../../src/components/ErrorMessage';
-import { Input } from '../../src/components/Input';
+import { StyleSheet, View } from 'react-native';
+import { Button } from 'react-native-paper';
 import { useAuth } from '../../src/auth/AuthProvider';
-import { colors, space } from '../../src/theme';
+import { Text } from '../../src/components/AppText';
+import { AuthField } from '../../src/components/AuthField';
+import { BrandMark } from '../../src/components/BrandMark';
+import { ErrorMessage } from '../../src/components/ErrorMessage';
+import { PaperBackground } from '../../src/components/PaperBackground';
+import { paperColors } from '../../src/theme/paper';
 import { ApiError, userMessage } from '../../src/utils/errors';
 import { loginSchema, type LoginValues } from '../../src/utils/validation';
 
@@ -33,54 +35,73 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Text style={styles.title}>اسکنر اسناد</Text>
-          <Text style={styles.subtitle}>با همان حساب سامانهٔ بایگانی وارد شوید.</Text>
-          <ErrorMessage message={error} />
-          <Controller
-            control={form.control}
-            name="username"
-            render={({ field, fieldState }) => (
-              <Input
-                label="نام کاربری"
-                autoCapitalize="none"
-                autoCorrect={false}
-                textContentType="username"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-              />
-            )}
+    <PaperBackground>
+      <BrandMark size={112} />
+      <Text style={styles.header}>خوش آمدید.</Text>
+      <View style={styles.full}>
+        <ErrorMessage message={error} />
+      </View>
+      <Controller
+        control={form.control}
+        name="username"
+        render={({ field, fieldState }) => (
+          <AuthField
+            label="نام کاربری"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="username"
+            returnKeyType="next"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
           />
-          <Controller
-            control={form.control}
-            name="password"
-            render={({ field, fieldState }) => (
-              <Input
-                label="رمز عبور"
-                secureTextEntry
-                textContentType="password"
-                value={field.value}
-                onChangeText={field.onChange}
-                onBlur={field.onBlur}
-                error={fieldState.error?.message}
-              />
-            )}
+        )}
+      />
+      <Controller
+        control={form.control}
+        name="password"
+        render={({ field, fieldState }) => (
+          <AuthField
+            label="رمز عبور"
+            secureTextEntry
+            textContentType="password"
+            returnKeyType="done"
+            value={field.value}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
           />
-          <Button label="ورود" onPress={form.handleSubmit(onSubmit)} loading={form.formState.isSubmitting} />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        )}
+      />
+      <Button
+        mode="contained"
+        buttonColor={paperColors.primary}
+        textColor="#ffffff"
+        style={styles.button}
+        contentStyle={styles.buttonContent}
+        labelStyle={styles.buttonLabel}
+        loading={form.formState.isSubmitting}
+        disabled={form.formState.isSubmitting}
+        onPress={form.handleSubmit(onSubmit)}
+      >
+        ورود
+      </Button>
+    </PaperBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  content: { padding: space.lg, gap: space.md, justifyContent: 'center', flexGrow: 1 },
-  title: { fontSize: 28, fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
-  subtitle: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginBottom: space.sm },
+  header: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: paperColors.primary,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    paddingVertical: 14,
+  },
+  button: { width: '100%', borderRadius: 4, marginTop: 12, marginBottom: 8 },
+  buttonContent: { height: 48 },
+  buttonLabel: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal' },
+  full: { width: '100%' },
 });

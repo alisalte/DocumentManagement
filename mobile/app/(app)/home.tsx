@@ -1,27 +1,29 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, View } from 'react-native';
 import { useAuth } from '../../src/auth/AuthProvider';
+import { Text } from '../../src/components/AppText';
+import { BrandMark } from '../../src/components/BrandMark';
 import { Button } from '../../src/components/Button';
-import { colors, space } from '../../src/theme';
+import { PaperBackground } from '../../src/components/PaperBackground';
+import { colors } from '../../src/theme';
 
 export default function HomeScreen() {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const name = user?.displayName || user?.username || '';
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.content}>
-        <Text style={styles.kicker}>بایگانی اسناد</Text>
-        <Text style={styles.title}>اسکنر اسناد</Text>
-        <Text style={styles.user}>{user?.displayName || user?.username}</Text>
-        {user?.username ? <Text style={styles.username}>{user.username}</Text> : null}
+    <PaperBackground>
+      <BrandMark size={112} />
+      <Text style={styles.header}>{name ? `سلام، ${name}` : 'اسکنر اسناد'}</Text>
+      <Text style={styles.paragraph}>برگه‌ها را اسکن کنید و همان‌جا در بایگانی ثبت کنید.</Text>
+      <View style={styles.actions}>
         <Button label="اسکن سند" onPress={() => router.push('/(app)/scan')} />
         <Button
-          label="خروج"
-          variant="ghost"
+          label={leaving ? 'در حال خروج...' : 'خروج'}
+          variant="secondary"
           loading={leaving}
           onPress={() => {
             setLeaving(true);
@@ -29,15 +31,26 @@ export default function HomeScreen() {
           }}
         />
       </View>
-    </SafeAreaView>
+    </PaperBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1, justifyContent: 'center', padding: space.lg, gap: space.md },
-  kicker: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl' },
-  title: { fontSize: 32, fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
-  user: { fontSize: 18, color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
-  username: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginBottom: space.lg },
+  header: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.accent,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    paddingVertical: 12,
+  },
+  paragraph: {
+    color: colors.ink,
+    fontSize: 16,
+    lineHeight: 26,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginBottom: 8,
+  },
+  actions: { width: '100%', gap: 4, marginTop: 8 },
 });

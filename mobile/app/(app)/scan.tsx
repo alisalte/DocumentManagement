@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
+import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
 import { CameraView } from '../../src/features/scanner/components/CameraView';
 import { persistPage } from '../../src/features/scanner/persist-page';
 import { useScanSession } from '../../src/features/scanner/ScanSessionProvider';
-import { colors, space } from '../../src/theme';
+import { space } from '../../src/theme';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function ScanScreen() {
   }
 
   return (
+    <DottedFill>
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <PageHeader title="اسکن سند" onBack={() => router.back()} />
       {error ? (
@@ -54,10 +56,11 @@ export default function ScanScreen() {
         onFinish={() => router.push('/(app)/preview')}
       />
     </SafeAreaView>
+    </DottedFill>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   error: { paddingHorizontal: space.md },
 });

@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, space } from '../theme';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Button as PaperButton } from 'react-native-paper';
+import { paperColors } from '../theme/paper';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -13,47 +14,27 @@ interface Props {
 }
 
 export function Button({ label, onPress, variant = 'primary', disabled, loading, style }: Props) {
-  const blocked = disabled || loading;
+  const mode = variant === 'secondary' ? 'outlined' : variant === 'ghost' ? 'text' : 'contained';
+  const filled = variant === 'primary' || variant === 'danger';
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: blocked, busy: loading }}
-      disabled={blocked}
+    <PaperButton
+      mode={mode}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        pressed && !blocked ? styles.pressed : null,
-        blocked ? styles.disabled : null,
-        style,
-      ]}
+      disabled={disabled || loading}
+      loading={loading}
+      buttonColor={variant === 'danger' ? paperColors.error : variant === 'primary' ? paperColors.primary : undefined}
+      textColor={filled ? '#ffffff' : paperColors.primary}
+      style={[styles.button, style]}
+      contentStyle={styles.content}
+      labelStyle={styles.label}
     >
-      {loading ? <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? '#fff' : colors.ink} /> : null}
-      <Text style={[styles.label, variant === 'primary' || variant === 'danger' ? styles.labelOnFill : styles.labelOnSurface]}>
-        {label}
-      </Text>
-    </Pressable>
+      {label}
+    </PaperButton>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    minHeight: 48,
-    borderRadius: 12,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: space.xs,
-  },
-  primary: { backgroundColor: colors.accent },
-  secondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  danger: { backgroundColor: colors.danger },
-  ghost: { backgroundColor: 'transparent' },
-  pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.5 },
-  label: { fontSize: 16, fontWeight: '600', writingDirection: 'rtl' },
-  labelOnFill: { color: '#fff' },
-  labelOnSurface: { color: colors.ink },
+  button: { alignSelf: 'stretch', borderRadius: 4 },
+  content: { minHeight: 48 },
+  label: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal', writingDirection: 'rtl' },
 });

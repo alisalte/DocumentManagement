@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './AppText';
 import { colors, space } from '../theme';
 
 interface Props {
@@ -12,8 +13,8 @@ export function PageHeader({ title, onBack, actionLabel, onAction }: Props) {
   return (
     <View style={styles.row}>
       {onBack ? (
-        <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8} style={styles.side}>
-          <Text style={styles.back}>بازگشت</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="بازگشت" onPress={onBack} hitSlop={10} style={styles.side}>
+          <Text style={styles.back}>→</Text>
         </Pressable>
       ) : (
         <View style={styles.side} />
@@ -38,17 +39,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.sm,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
+    paddingVertical: space.md,
   },
-  side: { minWidth: 64 },
+  side: { minWidth: 48, alignItems: 'center' },
   title: {
     flex: 1,
     textAlign: 'center',
-    color: colors.ink,
+    color: colors.accent,
     fontSize: 18,
     fontWeight: '700',
     writingDirection: 'rtl',
   },
-  back: { color: colors.accent, fontSize: 15, writingDirection: 'rtl', textAlign: 'right' },
-  action: { color: colors.accent, fontSize: 15, writingDirection: 'rtl', textAlign: 'left' },
+  back: { color: colors.ink, fontSize: 26, lineHeight: 28 },
+  action: { color: colors.accent, fontSize: 15, fontWeight: '700', writingDirection: 'rtl', textAlign: 'left' },
 });

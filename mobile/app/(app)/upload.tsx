@@ -3,20 +3,23 @@ import { useQuery } from '@tanstack/react-query';
 import { Redirect, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '../../src/components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createDocument, getSchema, listCategories, listDocumentTypes } from '../../src/api/documents.api';
 import { uploadPdf } from '../../src/api/uploads.api';
 import { Button } from '../../src/components/Button';
+import { Card } from '../../src/components/Card';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { Input } from '../../src/components/Input';
 import { Loading } from '../../src/components/Loading';
+import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
 import { fileScan, type FilingPhase } from '../../src/features/scanner/filing';
 import { metadataErrors, requiredFields, toMetadata, unsupportedRequiredFields } from '../../src/features/scanner/metadata';
 import { createPdfFromPages } from '../../src/features/scanner/pdf.service';
 import { useScanSession } from '../../src/features/scanner/ScanSessionProvider';
-import { colors, space } from '../../src/theme';
+import { colors, radius, space } from '../../src/theme';
 import type { FieldSchema, UploadResult } from '../../src/types/document';
 import { faDigits, newIdempotencyKey } from '../../src/utils/format';
 import { userMessage } from '../../src/utils/errors';
@@ -149,11 +152,15 @@ export default function UploadScreen() {
   const showProgress = running || phase !== null || error !== null;
 
   return (
+    <DottedFill>
     <SafeAreaView style={styles.safe}>
       <PageHeader title="ثبت سند" onBack={running ? undefined : () => router.back()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {showProgress ? (
-          <View style={styles.card}>
+          <Card>
+            <View style={styles.track}>
+              <View style={[styles.trackFill, { width: `${trackPercent(phase, progress)}%` }]} />
+            </View>
             {steps.map((step) => (
               <Text key={step.id} style={[styles.step, phase === step.id ? styles.stepActive : null]}>
                 {step.label}
@@ -163,7 +170,7 @@ export default function UploadScreen() {
             <ErrorMessage message={error} />
             {error ? <Button label="تلاش دوباره" onPress={form.handleSubmit(submit)} loading={running} /> : null}
             {running ? <Loading label={steps.find((step) => step.id === phase)?.label ?? 'در حال انجام...'} /> : null}
-          </View>
+          </Card>
         ) : null}
 
         {!running ? (
@@ -172,14 +179,14 @@ export default function UploadScreen() {
             <ErrorMessage message={types.error ? userMessage(types.error) : null} />
             <ErrorMessage message={schema.error ? userMessage(schema.error) : null} />
             {duplicates.length > 0 ? (
-              <View style={styles.card}>
+              <Card>
                 <Text style={styles.blockTitle}>این فایل قبلاً ثبت شده است</Text>
                 {duplicates.map((item) => (
                   <Text key={item.documentId} style={styles.blockText}>
                     {item.title}
                   </Text>
                 ))}
-              </View>
+              </Card>
             ) : null}
             <Controller
               control={form.control}
@@ -257,15 +264,23 @@ export default function UploadScreen() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
+    </DottedFill>
   );
 }
 
 function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={[styles.choice, selected ? styles.choiceOn : null]}>
-      <Text style={styles.choiceText}>{label}</Text>
+      <Text style={[styles.choiceText, selected ? styles.choiceTextOn : null]}>{label}</Text>
     </Pressable>
   );
+}
+
+function trackPercent(phase: FilingPhase | null, progress: number): number {
+  if (phase === 'pdf') return 18;
+  if (phase === 'upload') return Math.max(18, Math.min(90, Math.round(progress * 100)));
+  if (phase === 'create') return 100;
+  return progress > 0 ? Math.round(progress * 100) : 8;
 }
 
 function MetadataField({
@@ -316,18 +331,27 @@ function MetadataField({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   content: { padding: space.md, gap: space.md, paddingBottom: space.xl },
   form: { gap: space.sm },
-  card: { backgroundColor: colors.card, borderRadius: 12, padding: space.md, gap: space.sm, borderWidth: 1, borderColor: colors.line },
+  track: { height: 8, borderRadius: radius.pill, backgroundColor: colors.line, overflow: 'hidden' },
+  trackFill: { height: '100%', borderRadius: radius.pill, backgroundColor: colors.accent },
   step: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl' },
   stepActive: { color: colors.ink, fontWeight: '700' },
-  section: { color: colors.ink, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl', marginTop: space.sm },
-  choice: { borderWidth: 1, borderColor: colors.line, borderRadius: 12, padding: space.md, backgroundColor: colors.card },
-  choiceOn: { borderColor: colors.accent, backgroundColor: colors.successSoft },
-  choiceText: { color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  section: { color: colors.ink, fontSize: 16, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl', marginTop: space.sm },
+  choice: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: space.md,
+    backgroundColor: colors.card,
+  },
+  choiceOn: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
+  choiceText: { color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 15 },
+  choiceTextOn: { color: colors.accent, fontWeight: '700' },
   fieldError: { color: colors.danger, textAlign: 'right', writingDirection: 'rtl' },
-  blockTitle: { color: colors.ink, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  blockTitle: { color: colors.ink, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   blockText: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl' },
   field: { gap: space.xs },
   row: { flexDirection: 'row', gap: space.sm },
