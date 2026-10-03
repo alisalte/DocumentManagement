@@ -85,19 +85,61 @@ RUN set -eu; \
     printf '%s\n' 24333f8a63b6825ea9c5514f83c2829b004d1fee d56f5187479451eabf01fb78af6dfcb131a6481e \
       > "${ANDROID_SDK_ROOT}/licenses/android-sdk-license"
 
+# The React Native Gradle plugin compiles with jvmToolchain(17). On JDK 21 it
+# downloads a JDK from api.foojay.io, which is what stalls and then fails the build.
+# CMake 3.30.5 is the version that plugin expects; 3.22.1 alone makes it call sdkmanager.
+RUN set -eu; \
+    apt-get update \
+ && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
+ && rm -rf /var/lib/apt/lists/* \
+ && arch="$(dpkg --print-architecture)" \
+ && ln -sfn "/usr/lib/jvm/java-17-openjdk-${arch}" /usr/lib/jvm/java-17; \
+    fetch() { \
+      name="$1"; dest="$2"; \
+      for base in https://dl.google.com/android/repository https://mirrors.cloud.tencent.com/AndroidSDK; do \
+        echo "sdk: ${base}/${name}"; \
+        if curl -fL --retry 2 --retry-delay 2 --connect-timeout 20 -o "$dest" "${base}/${name}"; then \
+          return 0; \
+        fi; \
+        echo "sdk: failed ${base}/${name}"; \
+        rm -f "$dest"; \
+      done; \
+      return 1; \
+    }; \
+    ver=3.30.5; \
+    fetch "cmake-${ver}-linux.zip" /tmp/cmake.zip; \
+    mkdir -p "${ANDROID_SDK_ROOT}/cmake/${ver}"; \
+    unzip -q /tmp/cmake.zip -d "${ANDROID_SDK_ROOT}/cmake/${ver}"; \
+    chmod -R a+rx "${ANDROID_SDK_ROOT}/cmake/${ver}/bin" "${ANDROID_SDK_ROOT}/ndk/27.1.12297006" "${ANDROID_SDK_ROOT}/build-tools/36.0.0" "${ANDROID_SDK_ROOT}/platform-tools"; \
+    printf 'Pkg.Revision=%s\nPkg.Path=cmake;%s\nPkg.Desc=CMake %s\n' "$ver" "$ver" "$ver" \
+      > "${ANDROID_SDK_ROOT}/cmake/${ver}/source.properties"; \
+    rm /tmp/cmake.zip
+ENV JAVA_HOME=/usr/lib/jvm/java-17 \
+    PATH="/usr/lib/jvm/java-17/bin:${PATH}"
+
+# Do not let Gradle spend a quarter hour downloading a JDK that is already installed.
+RUN mkdir -p /root/.gradle \
+ && printf '%s\n' \
+      'org.gradle.java.installations.auto-download=false' \
+      'systemProp.org.gradle.internal.http.connectionTimeout=20000' \
+      'systemProp.org.gradle.internal.http.socketTimeout=60000' \
+      > /root/.gradle/gradle.properties
+
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
 RUN npx expo prebuild --platform android --no-install --clean \
- && find android -name '*.gradle' -print0 | xargs -0 sed -i \
+ && sed -i '/foojay-resolver-convention/d' node_modules/@react-native/gradle-plugin/settings.gradle.kts \
+ && find android node_modules/@react-native/gradle-plugin \( -name '*.gradle' -o -name '*.gradle.kts' \) -print0 \
+    | xargs -0 sed -i \
       -e "s|google()|maven { url 'https://maven.aliyun.com/repository/google' }; maven { url 'https://maven.aliyun.com/repository/public' }; google()|g" \
       -e "s|mavenCentral()|maven { url 'https://maven.aliyun.com/repository/public' }; mavenCentral()|g" \
       -e "s|gradlePluginPortal()|maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }; gradlePluginPortal()|g" \
  && cd android \
  && chmod +x ./gradlew \
- && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a \
+ && ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,armeabi-v7a \
  && mkdir -p /dist \
  && cp app/build/outputs/apk/release/app-release.apk /dist/dms-scanner.apk
 
