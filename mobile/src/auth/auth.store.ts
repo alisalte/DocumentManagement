@@ -24,6 +24,8 @@ export interface AuthController {
   restoreSession(): Promise<void>;
   refreshSession(): Promise<boolean>;
   clearLocal(): Promise<void>;
+  /** Dev-only: signed-in UI without talking to the API. */
+  enterDemo(user?: AuthenticatedUser): void;
 }
 
 const skewMs = 30_000;
@@ -130,5 +132,19 @@ export function createAuthController(deps: {
     },
     refreshSession,
     clearLocal,
+    enterDemo(user) {
+      accessToken = null;
+      emit({
+        user: user ?? {
+          id: 'demo',
+          username: 'demo',
+          displayName: 'کاربر نمونه',
+          isSystemAdmin: false,
+          mustChangePassword: false,
+        },
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    },
   };
 }

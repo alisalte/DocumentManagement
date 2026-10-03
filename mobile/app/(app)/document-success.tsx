@@ -60,11 +60,11 @@ export default function DocumentSuccessScreen() {
           }}
         />
         <Button
-          label="بازگشت به خانه"
+          label="بازگشت به بایگانی"
           variant="ghost"
           onPress={() => {
             session.reset();
-            router.replace('/(app)/home');
+            router.replace('/(app)/(tabs)');
           }}
         />
       </View>

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import * as authApi from '../api/auth.api';
 import { bindSession } from '../api/client';
+import { isDemoPreview } from '../config/demo';
 import { secureTokenStorage } from '../storage/secure-storage';
 import { createAuthController, type AuthController, type AuthState } from './auth.store';
 
@@ -31,6 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
 
   useEffect(() => {
+    if (isDemoPreview()) {
+      controller.enterDemo();
+      return;
+    }
     void controller.restoreSession().catch(() => controller.clearLocal());
   }, [controller]);
 
