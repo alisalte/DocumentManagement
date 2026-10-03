@@ -46,6 +46,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
     image: dms-backend:latest
     working_dir: /app/migrator
     entrypoint: ["dotnet", "/app/migrator/Dms.Migrator.dll"]
@@ -69,6 +71,8 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
+      args:
+        APT_MIRROR: ${APT_MIRROR:-}
     image: dms-backend:latest
     restart: unless-stopped
     environment: &backend-environment

@@ -182,6 +182,11 @@ cd deploy && docker compose up -d --build
 `openssl rand -base64 64`. `DMS_AUDIT_SEAL_KEY` (`openssl rand -base64 32`) is optional but
 recommended; keep it out of the database backups.
 
+If the image build stops on `Failed to fetch http://archive.ubuntu.com/ubuntu/... Connection failed`,
+port 80 to the Ubuntu archive is blocked. The Dockerfile retries over HTTPS and two public mirrors.
+To force one mirror, set `APT_MIRROR` in `deploy/.env` (for example
+`https://mirror.arvancloud.ir/ubuntu`) and run `docker compose build` again.
+
 This builds the images and starts the stack, plus the optional processing services:
 
 | Container | What | Where |
