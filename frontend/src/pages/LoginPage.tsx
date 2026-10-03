@@ -25,8 +25,8 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <aside className="relative hidden overflow-hidden text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+    <div className="grid min-h-screen lg:h-screen lg:grid-cols-2 lg:overflow-hidden">
+      <aside className="relative hidden h-full overflow-hidden text-white lg:flex">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden
@@ -36,24 +36,28 @@ export function LoginPage() {
           }}
         />
 
-        <div className="relative">
-          <div className="mb-10 inline-flex items-center gap-3">
-            <span className="grid size-12 place-items-center rounded-2xl bg-white/15 text-xl font-bold shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
-              F
-            </span>
-            <span className="text-sm font-medium tracking-[0.2em] text-white/70 uppercase">Fillo</span>
+        <div className="relative flex h-full w-full flex-col justify-between gap-8 overflow-y-auto p-12 xl:p-16">
+          <div>
+            <div className="mb-10 inline-flex items-center gap-3">
+              <span className="grid size-12 place-items-center rounded-2xl bg-white/15 text-xl font-bold shadow-lg ring-1 ring-white/25 backdrop-blur-sm">
+                F
+              </span>
+              <span className="text-sm font-medium tracking-[0.2em] text-white/70 uppercase">Fillo</span>
+            </div>
+            <h1 className="max-w-md text-4xl font-bold leading-tight tracking-tight xl:text-5xl">{t.appTitle}</h1>
+            <p className="mt-5 max-w-sm text-base leading-7 text-white/70">
+              آرشیو سازمانی اسناد با نسخه‌بندی، دسترسی دقیق، گردش‌کار و سوابق فعالیت کامل.
+            </p>
           </div>
-          <h1 className="max-w-md text-4xl font-bold leading-tight tracking-tight xl:text-5xl">{t.appTitle}</h1>
-          <p className="mt-5 max-w-sm text-base leading-7 text-white/70">
-            آرشیو سازمانی اسناد با نسخه‌بندی، دسترسی دقیق، گردش‌کار و سوابق فعالیت کامل.
-          </p>
-        </div>
 
-        <p className="relative text-xs tracking-wide text-white/40">امن · قابل حسابرسی · فارسی</p>
+          <ScannerDownload className="mx-auto w-full max-w-xs" />
+
+          <p className="text-xs tracking-wide text-white/40">امن · قابل حسابرسی · فارسی</p>
+        </div>
       </aside>
 
-      <div className="relative flex items-center justify-center bg-paper-100 p-6 sm:p-10">
-        <div className="relative w-full max-w-sm animate-[fade-in_0.4s_ease-out]">
+      <div className="relative flex min-h-screen flex-col overflow-y-auto bg-paper-100 p-6 sm:p-10 lg:h-full lg:min-h-0">
+        <div className="relative m-auto w-full max-w-sm animate-[fade-in_0.4s_ease-out]">
           <div className="mb-8 text-center lg:text-start">
             <div className="mb-5 inline-flex items-center gap-2.5 lg:hidden">
               <span className="grid size-11 place-items-center rounded-2xl fillo-gradient text-lg font-bold text-white shadow-lg">
@@ -92,7 +96,9 @@ export function LoginPage() {
               {t.signIn}
             </Button>
           </form>
-          <ScannerDownload />
+          <div className="lg:hidden">
+            <ScannerDownload />
+          </div>
         </div>
       </div>
     </div>
