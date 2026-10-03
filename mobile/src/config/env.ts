@@ -20,11 +20,12 @@ export function isDevLogEnabled(): boolean {
 export function resolveApiUrl(
   value = process.env.EXPO_PUBLIC_API_URL,
   production = isProductionBuild(),
+  allowHttp = process.env.EXPO_PUBLIC_ALLOW_HTTP_API === '1',
 ): string {
   const url = value?.trim().replace(/\/$/, '') ?? '';
   if (!url) return '';
   if (url.startsWith('/')) return url;
-  if (production && !url.startsWith('https://')) {
+  if (production && !allowHttp && !url.startsWith('https://')) {
     throw new Error('EXPO_PUBLIC_API_URL must use HTTPS in production.');
   }
   return url;

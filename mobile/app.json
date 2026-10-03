@@ -29,6 +29,7 @@
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
+      "./plugins/withCleartext.js",
       "expo-router",
       "expo-secure-store",
       "expo-sharing",

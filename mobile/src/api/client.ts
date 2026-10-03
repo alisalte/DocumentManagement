@@ -1,4 +1,5 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import { apiBaseOverride } from '../config/api-base';
 import { resolveApiUrl } from '../config/env';
 import type { ProblemDetails } from '../types/api';
 import { shouldRefreshAfterUnauthorized, toApiError } from '../utils/errors';
@@ -37,6 +38,8 @@ export function attachAuth(client: AxiosInstance, session: SessionPort): void {
   };
 
   client.interceptors.request.use((config) => {
+    const override = apiBaseOverride();
+    if (override) config.baseURL = override;
     if (!config.skipAuthRefresh) {
       const token = session.getAccessToken();
       if (token) {
@@ -77,7 +80,15 @@ export function attachAuth(client: AxiosInstance, session: SessionPort): void {
   );
 }
 
-export function createApiClient(session: SessionPort, baseURL = resolveApiUrl()): AxiosInstance {
+function bakedBaseUrl(): string {
+  try {
+    return resolveApiUrl();
+  } catch {
+    return '';
+  }
+}
+
+export function createApiClient(session: SessionPort, baseURL = bakedBaseUrl()): AxiosInstance {
   const client = axios.create({
     baseURL,
     timeout: 120_000,
@@ -90,7 +101,8 @@ export function createApiClient(session: SessionPort, baseURL = resolveApiUrl())
 export const http = createApiClient(sessionPort);
 
 export async function withApi<T>(work: () => Promise<T>): Promise<T> {
-  if (!resolveApiUrl()) {
+  const base = apiBaseOverride() || bakedBaseUrl();
+  if (!base) {
     throw toApiError(new Error('EXPO_PUBLIC_API_URL is not set'));
   }
   try {

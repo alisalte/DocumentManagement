@@ -27,7 +27,7 @@ const codeMessages: Record<string, string> = {
   'upload.extension_not_allowed': 'این نوع سند فایل PDF را نمی‌پذیرد.',
   'category.inactive': 'در این پوشه نمی‌توان سند ثبت کرد.',
   network: 'اتصال به سرور برقرار نشد.',
-  config: 'آدرس سرور تنظیم نشده است. EXPO_PUBLIC_API_URL را در فایل env قرار دهید.',
+  config: 'آدرس سرور تنظیم نشده است. آن را در صفحه ورود وارد کنید.',
 };
 
 const statusMessages: Record<number, string> = {

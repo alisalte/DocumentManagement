@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { ScannerDownload } from '../components/ScannerDownload';
 import { Alert, Button, TextField } from '../components/ui';
 import { useSession } from '../session';
 import { describeError, t } from '../strings';
@@ -91,6 +92,7 @@ export function LoginPage() {
               {t.signIn}
             </Button>
           </form>
+          <ScannerDownload />
         </div>
       </div>
     </div>
