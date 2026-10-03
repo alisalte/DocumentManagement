@@ -8,6 +8,7 @@ import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { Loading } from '../../src/components/Loading';
+import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
 import { colors, radius, space } from '../../src/theme';
 import { userMessage } from '../../src/utils/errors';
@@ -33,6 +34,7 @@ export default function DocumentScreen() {
   const archived = document.data?.status === 'Archived';
 
   return (
+    <DottedFill>
     <SafeAreaView style={styles.safe}>
       <PageHeader title="سند" onBack={() => router.back()} />
       <View style={styles.content}>
@@ -57,14 +59,15 @@ export default function DocumentScreen() {
         {document.isError ? <Button label="تلاش دوباره" onPress={() => void document.refetch()} /> : null}
       </View>
     </SafeAreaView>
+    </DottedFill>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   content: { padding: space.md, gap: space.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
-  title: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  title: { flex: 1, fontSize: 22, fontWeight: '700', color: colors.accent, textAlign: 'right', writingDirection: 'rtl' },
   line: { color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 15 },
   muted: { color: colors.muted, textAlign: 'right', fontSize: 12 },
   pill: { borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },

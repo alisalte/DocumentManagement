@@ -13,6 +13,7 @@ import { Card } from '../../src/components/Card';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { Input } from '../../src/components/Input';
 import { Loading } from '../../src/components/Loading';
+import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
 import { fileScan, type FilingPhase } from '../../src/features/scanner/filing';
 import { metadataErrors, requiredFields, toMetadata, unsupportedRequiredFields } from '../../src/features/scanner/metadata';
@@ -151,6 +152,7 @@ export default function UploadScreen() {
   const showProgress = running || phase !== null || error !== null;
 
   return (
+    <DottedFill>
     <SafeAreaView style={styles.safe}>
       <PageHeader title="ثبت سند" onBack={running ? undefined : () => router.back()} />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -262,6 +264,7 @@ export default function UploadScreen() {
         ) : null}
       </ScrollView>
     </SafeAreaView>
+    </DottedFill>
   );
 }
 
@@ -328,7 +331,7 @@ function MetadataField({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   content: { padding: space.md, gap: space.md, paddingBottom: space.xl },
   form: { gap: space.sm },
   track: { height: 8, borderRadius: radius.pill, backgroundColor: colors.line, overflow: 'hidden' },

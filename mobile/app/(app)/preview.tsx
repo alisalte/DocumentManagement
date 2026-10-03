@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../src/components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../../src/components/Button';
+import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
 import { ScanPreview } from '../../src/features/scanner/components/ScanPreview';
 import { useScanSession } from '../../src/features/scanner/ScanSessionProvider';
@@ -16,6 +17,7 @@ export default function PreviewScreen() {
   if (session.pages.length === 0) return <Redirect href="/(app)/scan" />;
 
   return (
+    <DottedFill>
     <SafeAreaView style={styles.safe}>
       <PageHeader title="مرور صفحات" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content}>
@@ -27,11 +29,12 @@ export default function PreviewScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    </DottedFill>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1 },
   content: { padding: space.md, gap: space.md, paddingBottom: space.xl },
   hint: { color: colors.muted, fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
   actions: { gap: space.sm, marginTop: space.sm },

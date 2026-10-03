@@ -16,10 +16,18 @@ const webDots = (
     : null
 ) as ViewStyle | null;
 
-export function PaperBackground({ children }: { children: ReactNode }) {
+export function DottedFill({ children }: { children: ReactNode }) {
   return (
     <View style={[styles.background, webDots]}>
       {Platform.OS === 'web' ? null : <Image source={dot} resizeMode="repeat" style={styles.dots} />}
+      {children}
+    </View>
+  );
+}
+
+export function PaperBackground({ children }: { children: ReactNode }) {
+  return (
+    <DottedFill>
       <SafeAreaView style={styles.flex}>
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -27,7 +35,7 @@ export function PaperBackground({ children }: { children: ReactNode }) {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
+    </DottedFill>
   );
 }
 

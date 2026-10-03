@@ -1,6 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { Text } from './AppText';
-import { colors, radius, space } from '../theme';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Button as PaperButton } from 'react-native-paper';
+import { paperColors } from '../theme/paper';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -14,51 +14,27 @@ interface Props {
 }
 
 export function Button({ label, onPress, variant = 'primary', disabled, loading, style }: Props) {
-  const blocked = disabled || loading;
-  const onFill = variant === 'primary' || variant === 'danger';
+  const mode = variant === 'secondary' ? 'outlined' : variant === 'ghost' ? 'text' : 'contained';
+  const filled = variant === 'primary' || variant === 'danger';
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled: blocked, busy: loading }}
-      disabled={blocked}
+    <PaperButton
+      mode={mode}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.base,
-        styles[variant],
-        pressed && !blocked && variant === 'primary' ? styles.primaryPressed : null,
-        pressed && !blocked && variant !== 'primary' ? styles.pressed : null,
-        blocked ? styles.disabled : null,
-        style,
-      ]}
+      disabled={disabled || loading}
+      loading={loading}
+      buttonColor={variant === 'danger' ? paperColors.error : variant === 'primary' ? paperColors.primary : undefined}
+      textColor={filled ? '#ffffff' : paperColors.primary}
+      style={[styles.button, style]}
+      contentStyle={styles.content}
+      labelStyle={styles.label}
     >
-      {loading ? <ActivityIndicator color={onFill ? '#fff' : colors.accent} /> : null}
-      <Text style={[styles.label, onFill ? styles.labelOnFill : variant === 'ghost' ? styles.labelGhost : styles.labelOnSurface]}>
-        {label}
-      </Text>
-    </Pressable>
+      {label}
+    </PaperButton>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    minHeight: 56,
-    borderRadius: radius.pill,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: space.xs,
-  },
-  primary: { backgroundColor: colors.accent },
-  primaryPressed: { backgroundColor: colors.accentPressed },
-  secondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
-  danger: { backgroundColor: colors.danger },
-  ghost: { backgroundColor: 'transparent' },
-  pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.45 },
-  label: { fontSize: 17, fontWeight: '700', writingDirection: 'rtl' },
-  labelOnFill: { color: '#fff' },
-  labelOnSurface: { color: colors.ink },
-  labelGhost: { color: colors.accent },
+  button: { alignSelf: 'stretch', borderRadius: 4 },
+  content: { minHeight: 48 },
+  label: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal', writingDirection: 'rtl' },
 });

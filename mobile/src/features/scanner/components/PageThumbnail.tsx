@@ -1,6 +1,6 @@
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../../../components/AppText';
-import { colors, radius, shadow, space } from '../../../theme';
+import { colors, radius, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
 import type { ScanPage } from '../scanner.types';
 
@@ -59,9 +59,10 @@ const styles = StyleSheet.create({
     width: '48%',
     backgroundColor: colors.card,
     borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
     padding: space.sm,
     gap: space.xs,
-    ...shadow.card,
   },
   image: { width: '100%', aspectRatio: 0.75, borderRadius: radius.sm, backgroundColor: colors.line },
   caption: { textAlign: 'center', color: colors.ink, fontWeight: '700', writingDirection: 'rtl' },

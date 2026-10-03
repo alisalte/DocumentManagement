@@ -1,20 +1,30 @@
 import { StyleSheet, View, type TextInputProps } from 'react-native';
-import { Text, TextInput } from './AppText';
-import { colors, radius, space } from '../theme';
+import { TextInput } from 'react-native-paper';
+import { Text } from './AppText';
+import { paperColors } from '../theme/paper';
 
-interface Props extends TextInputProps {
+interface Props extends Pick<
+  TextInputProps,
+  'autoCapitalize' | 'autoCorrect' | 'secureTextEntry' | 'textContentType' | 'keyboardType' | 'value' | 'onChangeText' | 'onBlur' | 'placeholder' | 'multiline'
+> {
   label: string;
   error?: string;
 }
 
-export function Input({ label, error, style, multiline, ...props }: Props) {
+export function Input({ label, error, multiline, ...props }: Props) {
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholderTextColor={colors.muted}
+        mode="outlined"
+        label={label}
+        error={Boolean(error)}
         multiline={multiline}
-        style={[styles.input, multiline ? styles.multiline : null, error ? styles.inputError : null, style]}
+        selectionColor={paperColors.primary}
+        outlineColor="#D8DBE3"
+        activeOutlineColor={paperColors.primary}
+        textColor={paperColors.secondary}
+        style={[styles.input, multiline ? styles.multiline : null]}
+        contentStyle={styles.content}
         {...props}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -23,20 +33,9 @@ export function Input({ label, error, style, multiline, ...props }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: space.xs },
-  label: { color: colors.muted, fontSize: 13, fontWeight: '600', writingDirection: 'rtl', textAlign: 'right' },
-  input: {
-    minHeight: 54,
-    borderWidth: 0,
-    borderRadius: radius.md,
-    paddingHorizontal: space.md,
-    backgroundColor: '#EEF0F6',
-    color: colors.ink,
-    fontSize: 16,
-    writingDirection: 'rtl',
-    textAlign: 'right',
-  },
-  multiline: { minHeight: 96, paddingTop: space.md, textAlignVertical: 'top' },
-  inputError: { borderWidth: 1.5, borderColor: colors.danger },
-  error: { color: colors.danger, fontSize: 13, writingDirection: 'rtl', textAlign: 'right' },
+  wrap: { width: '100%', marginVertical: 6 },
+  input: { backgroundColor: paperColors.surface },
+  multiline: { minHeight: 96 },
+  content: { fontFamily: 'Vazir', textAlign: 'right' as const, writingDirection: 'rtl' as const },
+  error: { color: paperColors.error, fontSize: 13, textAlign: 'right' as const, writingDirection: 'rtl' as const, paddingTop: 4, paddingHorizontal: 4 },
 });

@@ -5,7 +5,7 @@ import { CameraView as ExpoCamera, useCameraPermissions } from 'expo-camera';
 import { BrandMark } from '../../../components/BrandMark';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
-import { colors, radius, space } from '../../../theme';
+import { colors, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
 
 interface Props {
@@ -94,9 +94,8 @@ const styles = StyleSheet.create({
     padding: space.md,
     paddingBottom: space.lg,
     backgroundColor: colors.card,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    marginTop: -24,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
   },
   count: { textAlign: 'center', color: colors.ink, fontWeight: '700', writingDirection: 'rtl' },
   row: { flexDirection: 'row', gap: space.sm },
