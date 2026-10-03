@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { CameraView as ExpoCamera, useCameraPermissions } from 'expo-camera';
+import { BrandMark } from '../../../components/BrandMark';
 import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
-import { colors, space } from '../../../theme';
+import { colors, radius, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
 
 interface Props {
@@ -27,15 +28,16 @@ export function CameraView({ pageCount, onCapture, onImport, onFinish }: Props) 
   if (!permission.granted) {
     return (
       <View style={styles.permission}>
+        <BrandMark size={64} />
         <Text style={styles.permissionText}>
           {permission.canAskAgain
             ? 'برای اسکن سند به دوربین نیاز است.'
             : 'دسترسی دوربین بسته است. آن را از تنظیمات گوشی باز کنید.'}
         </Text>
         {permission.canAskAgain ? (
-          <Button label="اجازه دوربین" onPress={() => void requestPermission()} />
+          <Button label="اجازه دوربین" onPress={() => void requestPermission()} style={styles.permissionButton} />
         ) : (
-          <Button label="باز کردن تنظیمات" onPress={() => void Linking.openSettings()} />
+          <Button label="باز کردن تنظیمات" onPress={() => void Linking.openSettings()} style={styles.permissionButton} />
         )}
       </View>
     );
@@ -89,11 +91,16 @@ const styles = StyleSheet.create({
   bar: {
     gap: space.sm,
     padding: space.md,
-    backgroundColor: colors.background,
+    paddingBottom: space.lg,
+    backgroundColor: colors.card,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    marginTop: -24,
   },
-  count: { textAlign: 'center', color: colors.ink, fontWeight: '600', writingDirection: 'rtl' },
+  count: { textAlign: 'center', color: colors.ink, fontWeight: '700', writingDirection: 'rtl' },
   row: { flexDirection: 'row', gap: space.sm },
   flex: { flex: 1 },
-  permission: { flex: 1, justifyContent: 'center', gap: space.md, padding: space.lg },
-  permissionText: { color: colors.ink, fontSize: 16, textAlign: 'center', writingDirection: 'rtl' },
+  permission: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: space.md, padding: space.lg },
+  permissionButton: { alignSelf: 'stretch' },
+  permissionText: { color: colors.ink, fontSize: 16, lineHeight: 26, textAlign: 'center', writingDirection: 'rtl' },
 });

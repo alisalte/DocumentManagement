@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, space } from '../theme';
+import { colors, radius, space } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -14,6 +14,7 @@ interface Props {
 
 export function Button({ label, onPress, variant = 'primary', disabled, loading, style }: Props) {
   const blocked = disabled || loading;
+  const onFill = variant === 'primary' || variant === 'danger';
   return (
     <Pressable
       accessibilityRole="button"
@@ -23,13 +24,14 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
       style={({ pressed }) => [
         styles.base,
         styles[variant],
-        pressed && !blocked ? styles.pressed : null,
+        pressed && !blocked && variant === 'primary' ? styles.primaryPressed : null,
+        pressed && !blocked && variant !== 'primary' ? styles.pressed : null,
         blocked ? styles.disabled : null,
         style,
       ]}
     >
-      {loading ? <ActivityIndicator color={variant === 'primary' || variant === 'danger' ? '#fff' : colors.ink} /> : null}
-      <Text style={[styles.label, variant === 'primary' || variant === 'danger' ? styles.labelOnFill : styles.labelOnSurface]}>
+      {loading ? <ActivityIndicator color={onFill ? '#fff' : colors.accent} /> : null}
+      <Text style={[styles.label, onFill ? styles.labelOnFill : variant === 'ghost' ? styles.labelGhost : styles.labelOnSurface]}>
         {label}
       </Text>
     </Pressable>
@@ -38,9 +40,9 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
-    borderRadius: 12,
-    paddingHorizontal: space.md,
+    minHeight: 56,
+    borderRadius: radius.pill,
+    paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -48,12 +50,14 @@ const styles = StyleSheet.create({
     gap: space.xs,
   },
   primary: { backgroundColor: colors.accent },
+  primaryPressed: { backgroundColor: colors.accentPressed },
   secondary: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
   danger: { backgroundColor: colors.danger },
   ghost: { backgroundColor: 'transparent' },
   pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.5 },
-  label: { fontSize: 16, fontWeight: '600', writingDirection: 'rtl' },
+  disabled: { opacity: 0.45 },
+  label: { fontSize: 17, fontWeight: '700', writingDirection: 'rtl' },
   labelOnFill: { color: '#fff' },
   labelOnSurface: { color: colors.ink },
+  labelGhost: { color: colors.accent },
 });

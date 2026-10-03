@@ -12,5 +12,5 @@ export function Loading({ label = 'در حال بارگذاری...' }: { label?:
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.md, padding: space.lg },
-  label: { color: colors.muted, fontSize: 15, writingDirection: 'rtl', textAlign: 'center' },
+  label: { color: colors.muted, fontSize: 15, fontWeight: '600', writingDirection: 'rtl', textAlign: 'center' },
 });

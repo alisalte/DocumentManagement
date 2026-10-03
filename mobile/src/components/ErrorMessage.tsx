@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, space } from '../theme';
+import { colors, radius, space } from '../theme';
 
 export function ErrorMessage({ message }: { message?: string | null }) {
   if (!message) return null;
@@ -13,8 +13,8 @@ export function ErrorMessage({ message }: { message?: string | null }) {
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.dangerSoft,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: space.md,
   },
-  text: { color: colors.danger, fontSize: 14, writingDirection: 'rtl', textAlign: 'right' },
+  text: { color: colors.danger, fontSize: 14, fontWeight: '600', writingDirection: 'rtl', textAlign: 'right' },
 });

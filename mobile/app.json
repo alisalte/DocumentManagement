@@ -19,7 +19,7 @@
       "package": "com.dms.scanner",
       "permissions": ["android.permission.CAMERA"],
       "adaptiveIcon": {
-        "backgroundColor": "#1F4D3A",
+        "backgroundColor": "#6C4EFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

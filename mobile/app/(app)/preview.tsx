@@ -32,6 +32,6 @@ export default function PreviewScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { padding: space.md, gap: space.md, paddingBottom: space.xl },
-  hint: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl' },
+  hint: { color: colors.muted, fontSize: 15, textAlign: 'right', writingDirection: 'rtl' },
   actions: { gap: space.sm, marginTop: space.sm },
 });

@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, space } from '../../../theme';
+import { colors, radius, shadow, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
 import type { ScanPage } from '../scanner.types';
 
@@ -57,16 +57,15 @@ const styles = StyleSheet.create({
   card: {
     width: '48%',
     backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.line,
+    borderRadius: radius.md,
     padding: space.sm,
     gap: space.xs,
+    ...shadow.card,
   },
-  image: { width: '100%', aspectRatio: 0.75, borderRadius: 8, backgroundColor: colors.line },
-  caption: { textAlign: 'center', color: colors.ink, fontWeight: '600', writingDirection: 'rtl' },
+  image: { width: '100%', aspectRatio: 0.75, borderRadius: radius.sm, backgroundColor: colors.line },
+  caption: { textAlign: 'center', color: colors.ink, fontWeight: '700', writingDirection: 'rtl' },
   actions: { flexDirection: 'row', justifyContent: 'space-between' },
-  action: { color: colors.accent, fontSize: 13, writingDirection: 'rtl' },
+  action: { color: colors.accent, fontSize: 13, fontWeight: '700', writingDirection: 'rtl' },
   danger: { color: colors.danger },
   disabled: { opacity: 0.35 },
 });

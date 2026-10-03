@@ -1,18 +1,19 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { colors, space } from '../theme';
+import { colors, radius, space } from '../theme';
 
 interface Props extends TextInputProps {
   label: string;
   error?: string;
 }
 
-export function Input({ label, error, style, ...props }: Props) {
+export function Input({ label, error, style, multiline, ...props }: Props) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.muted}
-        style={[styles.input, error ? styles.inputError : null, style]}
+        multiline={multiline}
+        style={[styles.input, multiline ? styles.multiline : null, error ? styles.inputError : null, style]}
         {...props}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -22,19 +23,19 @@ export function Input({ label, error, style, ...props }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { gap: space.xs },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '600', writingDirection: 'rtl', textAlign: 'right' },
+  label: { color: colors.muted, fontSize: 13, fontWeight: '600', writingDirection: 'rtl', textAlign: 'right' },
   input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 12,
+    minHeight: 54,
+    borderWidth: 0,
+    borderRadius: radius.md,
     paddingHorizontal: space.md,
-    backgroundColor: colors.card,
+    backgroundColor: '#EEF0F6',
     color: colors.ink,
     fontSize: 16,
     writingDirection: 'rtl',
     textAlign: 'right',
   },
-  inputError: { borderColor: colors.danger },
+  multiline: { minHeight: 96, paddingTop: space.md, textAlignVertical: 'top' },
+  inputError: { borderWidth: 1.5, borderColor: colors.danger },
   error: { color: colors.danger, fontSize: 13, writingDirection: 'rtl', textAlign: 'right' },
 });

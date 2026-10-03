@@ -4,10 +4,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getDocument } from '../../src/api/documents.api';
 import { Button } from '../../src/components/Button';
+import { Card } from '../../src/components/Card';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { Loading } from '../../src/components/Loading';
 import { PageHeader } from '../../src/components/PageHeader';
-import { colors, space } from '../../src/theme';
+import { colors, radius, space } from '../../src/theme';
 import { userMessage } from '../../src/utils/errors';
 
 const statusLabels: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function DocumentScreen() {
     queryFn: () => getDocument(id),
     enabled: id.length > 0,
   });
+  const archived = document.data?.status === 'Archived';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -37,13 +39,19 @@ export default function DocumentScreen() {
         {document.isLoading ? <Loading label="در حال دریافت سند..." /> : null}
         {document.error ? <ErrorMessage message={userMessage(document.error)} /> : null}
         {document.data ? (
-          <View style={styles.card}>
-            <Text style={styles.title}>{document.data.title}</Text>
-            <Text style={styles.line}>پوشه: {document.data.categoryName}</Text>
-            <Text style={styles.line}>وضعیت: {statusLabels[document.data.status] ?? document.data.status}</Text>
+          <Card>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{document.data.title}</Text>
+              <View style={[styles.pill, archived ? styles.pillWarn : styles.pillOk]}>
+                <Text style={[styles.pillText, archived ? styles.pillTextWarn : styles.pillTextOk]}>
+                  {statusLabels[document.data.status] ?? document.data.status}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.line}>{document.data.categoryName}</Text>
             {document.data.description ? <Text style={styles.line}>{document.data.description}</Text> : null}
             <Text style={styles.muted}>{document.data.id}</Text>
-          </View>
+          </Card>
         ) : null}
         {document.isError ? <Button label="تلاش دوباره" onPress={() => void document.refetch()} /> : null}
       </View>
@@ -54,8 +62,14 @@ export default function DocumentScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   content: { padding: space.md, gap: space.md },
-  card: { backgroundColor: colors.card, borderRadius: 12, padding: space.md, gap: space.sm, borderWidth: 1, borderColor: colors.line },
-  title: { fontSize: 20, fontWeight: '700', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
-  line: { color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
+  title: { flex: 1, fontSize: 22, fontWeight: '800', color: colors.ink, textAlign: 'right', writingDirection: 'rtl' },
+  line: { color: colors.ink, textAlign: 'right', writingDirection: 'rtl', fontSize: 15 },
   muted: { color: colors.muted, textAlign: 'right', fontSize: 12 },
+  pill: { borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 6 },
+  pillOk: { backgroundColor: colors.accentSoft },
+  pillWarn: { backgroundColor: colors.warningSoft },
+  pillText: { fontSize: 13, fontWeight: '700', writingDirection: 'rtl' },
+  pillTextOk: { color: colors.accent },
+  pillTextWarn: { color: colors.warning },
 });
