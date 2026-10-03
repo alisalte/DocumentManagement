@@ -87,16 +87,22 @@ RUN set -eu; \
 
 # The React Native Gradle plugin compiles with jvmToolchain(17). On JDK 21 it
 # downloads a JDK from api.foojay.io, which is what stalls and then fails the build.
-# CMake 3.30.5 is the version that plugin expects; 3.22.1 alone makes it call sdkmanager.
 RUN set -eu; \
     apt-get update \
  && apt-get install -y --no-install-recommends openjdk-17-jdk-headless \
  && rm -rf /var/lib/apt/lists/* \
  && arch="$(dpkg --print-architecture)" \
- && ln -sfn "/usr/lib/jvm/java-17-openjdk-${arch}" /usr/lib/jvm/java-17; \
+ && ln -sfn "/usr/lib/jvm/java-17-openjdk-${arch}" /usr/lib/jvm/java-17
+
+# CMake 3.30.5 is what the plugin expects. dl.google.com often 404s here and the
+# Tencent mirror times out, so try the Myket mirror in Iran first.
+RUN set -eu; \
     fetch() { \
       name="$1"; dest="$2"; \
-      for base in https://dl.google.com/android/repository https://mirrors.cloud.tencent.com/AndroidSDK; do \
+      for base in \
+        https://maven.myket.ir/android-sdk \
+        https://dl.google.com/android/repository \
+        https://mirrors.cloud.tencent.com/AndroidSDK; do \
         echo "sdk: ${base}/${name}"; \
         if curl -fL --retry 2 --retry-delay 2 --connect-timeout 20 -o "$dest" "${base}/${name}"; then \
           return 0; \
