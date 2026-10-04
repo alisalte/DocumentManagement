@@ -11,10 +11,15 @@ ENV EXPO_PUBLIC_API_URL=/api/v1
 RUN npx expo export --platform web --output-dir dist
 
 FROM nginx:alpine AS runtime
+# Non-root nginx cannot open the image's /var/log/nginx/*.log symlinks to /dev/stderr
+# (open uses O_CREAT and fails with EACCES). Use real files, and send errors to stderr.
 RUN apk add --no-cache openssl su-exec \
- && mkdir -p /var/cache/nginx /tmp/nginx /etc/nginx/certs \
- && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp/nginx /etc/nginx/certs \
+ && mkdir -p /var/cache/nginx /tmp/nginx /etc/nginx/certs /var/log/nginx \
+ && rm -f /var/log/nginx/access.log /var/log/nginx/error.log \
+ && touch /var/log/nginx/access.log /var/log/nginx/error.log \
+ && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp/nginx /etc/nginx/certs /var/log/nginx \
  && sed -i 's@pid\s\+.*\;@pid /tmp/nginx/nginx.pid;@' /etc/nginx/nginx.conf \
+ && sed -i 's#error_log.*#error_log stderr notice;#' /etc/nginx/nginx.conf \
  && sed -i '/^user /d' /etc/nginx/nginx.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 COPY --from=nginxconf scanner.conf /etc/nginx/conf.d/default.conf
