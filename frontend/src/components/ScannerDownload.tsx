@@ -41,7 +41,9 @@ export function ScannerDownload({ className = '' }: { className?: string }) {
           گوشی به localhost دسترسی ندارد. این صفحه را با آی‌پی شبکه باز کنید، مثلاً http://192.168.1.10:8090
         </p>
       )}
-      <p className="mt-2 text-xs leading-5 text-paper-500">بعد از نصب، همین آدرس را در برنامه وارد کنید: {origin}</p>
+      <p className="mt-2 text-xs leading-5 text-paper-500">
+        بعد از نصب، آدرس صفحه ورود بایگانی را وارد کنید (پورت ۸۰۹۰)، مثلاً {origin}
+      </p>
     </section>
   );
 }

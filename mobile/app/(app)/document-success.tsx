@@ -1,11 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import * as Sharing from 'expo-sharing';
 import { Text } from '../../src/components/AppText';
 import { Button } from '../../src/components/Button';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { PaperBackground } from '../../src/components/PaperBackground';
+import { savePreparedFile } from '../../src/features/scanner/save-file';
 import { useScanSession } from '../../src/features/scanner/ScanSessionProvider';
 import { colors } from '../../src/theme';
 
@@ -21,24 +21,26 @@ export default function DocumentSuccessScreen() {
   const router = useRouter();
   const session = useScanSession();
   const [shareError, setShareError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  async function shareFile() {
+  async function saveFile() {
     if (!session.prepared) return;
     setShareError(null);
+    setSaving(true);
     try {
-      const available = await Sharing.isAvailableAsync();
-      if (!available) {
-        setShareError('اشتراک‌گذاری روی این دستگاه در دسترس نیست.');
-        return;
-      }
-      await Sharing.shareAsync(session.prepared.uri, {
-        mimeType: session.prepared.mimeType,
-        dialogTitle: 'سند اسکن‌شده',
-      });
-    } catch {
-      setShareError('اشتراک‌گذاری فایل ناموفق بود.');
+      await savePreparedFile(session.prepared);
+    } catch (caught) {
+      const message =
+        caught instanceof Error && /[\u0600-\u06FF]/.test(caught.message)
+          ? caught.message
+          : 'ذخیره یا اشتراک‌گذاری فایل ناموفق بود.';
+      setShareError(message);
+    } finally {
+      setSaving(false);
     }
   }
+
+  const saveLabel = session.prepared?.format === 'image' ? 'ذخیره عکس روی گوشی' : 'ذخیره PDF روی گوشی';
 
   return (
     <PaperBackground>
@@ -54,11 +56,7 @@ export default function DocumentSuccessScreen() {
           <Button label="مشاهده سند" onPress={() => router.push({ pathname: '/(app)/document', params: { id: documentId } })} />
         ) : null}
         {session.prepared ? (
-          <Button
-            label={session.prepared.format === 'image' ? 'اشتراک عکس' : 'اشتراک PDF'}
-            variant="secondary"
-            onPress={() => void shareFile()}
-          />
+          <Button label={saveLabel} variant="secondary" loading={saving} onPress={() => void saveFile()} />
         ) : null}
         <Button
           label="ثبت سند جدید"

@@ -14,6 +14,8 @@ import { paperColors } from '../../src/theme/paper';
 import { userMessage } from '../../src/utils/errors';
 import { loginSchema, type LoginValues } from '../../src/utils/validation';
 
+const SERVER_HINT = 'مثال: http://62.60.166.71:8090';
+
 export default function LoginScreen() {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function LoginScreen() {
       await login(values.username, values.password);
     } catch (caught) {
       if (caught instanceof Error && /server url/.test(caught.message)) {
-        setError('آدرس سرور معتبر نیست. همان آدرس صفحه ورود را وارد کنید، مثل http://192.168.1.10:8090');
+        setError('آدرس سرور معتبر نیست. آدرس صفحه ورود بایگانی را وارد کنید، مثل http://192.168.1.10:8090 (نه پورت ۸۰۹۱ اسکنر وب).');
         return;
       }
       setError(userMessage(caught));
@@ -45,17 +47,23 @@ export default function LoginScreen() {
         <ErrorMessage message={error} />
       </View>
       {Platform.OS !== 'web' && (
-        <AuthField
-          label="آدرس سرور"
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="url"
-          textContentType="URL"
-          returnKeyType="next"
-          value={server}
-          onChangeText={setServer}
-          onBlur={() => undefined}
-        />
+        <>
+          <AuthField
+            label="آدرس سرور"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            textContentType="URL"
+            returnKeyType="next"
+            placeholder={SERVER_HINT}
+            value={server}
+            onChangeText={setServer}
+            onBlur={() => undefined}
+          />
+          <Text style={styles.hint}>
+            همان آدرس صفحه ورود بایگانی (معمولاً پورت ۸۰۹۰). اگر آدرس اسکنر وب (۸۰۹۱) را بگذارید، برنامه خودش به ۸۰۹۰ عوضش می‌کند.
+          </Text>
+        </>
       )}
       <Controller
         control={form.control}
@@ -115,6 +123,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     writingDirection: 'rtl',
     paddingVertical: 14,
+  },
+  hint: {
+    width: '100%',
+    color: paperColors.secondary,
+    fontSize: 12,
+    lineHeight: 20,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: -4,
+    marginBottom: 8,
+    opacity: 0.75,
   },
   button: { width: '100%', borderRadius: 4, marginTop: 12, marginBottom: 8 },
   buttonContent: { height: 48 },
