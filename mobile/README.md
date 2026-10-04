@@ -79,8 +79,10 @@ cp deploy/.env.example deploy/.env
 cd deploy
 docker compose up -d --build
 
-# فقط وقتی اسکنر وب لازم است (:8091)
+# فقط وقتی اسکنر وب لازم است (HTTPS روی :8091 — دوربین گوشی روی http کار نمی‌کند)
+# در deploy/.env بگذارید: SCANNER_TLS_IP=62.60.166.71
 docker compose --profile scanner up -d --build scanner
+# بعد روی گوشی: https://YOUR_IP:8091 (هشدار گواهی را یک‌بار بپذیرید)
 
 # فقط وقتی APK لازم است
 docker compose --profile apk build apk
@@ -88,8 +90,8 @@ docker compose --profile apk run --rm apk
 ```
 
 بعد از بالا آمدن: بایگانی روی http://localhost:8090. با پروفایل `scanner`، اسکنر روی
-http://localhost:8091. پورت را با `SCANNER_PORT` در `deploy/.env` عوض کنید. APK از QR صفحهٔ ورود
-در پورت ۸۰۹۰ دانلود می‌شود.
+**https://YOUR_IP:8091** (نه http). پورت HTTP کمکی روی `8092` فقط راهنما نشان می‌دهد. پورت را با
+`SCANNER_PORT` در `deploy/.env` عوض کنید. APK از QR صفحهٔ ورود در پورت ۸۰۹۰ دانلود می‌شود.
 ## ساخت با EAS
 
 `eas.json` سه پروفایل دارد: `development`، `preview`، `production`. این مخزن چیزی را منتشر نمی‌کند و به فروشگاه نمی‌فرستد.
