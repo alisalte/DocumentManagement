@@ -15,8 +15,12 @@ const draft = {
 };
 
 describe('filing', () => {
-  it('uploads the pdf and then creates the document', async () => {
-    const createPdf = vi.fn(async () => 'file:///scan.pdf');
+  it('prepares a pdf, uploads it, then creates the document', async () => {
+    const prepareFile = vi.fn(async () => ({
+      uri: 'file:///scan.pdf',
+      fileName: 'scan.pdf',
+      mimeType: 'application/pdf',
+    }));
     const upload = vi.fn(async () => ({
       uploadId: 'upload-1',
       fileName: 'scan.pdf',
@@ -32,16 +36,74 @@ describe('filing', () => {
     }));
 
     const outcome = await fileScan(
-      { createPdf, upload, createDocument },
-      { pages, draft, idempotencyKey: 'key-1' },
+      { prepareFile, upload, createDocument },
+      { pages, format: 'pdf', draft, idempotencyKey: 'key-1' },
     );
 
     expect(outcome.status).toBe('created');
     if (outcome.status === 'created') {
       expect(outcome.document.label).toBe('V1.1');
     }
-    expect(upload).toHaveBeenCalledWith('file:///scan.pdf', expect.any(Function));
+    expect(upload).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'file:///scan.pdf', mimeType: 'application/pdf' }),
+      expect.any(Function),
+    );
     expect(createDocument).toHaveBeenCalledWith(expect.objectContaining({ uploadId: 'upload-1', title: 'نامه' }), 'key-1');
+  });
+
+  it('uploads a single image without building a pdf', async () => {
+    const prepareFile = vi.fn(async () => ({
+      uri: 'file:///a.jpg',
+      fileName: 'scan.jpg',
+      mimeType: 'image/jpeg',
+    }));
+    const upload = vi.fn(async () => ({
+      uploadId: 'upload-img',
+      fileName: 'scan.jpg',
+      mimeType: 'image/jpeg',
+      size: 20,
+      sha256: 'img',
+      duplicates: [],
+    }));
+    const createDocument = vi.fn(async () => ({
+      documentId: 'doc-2',
+      versionId: 'ver-2',
+      label: 'V1.1',
+    }));
+
+    const outcome = await fileScan(
+      { prepareFile, upload, createDocument },
+      { pages, format: 'image', draft, idempotencyKey: 'key-img' },
+    );
+
+    expect(outcome.status).toBe('created');
+    expect(prepareFile).toHaveBeenCalledWith(pages, 'image');
+    expect(upload).toHaveBeenCalledWith(
+      expect.objectContaining({ mimeType: 'image/jpeg', fileName: 'scan.jpg' }),
+      expect.any(Function),
+    );
+  });
+
+  it('rejects image filing when there is more than one page', async () => {
+    await expect(
+      fileScan(
+        {
+          prepareFile: async () => ({ uri: 'x', fileName: 'x', mimeType: 'image/jpeg' }),
+          upload: async () => {
+            throw new Error('should not upload');
+          },
+          createDocument: async () => {
+            throw new Error('should not create');
+          },
+        },
+        {
+          pages: [pages[0]!, { id: 'p2', uri: 'file:///b.jpg', width: 1, height: 1 }],
+          format: 'image',
+          draft,
+          idempotencyKey: 'key-2',
+        },
+      ),
+    ).rejects.toThrow(/یک صفحه/);
   });
 
   it('reports upload failure and does not create a document', async () => {
@@ -49,13 +111,17 @@ describe('filing', () => {
     await expect(
       fileScan(
         {
-          createPdf: async () => 'file:///scan.pdf',
+          prepareFile: async () => ({
+            uri: 'file:///scan.pdf',
+            fileName: 'scan.pdf',
+            mimeType: 'application/pdf',
+          }),
           upload: async () => {
             throw new ApiError(0, 'network', 'network');
           },
           createDocument,
         },
-        { pages, draft, idempotencyKey: 'key-1' },
+        { pages, format: 'pdf', draft, idempotencyKey: 'key-1' },
       ),
     ).rejects.toBeInstanceOf(ApiError);
     expect(createDocument).not.toHaveBeenCalled();
@@ -66,7 +132,11 @@ describe('filing', () => {
     await expect(
       fileScan(
         {
-          createPdf: async () => 'file:///scan.pdf',
+          prepareFile: async () => ({
+            uri: 'file:///scan.pdf',
+            fileName: 'scan.pdf',
+            mimeType: 'application/pdf',
+          }),
           upload: async () => ({
             uploadId: 'upload-1',
             fileName: 'scan.pdf',
@@ -79,7 +149,7 @@ describe('filing', () => {
             throw new ApiError(403, 'auth.forbidden', 'no');
           },
         },
-        { pages, draft, idempotencyKey: 'key-1', onUploaded },
+        { pages, format: 'pdf', draft, idempotencyKey: 'key-1', onUploaded },
       ),
     ).rejects.toMatchObject({ status: 403 });
     expect(onUploaded).toHaveBeenCalledWith('upload-1');
@@ -89,7 +159,11 @@ describe('filing', () => {
     const createDocument = vi.fn();
     const outcome = await fileScan(
       {
-        createPdf: async () => 'file:///scan.pdf',
+        prepareFile: async () => ({
+          uri: 'file:///scan.pdf',
+          fileName: 'scan.pdf',
+          mimeType: 'application/pdf',
+        }),
         upload: async () => ({
           uploadId: 'upload-1',
           fileName: 'scan.pdf',
@@ -100,7 +174,7 @@ describe('filing', () => {
         }),
         createDocument,
       },
-      { pages, draft, idempotencyKey: 'key-1' },
+      { pages, format: 'pdf', draft, idempotencyKey: 'key-1' },
     );
     expect(outcome.status).toBe('duplicate');
     expect(createDocument).not.toHaveBeenCalled();

@@ -5,7 +5,17 @@ export interface ScanPage {
   height: number;
 }
 
+export type ScanOutputFormat = 'pdf' | 'image';
+
+export interface PreparedScanFile {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+  format: ScanOutputFormat;
+}
+
 export interface ScanSession {
   pages: ScanPage[];
-  pdfUri?: string;
+  /** Cached file from the last successful prepare step (PDF or image). */
+  prepared?: PreparedScanFile;
 }

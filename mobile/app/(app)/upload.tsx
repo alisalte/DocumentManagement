@@ -1,13 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery } from '@tanstack/react-query';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from '../../src/components/AppText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createDocument, getSchema, listCategories, listDocumentTypes } from '../../src/api/documents.api';
-import { uploadPdf } from '../../src/api/uploads.api';
+import { uploadFile } from '../../src/api/uploads.api';
 import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
@@ -15,9 +15,9 @@ import { Input } from '../../src/components/Input';
 import { Loading } from '../../src/components/Loading';
 import { DottedFill } from '../../src/components/PaperBackground';
 import { PageHeader } from '../../src/components/PageHeader';
-import { fileScan, type FilingPhase } from '../../src/features/scanner/filing';
+import { fileScan, type FilingFormat, type FilingPhase } from '../../src/features/scanner/filing';
 import { metadataErrors, requiredFields, toMetadata, unsupportedRequiredFields } from '../../src/features/scanner/metadata';
-import { createPdfFromPages } from '../../src/features/scanner/pdf.service';
+import { prepareScanFile } from '../../src/features/scanner/prepare-file';
 import { useScanSession } from '../../src/features/scanner/ScanSessionProvider';
 import { colors, radius, space } from '../../src/theme';
 import type { FieldSchema, UploadResult } from '../../src/types/document';
@@ -26,14 +26,21 @@ import { userMessage } from '../../src/utils/errors';
 import { filingSchema, type FilingValues } from '../../src/utils/validation';
 
 const steps: { id: FilingPhase; label: string }[] = [
-  { id: 'pdf', label: 'ساخت PDF...' },
+  { id: 'prepare', label: 'آماده‌سازی فایل...' },
   { id: 'upload', label: 'در حال آپلود...' },
   { id: 'create', label: 'در حال ثبت سند...' },
 ];
 
+function resolveFormat(raw: string | string[] | undefined): FilingFormat {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return value === 'image' ? 'image' : 'pdf';
+}
+
 export default function UploadScreen() {
   const router = useRouter();
   const session = useScanSession();
+  const params = useLocalSearchParams<{ format?: string }>();
+  const format = resolveFormat(params.format);
   const form = useForm<FilingValues>({
     resolver: zodResolver(filingSchema),
     defaultValues: { title: 'سند اسکن‌شده', description: '', categoryId: '', documentTypeId: '' },
@@ -54,18 +61,29 @@ export default function UploadScreen() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>([]);
-  const [pdfUri, setPdfUri] = useState<string | undefined>(session.pdfUri);
+  const [preparedUri, setPreparedUri] = useState<string | undefined>(
+    session.prepared?.format === format ? session.prepared.uri : undefined,
+  );
+  const [preparedName, setPreparedName] = useState<string | undefined>(
+    session.prepared?.format === format ? session.prepared.fileName : undefined,
+  );
+  const [preparedMime, setPreparedMime] = useState<string | undefined>(
+    session.prepared?.format === format ? session.prepared.mimeType : undefined,
+  );
   const [uploadId, setUploadId] = useState<string | undefined>();
   const idempotency = useRef({ signature: '', key: '' });
   const pageKey = session.pages.map((page) => page.id).join(',');
-  const seenPages = useRef(pageKey);
+  const seenPages = useRef(`${pageKey}:${format}`);
 
   useEffect(() => {
-    if (seenPages.current === pageKey) return;
-    seenPages.current = pageKey;
-    setPdfUri(undefined);
+    const key = `${pageKey}:${format}`;
+    if (seenPages.current === key) return;
+    seenPages.current = key;
+    setPreparedUri(undefined);
+    setPreparedName(undefined);
+    setPreparedMime(undefined);
     setUploadId(undefined);
-  }, [pageKey]);
+  }, [pageKey, format]);
 
   useEffect(() => {
     if (form.getValues('documentTypeId') || !types.data) return;
@@ -75,6 +93,9 @@ export default function UploadScreen() {
   }, [types.data, form]);
 
   if (session.pages.length === 0) return <Redirect href="/(app)/scan" />;
+  if (format === 'image' && session.pages.length !== 1) {
+    return <Redirect href={{ pathname: '/(app)/preview', params: { format: 'image' } }} />;
+  }
 
   const creatable = (categories.data ?? []).filter((category) => category.canCreate && category.isActive);
   const activeTypes = (types.data ?? []).filter((type) => type.isActive);
@@ -82,7 +103,7 @@ export default function UploadScreen() {
   const blocked = schema.data ? unsupportedRequiredFields(schema.data) : [];
 
   function signatureOf(values: FilingValues): string {
-    return JSON.stringify({ ...values, metadataValues, pageKey });
+    return JSON.stringify({ ...values, metadataValues, pageKey, format });
   }
 
   function idempotencyKey(values: FilingValues): string {
@@ -104,10 +125,17 @@ export default function UploadScreen() {
     setDuplicates([]);
     try {
       const outcome = await fileScan(
-        { createPdf: createPdfFromPages, upload: uploadPdf, createDocument },
+        {
+          prepareFile: prepareScanFile,
+          upload: uploadFile,
+          createDocument,
+        },
         {
           pages: session.pages,
-          pdfUri,
+          format,
+          fileUri: preparedUri,
+          fileName: preparedName,
+          mimeType: preparedMime,
           uploadId,
           idempotencyKey: idempotencyKey(values),
           draft: {
@@ -116,14 +144,16 @@ export default function UploadScreen() {
             categoryId: values.categoryId,
             documentTypeId: values.documentTypeId,
             tags: [],
-            changeDescription: 'اسکن با موبایل',
+            changeDescription: format === 'image' ? 'عکس با موبایل' : 'اسکن با موبایل',
             metadata: toMetadata(fields, metadataValues),
           },
           onPhase: setPhase,
           onProgress: setProgress,
-          onPdf: (uri) => {
-            setPdfUri(uri);
-            session.setPdfUri(uri);
+          onPrepared: (file) => {
+            setPreparedUri(file.uri);
+            setPreparedName(file.fileName);
+            setPreparedMime(file.mimeType);
+            session.setPrepared({ ...file, format });
           },
           onUploaded: setUploadId,
         },
@@ -150,120 +180,126 @@ export default function UploadScreen() {
   }
 
   const showProgress = running || phase !== null || error !== null;
+  const formatLabel = format === 'image' ? 'عکس' : 'PDF';
 
   return (
     <DottedFill>
-    <SafeAreaView style={styles.safe}>
-      <PageHeader title="ثبت سند" onBack={running ? undefined : () => router.back()} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {showProgress ? (
-          <Card>
-            <View style={styles.track}>
-              <View style={[styles.trackFill, { width: `${trackPercent(phase, progress)}%` }]} />
-            </View>
-            {steps.map((step) => (
-              <Text key={step.id} style={[styles.step, phase === step.id ? styles.stepActive : null]}>
-                {step.label}
-                {step.id === 'upload' && phase === 'upload' ? ` ${faDigits(Math.round(progress * 100))}٪` : ''}
+      <SafeAreaView style={styles.safe}>
+        <PageHeader title={`ثبت سند (${formatLabel})`} onBack={running ? undefined : () => router.back()} />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {showProgress ? (
+            <Card>
+              <View style={styles.track}>
+                <View style={[styles.trackFill, { width: `${trackPercent(phase, progress)}%` }]} />
+              </View>
+              {steps.map((step) => (
+                <Text key={step.id} style={[styles.step, phase === step.id ? styles.stepActive : null]}>
+                  {step.id === 'prepare' && format === 'image' ? 'آماده‌سازی عکس...' : step.label}
+                  {step.id === 'upload' && phase === 'upload' ? ` ${faDigits(Math.round(progress * 100))}٪` : ''}
+                </Text>
+              ))}
+              <ErrorMessage message={error} />
+              {error ? <Button label="تلاش دوباره" onPress={form.handleSubmit(submit)} loading={running} /> : null}
+              {running ? <Loading label={steps.find((step) => step.id === phase)?.label ?? 'در حال انجام...'} /> : null}
+            </Card>
+          ) : null}
+
+          {!running ? (
+            <View style={styles.form}>
+              <Text style={styles.formatHint}>
+                {format === 'image'
+                  ? 'فایل نهایی همان عکس گرفته‌شده است و به PDF تبدیل نمی‌شود.'
+                  : 'صفحات به‌صورت یک فایل PDF ثبت می‌شوند.'}
               </Text>
-            ))}
-            <ErrorMessage message={error} />
-            {error ? <Button label="تلاش دوباره" onPress={form.handleSubmit(submit)} loading={running} /> : null}
-            {running ? <Loading label={steps.find((step) => step.id === phase)?.label ?? 'در حال انجام...'} /> : null}
-          </Card>
-        ) : null}
-
-        {!running ? (
-          <View style={styles.form}>
-            <ErrorMessage message={categories.error ? userMessage(categories.error) : null} />
-            <ErrorMessage message={types.error ? userMessage(types.error) : null} />
-            <ErrorMessage message={schema.error ? userMessage(schema.error) : null} />
-            {duplicates.length > 0 ? (
-              <Card>
-                <Text style={styles.blockTitle}>این فایل قبلاً ثبت شده است</Text>
-                {duplicates.map((item) => (
-                  <Text key={item.documentId} style={styles.blockText}>
-                    {item.title}
-                  </Text>
-                ))}
-              </Card>
-            ) : null}
-            <Controller
-              control={form.control}
-              name="title"
-              render={({ field, fieldState }) => (
-                <Input label="عنوان" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
-              )}
-            />
-            <Controller
-              control={form.control}
-              name="description"
-              render={({ field, fieldState }) => (
-                <Input
-                  label="توضیح (اختیاری)"
-                  value={field.value}
-                  onChangeText={field.onChange}
-                  onBlur={field.onBlur}
-                  multiline
-                  error={fieldState.error?.message}
+              <ErrorMessage message={categories.error ? userMessage(categories.error) : null} />
+              <ErrorMessage message={types.error ? userMessage(types.error) : null} />
+              <ErrorMessage message={schema.error ? userMessage(schema.error) : null} />
+              {duplicates.length > 0 ? (
+                <Card>
+                  <Text style={styles.blockTitle}>این فایل قبلاً ثبت شده است</Text>
+                  {duplicates.map((item) => (
+                    <Text key={item.documentId} style={styles.blockText}>
+                      {item.title}
+                    </Text>
+                  ))}
+                </Card>
+              ) : null}
+              <Controller
+                control={form.control}
+                name="title"
+                render={({ field, fieldState }) => (
+                  <Input label="عنوان" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={fieldState.error?.message} />
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="description"
+                render={({ field, fieldState }) => (
+                  <Input
+                    label="توضیح (اختیاری)"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onBlur={field.onBlur}
+                    multiline
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+              <Text style={styles.section}>پوشه</Text>
+              {categories.isLoading ? <Loading label="در حال دریافت پوشه‌ها..." /> : null}
+              {creatable.length === 0 && categories.isSuccess ? (
+                <Text style={styles.blockText}>پوشه‌ای با اجازهٔ ایجاد سند برای شما وجود ندارد.</Text>
+              ) : null}
+              {creatable.map((category) => (
+                <Choice
+                  key={category.id}
+                  label={'  '.repeat(category.depth) + category.name}
+                  selected={form.watch('categoryId') === category.id}
+                  onPress={() => form.setValue('categoryId', category.id, { shouldValidate: true })}
                 />
-              )}
-            />
-            <Text style={styles.section}>پوشه</Text>
-            {categories.isLoading ? <Loading label="در حال دریافت پوشه‌ها..." /> : null}
-            {creatable.length === 0 && categories.isSuccess ? (
-              <Text style={styles.blockText}>پوشه‌ای با اجازهٔ ایجاد سند برای شما وجود ندارد.</Text>
-            ) : null}
-            {creatable.map((category) => (
-              <Choice
-                key={category.id}
-                label={'  '.repeat(category.depth) + category.name}
-                selected={form.watch('categoryId') === category.id}
-                onPress={() => form.setValue('categoryId', category.id, { shouldValidate: true })}
-              />
-            ))}
-            {form.formState.errors.categoryId ? <Text style={styles.fieldError}>{form.formState.errors.categoryId.message}</Text> : null}
+              ))}
+              {form.formState.errors.categoryId ? <Text style={styles.fieldError}>{form.formState.errors.categoryId.message}</Text> : null}
 
-            <Text style={styles.section}>نوع سند</Text>
-            {activeTypes.map((type) => (
-              <Choice
-                key={type.id}
-                label={type.name}
-                selected={documentTypeId === type.id}
-                onPress={() => {
-                  form.setValue('documentTypeId', type.id, { shouldValidate: true });
-                  setMetadataValues({});
-                }}
-              />
-            ))}
-            {form.formState.errors.documentTypeId ? (
-              <Text style={styles.fieldError}>{form.formState.errors.documentTypeId.message}</Text>
-            ) : null}
+              <Text style={styles.section}>نوع سند</Text>
+              {activeTypes.map((type) => (
+                <Choice
+                  key={type.id}
+                  label={type.name}
+                  selected={documentTypeId === type.id}
+                  onPress={() => {
+                    form.setValue('documentTypeId', type.id, { shouldValidate: true });
+                    setMetadataValues({});
+                  }}
+                />
+              ))}
+              {form.formState.errors.documentTypeId ? (
+                <Text style={styles.fieldError}>{form.formState.errors.documentTypeId.message}</Text>
+              ) : null}
 
-            {schema.isLoading ? <Loading label="در حال دریافت فرم سند..." /> : null}
-            {blocked.length > 0 ? (
-              <ErrorMessage message="این نوع سند فیلد الزامی دارد که در نسخهٔ اول موبایل پشتیبانی نمی‌شود. نوع «سند عمومی» را انتخاب کنید." />
-            ) : null}
-            {fields.map((field) => (
-              <MetadataField
-                key={field.code}
-                field={field}
-                value={metadataValues[field.code] ?? ''}
-                error={metadataProblems[field.code]}
-                onChange={(value) => setMetadataValues((current) => ({ ...current, [field.code]: value }))}
-              />
-            ))}
+              {schema.isLoading ? <Loading label="در حال دریافت فرم سند..." /> : null}
+              {blocked.length > 0 ? (
+                <ErrorMessage message="این نوع سند فیلد الزامی دارد که در نسخهٔ اول موبایل پشتیبانی نمی‌شود. نوع «سند عمومی» را انتخاب کنید." />
+              ) : null}
+              {fields.map((field) => (
+                <MetadataField
+                  key={field.code}
+                  field={field}
+                  value={metadataValues[field.code] ?? ''}
+                  error={metadataProblems[field.code]}
+                  onChange={(value) => setMetadataValues((current) => ({ ...current, [field.code]: value }))}
+                />
+              ))}
 
-            <Button
-              label="ثبت سند"
-              onPress={form.handleSubmit(submit)}
-              loading={running}
-              disabled={blocked.length > 0 || schema.isLoading || !schema.data}
-            />
-          </View>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+              <Button
+                label="ثبت سند"
+                onPress={form.handleSubmit(submit)}
+                loading={running}
+                disabled={blocked.length > 0 || schema.isLoading || !schema.data}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
     </DottedFill>
   );
 }
@@ -277,7 +313,7 @@ function Choice({ label, selected, onPress }: { label: string; selected: boolean
 }
 
 function trackPercent(phase: FilingPhase | null, progress: number): number {
-  if (phase === 'pdf') return 18;
+  if (phase === 'prepare') return 18;
   if (phase === 'upload') return Math.max(18, Math.min(90, Math.round(progress * 100)));
   if (phase === 'create') return 100;
   return progress > 0 ? Math.round(progress * 100) : 8;
@@ -353,6 +389,7 @@ const styles = StyleSheet.create({
   fieldError: { color: colors.danger, textAlign: 'right', writingDirection: 'rtl' },
   blockTitle: { color: colors.ink, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   blockText: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl' },
+  formatHint: { color: colors.muted, textAlign: 'right', writingDirection: 'rtl', marginBottom: space.xs },
   field: { gap: space.xs },
   row: { flexDirection: 'row', gap: space.sm },
 });

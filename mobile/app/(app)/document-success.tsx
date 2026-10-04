@@ -22,8 +22,8 @@ export default function DocumentSuccessScreen() {
   const session = useScanSession();
   const [shareError, setShareError] = useState<string | null>(null);
 
-  async function sharePdf() {
-    if (!session.pdfUri) return;
+  async function shareFile() {
+    if (!session.prepared) return;
     setShareError(null);
     try {
       const available = await Sharing.isAvailableAsync();
@@ -31,9 +31,12 @@ export default function DocumentSuccessScreen() {
         setShareError('اشتراک‌گذاری روی این دستگاه در دسترس نیست.');
         return;
       }
-      await Sharing.shareAsync(session.pdfUri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: 'سند اسکن‌شده' });
+      await Sharing.shareAsync(session.prepared.uri, {
+        mimeType: session.prepared.mimeType,
+        dialogTitle: 'سند اسکن‌شده',
+      });
     } catch {
-      setShareError('اشتراک‌گذاری PDF ناموفق بود.');
+      setShareError('اشتراک‌گذاری فایل ناموفق بود.');
     }
   }
 
@@ -50,7 +53,13 @@ export default function DocumentSuccessScreen() {
         {documentId ? (
           <Button label="مشاهده سند" onPress={() => router.push({ pathname: '/(app)/document', params: { id: documentId } })} />
         ) : null}
-        {session.pdfUri ? <Button label="اشتراک PDF" variant="secondary" onPress={() => void sharePdf()} /> : null}
+        {session.prepared ? (
+          <Button
+            label={session.prepared.format === 'image' ? 'اشتراک عکس' : 'اشتراک PDF'}
+            variant="secondary"
+            onPress={() => void shareFile()}
+          />
+        ) : null}
         <Button
           label="ثبت سند جدید"
           variant="secondary"

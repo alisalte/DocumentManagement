@@ -24,8 +24,11 @@ const codeMessages: Record<string, string> = {
   'document.duplicate_file': 'این فایل قبلاً به‌عنوان سندی که می‌توانید ببینید ثبت شده است.',
   'document.title_required': 'عنوان سند الزامی است.',
   'upload.not_found': 'فایل آپلودشده پیدا نشد یا قبلاً استفاده شده است.',
-  'upload.extension_not_allowed': 'این نوع سند فایل PDF را نمی‌پذیرد.',
+  'upload.extension_not_allowed': 'این نوع سند این فرمت فایل را نمی‌پذیرد.',
+  'upload.too_large_for_type': 'حجم فایل برای این نوع سند بیش از حد مجاز است.',
   'category.inactive': 'در این پوشه نمی‌توان سند ثبت کرد.',
+  'category.not_found': 'پوشه پیدا نشد.',
+  'document_type.not_found': 'نوع سند پیدا نشد.',
   network: 'اتصال به سرور برقرار نشد.',
   config: 'آدرس سرور تنظیم نشده است. آن را در صفحه ورود وارد کنید.',
 };
@@ -68,6 +71,10 @@ export function toApiError(error: unknown): ApiError {
 
 /** Persian text for the screen. Technical detail stays in the logs. */
 export function userMessage(error: unknown): string {
+  if (error instanceof Error && !(error instanceof ApiError) && !axios.isAxiosError(error)) {
+    // Local validation / prepare failures already carry Persian text.
+    if (/[\u0600-\u06FF]/.test(error.message)) return error.message;
+  }
   const apiError = error instanceof ApiError ? error : toApiError(error);
   if (apiError.code && codeMessages[apiError.code]) return codeMessages[apiError.code];
   if (apiError.status === 0) return codeMessages.network;
