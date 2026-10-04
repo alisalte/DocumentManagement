@@ -225,11 +225,11 @@ services:
       api:
         condition: service_healthy
 
-  # The phone scanner as a web app on http://localhost:${SCANNER_PORT:-8091}. Same pattern as
-  # `web`: nginx serves the Expo export and proxies /api, so the bundle's /api/v1 is same-origin.
-  # Opt-in: `npm ci` + `expo export` make this image slow; skip it for everyday archive work.
+  # The phone scanner as a web app. Opt-in: `npm ci` + `expo export` make this image slow.
   #   docker compose --profile scanner up -d --build scanner
-  # The camera works in a browser on localhost. A phone on the LAN still needs HTTPS, or Expo Go.
+  # Phones only grant the camera over HTTPS (or localhost). Port SCANNER_PORT is HTTPS;
+  # SCANNER_HTTP_PORT is a plain-HTTP hint page. Set SCANNER_TLS_IP to your public/LAN IP
+  # so the self-signed certificate matches (e.g. 62.60.166.71).
   scanner:
     profiles: ["scanner", "mobile"]
     build:
@@ -237,10 +237,15 @@ services:
       dockerfile: ../deploy/scanner.Dockerfile
       additional_contexts:
         nginxconf: ./nginx
+        deployfiles: .
     image: dms-scanner:latest
     restart: unless-stopped
+    environment:
+      SCANNER_TLS_HOST: ${SCANNER_TLS_HOST:-localhost}
+      SCANNER_TLS_IP: ${SCANNER_TLS_IP:-}
     ports:
-      - "${SCANNER_PORT:-8091}:8080"
+      - "${SCANNER_PORT:-8091}:8443"
+      - "${SCANNER_HTTP_PORT:-8092}:8080"
     depends_on:
       api:
         condition: service_healthy

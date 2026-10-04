@@ -1,5 +1,4 @@
-# Scanner web app: Expo export, then nginx. The bundle calls /api/v1 on the same host,
-# and nginx proxies that to the API container.
+# Scanner web app: Expo export, then nginx with HTTPS so phones can use the camera.
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -12,11 +11,14 @@ ENV EXPO_PUBLIC_API_URL=/api/v1
 RUN npx expo export --platform web --output-dir dist
 
 FROM nginx:alpine AS runtime
-RUN mkdir -p /var/cache/nginx /tmp/nginx \
- && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp/nginx \
+RUN apk add --no-cache openssl su-exec \
+ && mkdir -p /var/cache/nginx /tmp/nginx /etc/nginx/certs \
+ && chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /tmp/nginx /etc/nginx/certs \
  && sed -i 's@pid\s\+.*\;@pid /tmp/nginx/nginx.pid;@' /etc/nginx/nginx.conf \
  && sed -i '/^user /d' /etc/nginx/nginx.conf
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
-COPY --from=nginxconf --chown=nginx:nginx scanner.conf /etc/nginx/conf.d/default.conf
-USER nginx
-EXPOSE 8080
+COPY --from=nginxconf scanner.conf /etc/nginx/conf.d/default.conf
+COPY --from=deployfiles --chmod=755 scanner-entrypoint.sh /scanner-entrypoint.sh
+# Entrypoint runs as root once to mint/refresh the cert, then drops to nginx.
+EXPOSE 8080 8443
+ENTRYPOINT ["/scanner-entrypoint.sh"]

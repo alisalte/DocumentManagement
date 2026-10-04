@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Linking, Platform, StyleSheet, View } from 'react-native';
 import { Text } from '../../../components/AppText';
 import { CameraView as ExpoCamera, useCameraPermissions } from 'expo-camera';
 import { BrandMark } from '../../../components/BrandMark';
@@ -7,6 +7,7 @@ import { Button } from '../../../components/Button';
 import { ErrorMessage } from '../../../components/ErrorMessage';
 import { colors, space } from '../../../theme';
 import { faDigits } from '../../../utils/format';
+import { cameraHttpsHint, isInsecureBrowserContext } from '../secure-context';
 
 interface Props {
   pageCount: number;
@@ -22,6 +23,17 @@ export function CameraView({ pageCount, onCapture, onImport, onSystemCamera, onF
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const insecureWeb = Platform.OS === 'web' && isInsecureBrowserContext();
+
+  if (insecureWeb) {
+    return (
+      <View style={styles.permission}>
+        <BrandMark size={64} />
+        <Text style={styles.permissionText}>{cameraHttpsHint()}</Text>
+        <Button label="از گالری" variant="secondary" onPress={onImport} style={styles.permissionButton} />
+      </View>
+    );
+  }
 
   if (!permission) {
     return <View style={styles.fill} />;
@@ -38,13 +50,14 @@ export function CameraView({ pageCount, onCapture, onImport, onSystemCamera, onF
         </Text>
         {permission.canAskAgain ? (
           <Button label="اجازه دوربین" onPress={() => void requestPermission()} style={styles.permissionButton} />
-        ) : (
+        ) : Platform.OS !== 'web' ? (
           <Button label="باز کردن تنظیمات" onPress={() => void Linking.openSettings()} style={styles.permissionButton} />
+        ) : (
+          <Button label="از گالری" variant="secondary" onPress={onImport} style={styles.permissionButton} />
         )}
       </View>
     );
   }
-
   async function takePhoto() {
     const view = camera.current;
     if (!view) throw new Error('camera_missing');

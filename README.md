@@ -197,7 +197,7 @@ This builds the images and starts the stack, plus the optional processing servic
 | `dms-worker-1` | background jobs: scan, previews, OCR, indexing | — |
 | `dms-web-1` | nginx: the web app, proxying `/api` to the API, and the scanner APK when built | **http://localhost:8090** |
 | `dms-apk-1` | profile `apk` (or `mobile`): builds the Android scanner, copies the APK, then exits | — |
-| `dms-scanner-1` | profile `scanner` (or `mobile`): phone scanner in the browser | **http://localhost:8091** |
+| `dms-scanner-1` | profile `scanner` (or `mobile`): phone scanner over **HTTPS** | **https://localhost:8091** |
 | `opensearch`, `tika` | profile `search`: full-text search and OCR | — |
 | `clamav` | profile `scan`: malware scanning | — |
 | `gotenberg` | profile `office`: previews of Office files | — |
@@ -210,8 +210,9 @@ A normal `docker compose up --build` does **not** build the mobile Expo web app 
 APK. Those are opt-in because they are slow (`npm ci` / Expo export, and the Android SDK):
 
 ```bash
-# browser scanner on :8091
+# browser scanner on :8091 (HTTPS — required for the phone camera)
 docker compose --profile scanner up -d --build scanner
+# set SCANNER_TLS_IP in .env to your server IP first, then open https://IP:8091
 
 # Android APK for the login QR
 docker compose --profile apk build apk
@@ -224,12 +225,15 @@ docker compose --profile mobile up -d --build
 Open **http://localhost:8090** for the archive. Sign in as `DMS_ADMIN_USERNAME` /
 `DMS_ADMIN_PASSWORD`. Each site talks to one origin, so no CORS setup is needed; nginx streams
 uploads to the API without buffering them. Files live on the `object-data` volume. With the
-`scanner` profile, the camera works in the browser on localhost. From a phone, after the APK
-profile has been built, open the archive login with the computer's LAN address (not `localhost`)
-and scan the QR code. That downloads `dms-scanner.apk`. After install, enter that same address in
-the app. Set `SCANNER_API_URL` in `.env` before the APK build to bake the address in, for example
-`http://192.168.1.10:8090/api/v1`. The first APK image build downloads the Android SDK. If
-`dl.google.com` answers 404, the same packages are fetched from a public mirror.
+`scanner` profile, open **https://YOUR_IP:8091** on the phone (browsers block the camera on plain
+`http://` except localhost). Accept the self-signed certificate warning once, then allow the
+camera. Set `SCANNER_TLS_IP` in `.env` to that IP before starting the scanner so the certificate
+matches. From a phone, after the APK profile has been built, you can instead open the archive
+login with the computer's LAN address (not `localhost`) and scan the QR code. That downloads
+`dms-scanner.apk`. After install, enter that same address in the app. Set `SCANNER_API_URL` in
+`.env` before the APK build to bake the address in, for example `http://192.168.1.10:8090/api/v1`.
+The first APK image build downloads the Android SDK. If `dl.google.com` answers 404, the same
+packages are fetched from a public mirror.
 
 Two things specific to this machine:
 
