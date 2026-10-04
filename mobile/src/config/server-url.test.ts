@@ -13,6 +13,12 @@ describe('normalizeServerUrl', () => {
     expect(normalizeServerUrl('http://10.0.0.8:8090/api/v1/')).toBe('http://10.0.0.8:8090/api/v1');
   });
 
+  it('rewrites the web-scanner ports to the archive API port', () => {
+    expect(normalizeServerUrl('http://62.60.166.71:8091')).toBe('http://62.60.166.71:8090/api/v1');
+    expect(normalizeServerUrl('https://62.60.166.71:8091/api/v1')).toBe('http://62.60.166.71:8090/api/v1');
+    expect(normalizeServerUrl('62.60.166.71:8092')).toBe('http://62.60.166.71:8090/api/v1');
+  });
+
   it('rejects an empty or unexpected address', () => {
     expect(() => normalizeServerUrl('   ')).toThrow(/empty/);
     expect(() => normalizeServerUrl('http://192.168.1.10:8090/login')).toThrow(/invalid/);

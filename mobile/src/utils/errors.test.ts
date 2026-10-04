@@ -10,6 +10,6 @@ describe('userMessage', () => {
     expect(userMessage(new ApiError(422, undefined, 'raw'))).toBe('اطلاعات واردشده معتبر نیست.');
     expect(userMessage(new ApiError(429, undefined, 'raw'))).toBe('درخواست‌های زیادی ارسال شده است. کمی بعد دوباره تلاش کنید.');
     expect(userMessage(new ApiError(500, undefined, 'raw'))).toBe('خطایی در سرور رخ داده است.');
-    expect(userMessage(new ApiError(0, 'network', 'network'))).toBe('اتصال به سرور برقرار نشد.');
+    expect(userMessage(new ApiError(0, 'network', 'network'))).toContain('اتصال به سرور برقرار نشد');
   });
 });

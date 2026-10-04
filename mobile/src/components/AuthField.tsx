@@ -3,7 +3,10 @@ import { TextInput } from 'react-native-paper';
 import { Text } from './AppText';
 import { paperColors } from '../theme/paper';
 
-interface Props extends Pick<TextInputProps, 'autoCapitalize' | 'autoCorrect' | 'secureTextEntry' | 'textContentType' | 'keyboardType'> {
+interface Props extends Pick<
+  TextInputProps,
+  'autoCapitalize' | 'autoCorrect' | 'secureTextEntry' | 'textContentType' | 'keyboardType' | 'placeholder'
+> {
   label: string;
   value: string;
   error?: string;

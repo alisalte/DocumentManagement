@@ -18,7 +18,8 @@
     "android": {
       "package": "com.dms.scanner",
       "permissions": [
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.INTERNET"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#6C4EFF",
