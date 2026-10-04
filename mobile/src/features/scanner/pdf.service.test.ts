@@ -1,10 +1,17 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { PDFDocument } from 'pdf-lib';
+import { decodeBase64 } from './bytes';
 import { buildPdfHtml } from './pdf-html';
 import { createPdfFromPages } from './pdf.service';
 import type { ScanPage } from './scanner.types';
 
-function page(id: string, ext = 'jpg'): ScanPage {
-  return { id, uri: `file:///tmp/${id}.${ext}`, width: 10, height: 20 };
+/** Minimal valid 1×1 PNG. */
+const tinyPng = decodeBase64(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+);
+
+function page(id: string): ScanPage {
+  return { id, uri: `file:///tmp/${id}.png`, width: 10, height: 20 };
 }
 
 describe('pdf generation', () => {
@@ -24,28 +31,31 @@ describe('pdf generation', () => {
     expect(html.indexOf('ONE')).toBeLessThan(html.indexOf('TWO'));
   });
 
-  it('prints a one-page pdf from a single image', async () => {
-    const printHtml = vi.fn(async (_html: string) => 'file:///tmp/one.pdf');
+  it('writes a real one-page pdf from a png', async () => {
+    const written: Uint8Array[] = [];
     const uri = await createPdfFromPages([page('a')], {
-      readBase64: async () => 'QUJD',
-      printHtml,
+      readBytes: async () => tinyPng,
+      writePdf: async (bytes) => {
+        written.push(bytes);
+        return 'file:///tmp/one.pdf';
+      },
     });
     expect(uri).toBe('file:///tmp/one.pdf');
-    const html = printHtml.mock.calls[0]?.[0] ?? '';
-    expect(html.match(/<section class="page">/g)).toHaveLength(1);
-    expect(html).toContain('data:image/jpeg;base64,QUJD');
+    expect(written).toHaveLength(1);
+    const pdf = await PDFDocument.load(written[0]!);
+    expect(pdf.getPageCount()).toBe(1);
   });
 
-  it('prints a multi-page pdf in page order', async () => {
-    const printHtml = vi.fn(async (_html: string) => 'file:///tmp/many.pdf');
-    await createPdfFromPages([page('a'), page('b', 'png')], {
-      readBase64: async (uri) => (uri.endsWith('.png') ? 'PNG' : 'JPG'),
-      printHtml,
+  it('writes a multi-page pdf in page order', async () => {
+    const written: Uint8Array[] = [];
+    await createPdfFromPages([page('a'), page('b')], {
+      readBytes: async () => tinyPng,
+      writePdf: async (bytes) => {
+        written.push(bytes);
+        return 'file:///tmp/many.pdf';
+      },
     });
-    const html = printHtml.mock.calls[0]?.[0] ?? '';
-    expect(html.match(/<section class="page">/g)).toHaveLength(2);
-    expect(html).toContain('data:image/jpeg;base64,JPG');
-    expect(html).toContain('data:image/png;base64,PNG');
-    expect(html.indexOf('JPG')).toBeLessThan(html.indexOf('PNG'));
+    const pdf = await PDFDocument.load(written[0]!);
+    expect(pdf.getPageCount()).toBe(2);
   });
 });
