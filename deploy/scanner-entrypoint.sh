@@ -29,5 +29,19 @@ if [ ! -f "$CERT_DIR/fullchain.pem" ] || [ ! -f "$CERT_DIR/privkey.pem" ]; then
     -addext "subjectAltName=${SAN}"
 fi
 
-chown -R nginx:nginx "$CERT_DIR" /var/cache/nginx /tmp/nginx /usr/share/nginx/html
+# Replace the base image's log symlinks. nginx opens them with O_CREAT before it
+# reads the config; a non-root master gets EACCES on /dev/stderr and exits.
+LOG_DIR=/var/log/nginx
+mkdir -p "$LOG_DIR" /tmp/nginx /var/cache/nginx \
+  /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp \
+  /var/cache/nginx/fastcgi_temp /var/cache/nginx/uwsgi_temp /var/cache/nginx/scgi_temp
+for log in error.log access.log; do
+  target="$LOG_DIR/$log"
+  if [ -L "$target" ] || [ ! -e "$target" ]; then
+    rm -f "$target"
+    touch "$target"
+  fi
+done
+
+chown -R nginx:nginx "$CERT_DIR" "$LOG_DIR" /var/cache/nginx /tmp/nginx /usr/share/nginx/html
 exec su-exec nginx nginx -g 'daemon off;'
