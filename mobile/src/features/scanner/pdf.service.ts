@@ -1,4 +1,3 @@
-import { PDFDocument } from 'pdf-lib';
 import { imageMime } from './pdf-html';
 import { decodeBase64, encodeBase64, readUriBytes, writeCacheFile } from './bytes';
 import { newScanId } from './scan-id';
@@ -24,6 +23,10 @@ export async function createPdfFromPages(pages: ScanPage[], io: PdfIo = defaultI
     throw new Error('At least one page is required.');
   }
 
+  // Load pdf-lib only when a PDF is actually built. A static import is evaluated
+  // as soon as the filing screen opens, and Metro's tslib interop used to throw
+  // there — the route never rendered and the phone stayed on a blank page.
+  const { PDFDocument } = await import('pdf-lib');
   const pdf = await PDFDocument.create();
   for (const page of pages) {
     const source = await io.readBytes(page.uri);
