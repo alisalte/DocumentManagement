@@ -1,7 +1,7 @@
 import { Alert, Button, Card, Select, TextArea, TextField } from '../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
+import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { FilePicker } from '../components/FilePicker';
 import { DynamicForm } from '../components/metadata/DynamicForm';
 import { TagInput } from '../components/TagInput';
@@ -34,9 +34,12 @@ const filingPermissions = [
  */
 export function NewDocumentPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useSession();
   const [params] = useSearchParams();
+  const incomingUpload =
+    (location.state as { stagedUpload?: UploadResult } | null)?.stagedUpload ?? null;
 
   const categories = useQuery({
     queryKey: ['categories'],
@@ -55,14 +58,18 @@ export function NewDocumentPage() {
 
   const [categoryId, setCategoryId] = useState(params.get('category') ?? '');
   const [documentTypeId, setDocumentTypeId] = useState('');
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(() =>
+    incomingUpload ? incomingUpload.fileName.replace(/\.[^.]+$/, '') : '',
+  );
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  // Quick upload already staged this file. Register it with that upload id instead of sending the bytes again.
+  const [stagedUpload, setStagedUpload] = useState<UploadResult | null>(incomingUpload);
   const [progress, setProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>([]);
+  const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>(incomingUpload?.duplicates ?? []);
   const [metadata, setMetadata] = useState<Metadata>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
@@ -104,7 +111,8 @@ export function NewDocumentPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (submitting.current) return;
-    if (!file || !selectedCategory || !selectedType || !schema.data) return;
+    const pending = stagedUpload && !file ? stagedUpload : null;
+    if ((!file && !pending) || !selectedCategory || !selectedType || !schema.data) return;
     if (duplicates.length > 0) return;
 
     const local = clientErrors(schema.data, metadata);
@@ -115,16 +123,22 @@ export function NewDocumentPage() {
     setBusy(true);
     setError(null);
     try {
-      if (staged.current?.file !== file) {
-        setProgress(0);
-        const upload = await api.upload(file, setProgress);
-        staged.current = { file, upload };
-        idempotencyKey.current = newIdempotencyKey();
-        setDuplicates(upload.duplicates);
-        if (upload.duplicates.length > 0) {
-          setProgress(null);
-          return;
+      let uploadId: string;
+      if (pending) {
+        uploadId = pending.uploadId;
+      } else {
+        if (staged.current?.file !== file) {
+          setProgress(0);
+          const upload = await api.upload(file!, setProgress);
+          staged.current = { file: file!, upload };
+          idempotencyKey.current = newIdempotencyKey();
+          setDuplicates(upload.duplicates);
+          if (upload.duplicates.length > 0) {
+            setProgress(null);
+            return;
+          }
         }
+        uploadId = staged.current!.upload.uploadId;
       }
 
       setProgress(null);
@@ -134,7 +148,7 @@ export function NewDocumentPage() {
           description: description.trim() || null,
           categoryId: selectedCategory,
           documentTypeId: selectedType,
-          uploadId: staged.current!.upload.uploadId,
+          uploadId,
           tags,
           changeDescription: null,
           metadata: toSubmission(schema.data, metadata),
@@ -143,6 +157,8 @@ export function NewDocumentPage() {
       );
 
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
+      await queryClient.invalidateQueries({ queryKey: ['document-counts-by-category'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-recent'] });
       navigate(`/documents/${created.documentId}`, { state: { notice: t.created } });
     } catch (caught) {
       setError(describeError(caught));
@@ -175,14 +191,20 @@ export function NewDocumentPage() {
 
           <FilePicker
             file={file}
+            staged={stagedUpload && !file ? { name: stagedUpload.fileName, size: stagedUpload.size } : null}
             onChange={(next) => {
               setFile(next);
+              setStagedUpload(null);
               setDuplicates([]);
               if (next && !title) setTitle(next.name.replace(/\.[^.]+$/, ''));
             }}
             progress={progress}
             disabled={busy}
           />
+
+          {stagedUpload && !file && duplicates.length === 0 && (
+            <Alert severity="info">{t.stagedFromQuickUpload}</Alert>
+          )}
 
           {duplicates.length > 0 && (
             <Alert severity="error">
@@ -278,7 +300,7 @@ export function NewDocumentPage() {
             <Button
               type="submit"
               loading={busy}
-              disabled={busy || !file || !selectedCategory || !selectedType || !title.trim() || duplicates.length > 0}
+              disabled={busy || (!file && !stagedUpload) || !selectedCategory || !selectedType || !title.trim() || duplicates.length > 0}
             >
               {busy ? t.saving : t.submit}
             </Button>

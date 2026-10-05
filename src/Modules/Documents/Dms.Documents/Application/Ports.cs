@@ -125,6 +125,15 @@ public interface IDocumentReadModel
 
     /// <summary>Live documents with a version whose file has this SHA-256. The caller filters by VIEW.</summary>
     Task<IReadOnlyList<DuplicateCandidate>> FindByFileHashAsync(byte[] sha256, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Visible documents filed directly in each category. Same visibility as <see cref="ListAsync"/>:
+    /// a draft counts only for its author. Subfolder totals are rolled up by the caller.
+    /// </summary>
+    Task<IReadOnlyList<CategoryDocumentCountDto>> CountByCategoryAsync(
+        AccessScope scope,
+        UserId viewer,
+        CancellationToken cancellationToken);
 }
 
 public sealed record DuplicateCandidate(Guid DocumentId, string Title, Guid CategoryId);
@@ -140,6 +149,8 @@ public sealed record CategoryDto(
     int SortOrder);
 
 public sealed record TagDto(Guid Id, string Name);
+
+public sealed record CategoryDocumentCountDto(Guid CategoryId, int Count);
 
 public sealed record DocumentListItemDto(
     Guid Id,

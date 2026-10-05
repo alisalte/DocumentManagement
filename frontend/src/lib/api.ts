@@ -58,6 +58,11 @@ export interface CategoryNode {
   canCreate: boolean;
 }
 
+export interface CategoryDocumentCount {
+  categoryId: string;
+  count: number;
+}
+
 export interface DocumentListItem {
   id: string;
   title: string;
@@ -1041,6 +1046,9 @@ export const api = {
     page?: number;
     pageSize?: number;
   }) => request<Paged<DocumentListItem>>(`/api/v1/documents${query(params)}`),
+
+  /** Documents filed directly in each category. Folder cards add descendant folders themselves. */
+  documentCounts: () => request<CategoryDocumentCount[]>('/api/v1/documents/counts'),
 
   document: (id: string) => request<DocumentDetails>(`/api/v1/documents/${id}`),
 

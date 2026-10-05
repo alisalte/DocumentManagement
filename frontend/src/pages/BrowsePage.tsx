@@ -125,6 +125,14 @@ export function BrowsePage() {
         categories={folderSource ?? []}
         filingTarget={filingTarget ?? (isDemo ? 'd1' : undefined)}
         demo={isDemo}
+        directFileCounts={
+          isDemo
+            ? demoDocs.reduce<Record<string, number>>((counts, item) => {
+                counts[item.categoryId] = (counts[item.categoryId] ?? 0) + 1;
+                return counts;
+              }, {})
+            : undefined
+        }
         onOpenCategory={(id) => {
           const next = new URLSearchParams(params);
           next.set('category', id);

@@ -235,6 +235,10 @@ public static class DocumentEndpoints
             })
             .WithSummary("Documents the caller may see, newest first.");
 
+        documents.MapGet("/counts", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListCategoryDocumentCountsQuery(), ct)).ToHttpResult())
+            .WithSummary("How many visible documents are filed directly in each category.");
+
         documents.MapPost("", async (
                 CreateDocumentRequest request,
                 [FromHeader(Name = IdempotencyHeader)] string? idempotencyKey,

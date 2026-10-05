@@ -140,6 +140,8 @@ public static class DocumentsModule
 
         services.AddScoped<IQueryHandler<ListDocumentsQuery, Result<PagedResult<DocumentListItemDto>>>,
             ListDocumentsHandler>();
+        services.AddScoped<IQueryHandler<ListCategoryDocumentCountsQuery, Result<IReadOnlyList<CategoryDocumentCountDto>>>,
+            ListCategoryDocumentCountsHandler>();
         services.AddScoped<IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>, GetDocumentHandler>();
         services.AddScoped<IQueryHandler<ListVersionsQuery, Result<IReadOnlyList<DocumentVersionDto>>>,
             ListVersionsHandler>();

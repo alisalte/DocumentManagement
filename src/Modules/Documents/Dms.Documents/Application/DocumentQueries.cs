@@ -6,6 +6,9 @@ using Dms.Storage.Contracts;
 
 namespace Dms.Documents.Application;
 
+/// <summary>Direct document counts per category, for folder cards. The UI adds descendant folders.</summary>
+public sealed record ListCategoryDocumentCountsQuery : IQuery<Result<IReadOnlyList<CategoryDocumentCountDto>>>;
+
 public sealed record ListDocumentsQuery(
     Guid? CategoryId,
     bool IncludeSubcategories,
@@ -78,6 +81,26 @@ public sealed class ListDocumentsHandler(
             cancellationToken);
 
         return Result.Success(result);
+    }
+}
+
+public sealed class ListCategoryDocumentCountsHandler(
+    IAccessScopeProvider scopes,
+    IDocumentReadModel readModel,
+    ICurrentUser currentUser) : IQueryHandler<ListCategoryDocumentCountsQuery, Result<IReadOnlyList<CategoryDocumentCountDto>>>
+{
+    public async Task<Result<IReadOnlyList<CategoryDocumentCountDto>>> HandleAsync(
+        ListCategoryDocumentCountsQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } viewer)
+        {
+            return Result.Failure<IReadOnlyList<CategoryDocumentCountDto>>(DocumentErrors.Unauthenticated);
+        }
+
+        var scope = await scopes.GetScopeAsync(viewer, PermissionCodes.DocumentView, cancellationToken);
+        var counts = await readModel.CountByCategoryAsync(scope, viewer, cancellationToken);
+        return Result.Success(counts);
     }
 }
 

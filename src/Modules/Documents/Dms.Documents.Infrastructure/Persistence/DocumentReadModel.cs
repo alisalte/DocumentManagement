@@ -204,6 +204,24 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CategoryDocumentCountDto>> CountByCategoryAsync(
+        AccessScope scope,
+        UserId viewer,
+        CancellationToken cancellationToken)
+    {
+        var query = ApplyScope(context.Documents.AsNoTracking(), scope)
+            .Where(document => document.EffectiveVersionId != null || document.CreatedBy == viewer);
+
+        var rows = await query
+            .GroupBy(document => document.CategoryId)
+            .Select(group => new { CategoryId = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new CategoryDocumentCountDto(row.CategoryId.Value, row.Count))
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<DuplicateCandidate>> FindByFileHashAsync(
         byte[] sha256,
         CancellationToken cancellationToken) =>
