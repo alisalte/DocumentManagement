@@ -1,11 +1,12 @@
 import { Alert, Button, Card, Chip, ProgressBar, cx } from '../components/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import { FileTypeBadge } from '../components/FileTypeBadge';
 import { FolderIcon } from '../components/FolderIcon';
-import { api, type CategoryNode, type DocumentListItem, type WorkflowTask } from '../lib/api';
-import { topLevelArchiveFolders } from '../lib/categories';
+import { api, type CategoryNode, type DocumentListItem, type UploadResult, type WorkflowTask } from '../lib/api';
+import { useFiscalYear } from '../lib/fiscalYear';
+import { subtreeFileCounts, topLevelArchiveFolders, visibleChildFolders } from '../lib/categories';
 import { formatDate, formatDateTime } from '../lib/dates';
 import { formatBytes, formatNumber, newIdempotencyKey } from '../lib/format';
 import { useSession } from '../session';
@@ -20,6 +21,7 @@ interface QueueItem {
   progress: number;
   status: QueueStatus;
   error?: string;
+  upload?: UploadResult;
 }
 
 function greetingForHour(hour: number): string {
@@ -28,19 +30,6 @@ function greetingForHour(hour: number): string {
   if (hour < 17) return 'ظهر بخیر';
   if (hour < 21) return 'عصر بخیر';
   return 'شب‌بخیر';
-}
-
-function countDescendants(categories: CategoryNode[], rootId: string): number {
-  let n = 0;
-  const stack = categories.filter((c) => c.parentId === rootId).map((c) => c.id);
-  while (stack.length) {
-    const id = stack.pop()!;
-    n += 1;
-    for (const c of categories) {
-      if (c.parentId === id) stack.push(c.id);
-    }
-  }
-  return n;
 }
 
 function Metric({
@@ -89,30 +78,134 @@ function Metric({
 
 function FolderCard({
   category,
-  childCount,
+  countLabel,
+  hasChildren,
   onOpen,
+  onOpenDocuments,
   index,
 }: {
   category: CategoryNode;
-  childCount: number;
+  countLabel: string;
+  hasChildren: boolean;
   onOpen: () => void;
+  onOpenDocuments: () => void;
   index: number;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onOpen}
+    <div
       style={{ animationDelay: `${80 + index * 40}ms` }}
-      className="dashboard-stagger group flex flex-col rounded-2xl border border-paper-200 bg-paper-50 p-4 text-start transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[var(--shadow-elevated)]"
+      className="dashboard-stagger group flex flex-col overflow-hidden rounded-2xl border border-paper-200 bg-paper-50 transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[var(--shadow-elevated)]"
     >
-      <FolderIcon className="mx-auto h-14 w-16 transition-transform duration-300 group-hover:scale-105" />
-      <p className="mt-3 truncate text-sm font-semibold text-ink-900">{category.name}</p>
-      <p className="mt-0.5 text-xs text-paper-500">{category.canCreate ? 'قابل ثبت سند' : 'فقط مشاهده'}</p>
-      <div className="mt-3 flex items-center justify-between border-t border-paper-100 pt-3 text-xs text-paper-500">
-        <span>{formatNumber(childCount)} زیرپوشه</span>
-        <span className="font-medium text-ink-600 opacity-0 transition-opacity group-hover:opacity-100">باز کردن ←</span>
+      <button type="button" onClick={onOpen} className="flex flex-1 flex-col p-4 text-start">
+        <FolderIcon className="mx-auto h-14 w-16 transition-transform duration-300 group-hover:scale-105" />
+        <p className="mt-3 truncate text-sm font-semibold text-ink-900">{category.name}</p>
+        <p className="mt-0.5 text-xs text-paper-500">{category.canCreate ? 'قابل ثبت سند' : 'فقط مشاهده'}</p>
+        <div className="mt-3 flex items-center justify-between border-t border-paper-100 pt-3 text-xs text-paper-500">
+          <span>{countLabel}</span>
+          <span className="font-medium text-ink-600 opacity-0 transition-opacity group-hover:opacity-100">
+            {hasChildren ? 'پوشه‌های داخل ←' : 'باز کردن ←'}
+          </span>
+        </div>
+      </button>
+      {hasChildren && (
+        <button
+          type="button"
+          onClick={onOpenDocuments}
+          className="border-t border-paper-100 px-4 py-2 text-start text-xs font-medium text-ink-600 hover:bg-ink-50/70"
+        >
+          مشاهده اسناد
+        </button>
+      )}
+    </div>
+  );
+}
+
+function FolderGrid({
+  categories,
+  roots,
+  countLabel,
+  onOpenDocuments,
+  filingTarget,
+}: {
+  categories: CategoryNode[];
+  roots: CategoryNode[];
+  countLabel: (id: string) => string;
+  onOpenDocuments: (id: string) => void;
+  filingTarget: string | undefined;
+}) {
+  const [trail, setTrail] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (trail.some((id) => !categories.some((category) => category.id === id))) {
+      setTrail([]);
+    }
+  }, [categories, trail]);
+
+  const focusId = trail[trail.length - 1];
+  const focus = focusId ? categories.find((category) => category.id === focusId) : undefined;
+  const shown = focusId ? visibleChildFolders(categories, focusId) : roots;
+
+  const openFolder = (category: CategoryNode) => {
+    if (visibleChildFolders(categories, category.id).length > 0) {
+      setTrail((current) => [...current, category.id]);
+      return;
+    }
+    onOpenDocuments(category.id);
+  };
+
+  return (
+    <section className="dashboard-stagger" style={{ animationDelay: '80ms' }}>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          {trail.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTrail((current) => current.slice(0, -1))}
+              className="mb-1 text-xs text-ink-500 hover:text-ink-800"
+            >
+              ← بازگشت
+            </button>
+          )}
+          <h2 className="text-xl font-bold text-ink-900">{focus?.name ?? 'پوشه‌های بایگانی'}</h2>
+          <p className="mt-1 text-sm text-paper-500">
+            {focus
+              ? 'زیرپوشه‌ها به همین شکل نمایش داده می‌شوند. عدد هر کارت، تعداد فایل‌های داخل آن پوشه است.'
+              : 'عدد روی هر پوشه، تعداد فایل‌های داخل آن است. اگر داخلش پوشه باشد، با کلیک همان‌طور باز می‌شود.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {focus && (
+            <Button size="sm" variant="outline" onClick={() => onOpenDocuments(focus.id)}>
+              اسناد این پوشه
+            </Button>
+          )}
+          {filingTarget && !focus && (
+            <Button as={RouterLink} to={`/?category=${filingTarget}`} size="sm" variant="outline">
+              پرونده‌های من
+            </Button>
+          )}
+        </div>
       </div>
-    </button>
+      {shown.length === 0 ? (
+        <Card>
+          <p className="py-8 text-center text-sm text-paper-500">پوشه‌ای برای نمایش نیست.</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {shown.map((cat, index) => (
+            <FolderCard
+              key={cat.id}
+              category={cat}
+              countLabel={countLabel(cat.id)}
+              hasChildren={visibleChildFolders(categories, cat.id).length > 0}
+              onOpen={() => openFolder(cat)}
+              onOpenDocuments={() => onOpenDocuments(cat.id)}
+              index={index}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -240,9 +333,12 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
 
 function UploadRail({
   filingTarget,
+  closed,
 }: {
   filingTarget: string | undefined;
+  closed: boolean;
 }) {
+  const navigate = useNavigate();
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -258,7 +354,7 @@ function UploadRail({
     updateItem(item.id, { status: 'uploading', progress: 0, error: undefined });
     void api
       .upload(item.file, (fraction) => updateItem(item.id, { progress: Math.round(fraction * 100) }))
-      .then(() => updateItem(item.id, { status: 'done', progress: 100 }))
+      .then((upload) => updateItem(item.id, { status: 'done', progress: 100, upload }))
       .catch((error: unknown) => {
         updateItem(item.id, { status: 'error', error: describeError(error), progress: 0 });
       })
@@ -280,7 +376,22 @@ function UploadRail({
 
   const newDocHref = filingTarget ? `/new?category=${filingTarget}` : '/new';
   const busyCount = queue.filter((item) => item.status === 'queued' || item.status === 'uploading').length;
-  const doneCount = queue.filter((item) => item.status === 'done').length;
+  const readyUploads = queue.filter(
+    (item) => item.status === 'done' && item.upload && item.upload.duplicates.length === 0,
+  );
+
+  const registerUpload = (upload: UploadResult) => {
+    navigate(newDocHref, { state: { stagedUpload: upload } });
+  };
+
+  if (closed) {
+    return (
+      <Card className="border-dashed border-paper-300 bg-paper-50">
+        <p className="text-sm font-semibold text-ink-900">بارگذاری سریع</p>
+        <p className="mt-2 text-xs leading-5 text-paper-600">{t.fiscalYearQuickUploadClosed}</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="dashboard-stagger space-y-3" style={{ animationDelay: '80ms' }}>
@@ -363,9 +474,35 @@ function UploadRail({
                         />
                       </div>
                       <p className="mt-1 text-[10px] text-paper-500">
-                        {item.status === 'done' ? 'آمادهٔ ثبت سند' : `${formatNumber(item.progress)}٪`}
+                        {item.status === 'done'
+                          ? item.upload && item.upload.duplicates.length > 0
+                            ? 'قبلاً ثبت شده'
+                            : 'آمادهٔ ثبت سند'
+                          : `${formatNumber(item.progress)}٪`}
                       </p>
                     </>
+                  )}
+                  {item.status === 'done' && item.upload && item.upload.duplicates.length === 0 && (
+                    <button
+                      type="button"
+                      className="mt-1 text-xs font-medium text-ink-700 hover:text-ink-900"
+                      onClick={() => registerUpload(item.upload!)}
+                    >
+                      {t.submit}
+                    </button>
+                  )}
+                  {item.status === 'done' && item.upload && item.upload.duplicates.length > 0 && (
+                    <p className="mt-1 text-xs text-rose-700">
+                      {t.duplicateNotice}{' '}
+                      {item.upload.duplicates.map((duplicate, index) => (
+                        <span key={duplicate.documentId}>
+                          {index > 0 && '، '}
+                          <RouterLink to={`/documents/${duplicate.documentId}`} className="font-medium text-ink-700 hover:underline">
+                            {duplicate.title}
+                          </RouterLink>
+                        </span>
+                      ))}
+                    </p>
                   )}
                   {item.status === 'error' && (
                     <button
@@ -394,9 +531,15 @@ function UploadRail({
         )}
       </Card>
 
-      <Button as={RouterLink} to={newDocHref} fullWidth size="lg">
-        {doneCount > 0 ? 'ادامهٔ ثبت سند' : t.newDocument}
-      </Button>
+      {readyUploads.length > 0 ? (
+        <Button fullWidth size="lg" onClick={() => registerUpload(readyUploads[0]!.upload!)}>
+          ادامهٔ ثبت سند
+        </Button>
+      ) : (
+        <Button as={RouterLink} to={newDocHref} fullWidth size="lg">
+          {t.newDocument}
+        </Button>
+      )}
     </div>
   );
 }
@@ -410,20 +553,32 @@ export function DashboardHome({
   filingTarget,
   onOpenCategory,
   demo = false,
+  directFileCounts,
 }: {
   categories: CategoryNode[];
   filingTarget: string | undefined;
   onOpenCategory: (id: string) => void;
   demo?: boolean;
+  /** Direct file counts used by the demo dashboard. Live data comes from the counts API. */
+  directFileCounts?: Record<string, number>;
 }) {
   const { user } = useSession();
+  const fiscal = useFiscalYear();
+  const fiscalYear = !demo && fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
   // Real folders sit under the fixed archive root («اسناد»), not at parentId null.
   const roots = useMemo(() => topLevelArchiveFolders(categories), [categories]);
 
+  const categoryCounts = useQuery({
+    queryKey: ['document-counts-by-category', fiscalYear ?? null],
+    queryFn: () => api.documentCounts(fiscalYear),
+    enabled: !demo && (fiscal.ready || fiscal.failed),
+    staleTime: 30_000,
+  });
+
   const recent = useQuery({
-    queryKey: ['dashboard-recent'],
-    queryFn: () => api.documents({ page: 1, pageSize: 8, includeSubcategories: true }),
-    enabled: !demo,
+    queryKey: ['dashboard-recent', fiscalYear ?? null],
+    queryFn: () => api.documents({ page: 1, pageSize: 8, includeSubcategories: true, fiscalYear }),
+    enabled: !demo && (fiscal.ready || fiscal.failed),
     staleTime: 30_000,
   });
   const tasks = useQuery({
@@ -469,6 +624,22 @@ export function DashboardHome({
         : formatBytes(usedBytes) || '—';
   const storagePct = quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 100)) : 0;
 
+  const directCounts = useMemo(() => {
+    if (demo) return directFileCounts ?? {};
+    const map: Record<string, number> = {};
+    for (const row of categoryCounts.data ?? []) map[row.categoryId] = row.count;
+    return map;
+  }, [demo, directFileCounts, categoryCounts.data]);
+  const fileTotals = useMemo(
+    () => subtreeFileCounts(categories, directCounts),
+    [categories, directCounts],
+  );
+  const countLabel = (id: string) => {
+    if (!demo && categoryCounts.isLoading) return '…';
+    if (!demo && categoryCounts.isError) return '—';
+    return `${formatNumber(fileTotals[id] ?? 0)} فایل`;
+  };
+
   const recentItems = demo
     ? ([
         {
@@ -484,6 +655,7 @@ export function DashboardHome({
           updatedAt: new Date().toISOString(),
           deletedAt: null,
           deleteReason: null,
+          fiscalYear: 1404,
         },
         {
           id: 'demo-2',
@@ -498,6 +670,7 @@ export function DashboardHome({
           updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
           deletedAt: null,
           deleteReason: null,
+          fiscalYear: 1405,
         },
       ] satisfies DocumentListItem[])
     : (recent.data?.items ?? []);
@@ -590,47 +763,24 @@ export function DashboardHome({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-6">
+          <FolderGrid
+            categories={categories}
+            roots={roots}
+            countLabel={countLabel}
+            onOpenDocuments={onOpenCategory}
+            filingTarget={filingTarget}
+          />
+
           <RecentDocs
             items={recentItems}
             loading={!demo && recent.isLoading}
             error={!demo ? recent.error : null}
             categoryNameOf={(id) => categories.find((category) => category.id === id)?.name}
           />
-
-          <section className="dashboard-stagger" style={{ animationDelay: '180ms' }}>
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-ink-900">پوشه‌های بایگانی</h2>
-                <p className="mt-1 text-sm text-paper-500">برای دیدن اسناد، یک پوشه را باز کنید.</p>
-              </div>
-              {filingTarget && (
-                <Button as={RouterLink} to={`/?category=${filingTarget}`} size="sm" variant="outline">
-                  پرونده‌های من
-                </Button>
-              )}
-            </div>
-            {roots.length === 0 ? (
-              <Card>
-                <p className="py-8 text-center text-sm text-paper-500">پوشه‌ای برای نمایش نیست.</p>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {roots.map((cat, index) => (
-                  <FolderCard
-                    key={cat.id}
-                    category={cat}
-                    childCount={countDescendants(categories, cat.id)}
-                    onOpen={() => onOpenCategory(cat.id)}
-                    index={index}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-          <UploadRail filingTarget={filingTarget} />
+          <UploadRail filingTarget={filingTarget} closed={fiscal.closed} />
           <TasksPanel tasks={demo ? [] : (tasks.data ?? [])} loading={!demo && tasks.isLoading} />
 
           <section

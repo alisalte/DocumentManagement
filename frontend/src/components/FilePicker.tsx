@@ -5,6 +5,8 @@ import { Button } from './ui';
 
 interface Props {
   file: File | null;
+  /** A file already staged (quick upload) so the form can register it without picking it again. */
+  staged?: { name: string; size: number } | null;
   onChange: (file: File | null) => void;
   /** 0..1 while uploading, null otherwise. */
   progress: number | null;
@@ -15,7 +17,7 @@ interface Props {
  * A plain file input behind a large button. On a phone the same input offers the camera and
  * the file browser, which is how most scanned paperwork will arrive.
  */
-export function FilePicker({ file, onChange, progress, disabled }: Props) {
+export function FilePicker({ file, staged, onChange, progress, disabled }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const percent = progress === null ? 0 : Math.round(progress * 100);
 
@@ -39,9 +41,9 @@ export function FilePicker({ file, onChange, progress, disabled }: Props) {
           {t.chooseFile}
         </Button>
 
-        {file && (
+        {(file || staged) && (
           <p className="text-sm break-all text-ink-800">
-            {file.name} — {formatBytes(file.size)}
+            {file ? `${file.name} — ${formatBytes(file.size)}` : `${staged!.name} — ${formatBytes(staged!.size)}`}
           </p>
         )}
 

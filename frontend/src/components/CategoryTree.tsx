@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CategoryNode } from '../lib/api';
+import { formatNumber } from '../lib/format';
 import { t } from '../strings';
-import { cx } from './ui';
+import { Menu, MenuItem, cx } from './ui';
 
 interface Props {
   categories: CategoryNode[];
   selectedId: string | null;
   onSelect: (categoryId: string | null) => void;
+  /** Files inside each folder, including subfolders. Null while the count is still loading. */
+  fileCounts?: Record<string, number> | null;
+  /** Right-click «ثبت سند» files into this folder when the caller may create there. */
+  onCreateDocument?: (categoryId: string) => void;
+}
+
+interface MenuPoint {
+  x: number;
+  y: number;
+  node: CategoryNode;
 }
 
 interface TreeNode extends CategoryNode {
@@ -17,9 +28,17 @@ interface TreeNode extends CategoryNode {
  * Folder browser with a visible tree: guide lines, folder icons, and expand/collapse.
  * Only folders the user may browse are interactive; ancestors on the path stay visible but muted.
  */
-export function CategoryTree({ categories, selectedId, onSelect }: Props) {
+export function CategoryTree({ categories, selectedId, onSelect, fileCounts = null, onCreateDocument }: Props) {
   const roots = useMemo(() => buildTree(categories), [categories]);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [menu, setMenu] = useState<MenuPoint | null>(null);
+  const totalFiles = fileCounts
+    ? roots.reduce((sum, root) => sum + (fileCounts[root.id] ?? 0), 0)
+    : null;
+
+  const openMenu = (node: CategoryNode, point: { x: number; y: number }) => {
+    setMenu({ ...point, node });
+  };
 
   // Keep the path to the selected folder open when the selection or tree changes.
   useEffect(() => {
@@ -64,7 +83,8 @@ export function CategoryTree({ categories, selectedId, onSelect }: Props) {
         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-300/50 text-ink-600">
           <AllDocsIcon />
         </span>
-        <span className="truncate">{t.allDocuments}</span>
+        <span className="min-w-0 flex-1 truncate">{t.allDocuments}</span>
+        {totalFiles !== null && <FileCount count={totalFiles} />}
       </button>
 
       <ul className="mt-1 space-y-0">
@@ -79,9 +99,40 @@ export function CategoryTree({ categories, selectedId, onSelect }: Props) {
             onToggle={toggle}
             onSelect={onSelect}
             guides={[]}
+            fileCounts={fileCounts}
+            onOpenMenu={openMenu}
           />
         ))}
       </ul>
+
+      <Menu
+        anchor={null}
+        point={menu ? { x: menu.x, y: menu.y } : null}
+        onClose={() => setMenu(null)}
+      >
+        {menu && (
+          <>
+            <MenuItem
+              onClick={() => {
+                onSelect(menu.node.id);
+                setMenu(null);
+              }}
+            >
+              {t.viewFolderDocuments}
+            </MenuItem>
+            <MenuItem
+              disabled={!menu.node.canCreate || !onCreateDocument}
+              onClick={() => {
+                if (!menu.node.canCreate || !onCreateDocument) return;
+                onCreateDocument(menu.node.id);
+                setMenu(null);
+              }}
+            >
+              {t.newDocument}
+            </MenuItem>
+          </>
+        )}
+      </Menu>
     </nav>
   );
 }
@@ -95,6 +146,8 @@ function TreeRow({
   onToggle,
   onSelect,
   guides,
+  fileCounts,
+  onOpenMenu,
 }: {
   node: TreeNode;
   depth: number;
@@ -105,6 +158,8 @@ function TreeRow({
   onSelect: (categoryId: string | null) => void;
   /** For each ancestor level: whether that ancestor still has siblings below (draw a continuing guide). */
   guides: boolean[];
+  fileCounts: Record<string, number> | null;
+  onOpenMenu: (node: CategoryNode, point: { x: number; y: number }) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const open = expanded.has(node.id);
@@ -112,7 +167,14 @@ function TreeRow({
   const muted = !node.canView;
 
   return (
-    <li className="relative">
+    <li
+      className="relative"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpenMenu(node, { x: event.clientX, y: event.clientY });
+      }}
+    >
       <div className="flex min-h-9 items-stretch">
         {/* Tree guides: vertical stems + elbow into this row (RTL: drawn from the start edge). */}
         <div className="flex shrink-0" aria-hidden>
@@ -165,7 +227,23 @@ function TreeRow({
             >
               <FolderIcon open={open && hasChildren} />
             </span>
-            <span className="truncate">{node.name}</span>
+            <span className="min-w-0 flex-1 truncate">{node.name}</span>
+            {fileCounts && <FileCount count={fileCounts[node.id] ?? 0} />}
+          </button>
+          <button
+            type="button"
+            aria-label={t.folderMenu}
+            title={t.folderMenu}
+            onClick={(event) => {
+              event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              onOpenMenu(node, { x: rect.right, y: rect.bottom });
+            }}
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-paper-500 hover:bg-paper-300/50 hover:text-ink-900"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4">
+              <path d="M10 4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10 11.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
+            </svg>
           </button>
         </div>
       </div>
@@ -183,6 +261,8 @@ function TreeRow({
               onToggle={onToggle}
               onSelect={onSelect}
               guides={[...guides, !isLast]}
+              fileCounts={fileCounts}
+              onOpenMenu={onOpenMenu}
             />
           ))}
         </ul>
@@ -232,6 +312,18 @@ function ancestorsOf(categories: CategoryNode[], id: string): string[] {
     current = byId.get(current.parentId);
   }
   return path;
+}
+
+function FileCount({ count }: { count: number }) {
+  const label = `${formatNumber(count)} فایل`;
+  return (
+    <span
+      title={label}
+      className="shrink-0 rounded-md bg-paper-200/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-paper-600"
+    >
+      {label}
+    </span>
+  );
 }
 
 function ChevronIcon({ open }: { open: boolean }) {

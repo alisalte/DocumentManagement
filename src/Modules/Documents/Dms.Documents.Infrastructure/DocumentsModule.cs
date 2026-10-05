@@ -140,6 +140,9 @@ public static class DocumentsModule
 
         services.AddScoped<IQueryHandler<ListDocumentsQuery, Result<PagedResult<DocumentListItemDto>>>,
             ListDocumentsHandler>();
+        services.AddScoped<IQueryHandler<ListCategoryDocumentCountsQuery, Result<IReadOnlyList<CategoryDocumentCountDto>>>,
+            ListCategoryDocumentCountsHandler>();
+        services.AddScoped<IQueryHandler<ListFiscalYearsQuery, Result<FiscalYearOverviewDto>>, ListFiscalYearsHandler>();
         services.AddScoped<IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>, GetDocumentHandler>();
         services.AddScoped<IQueryHandler<ListVersionsQuery, Result<IReadOnlyList<DocumentVersionDto>>>,
             ListVersionsHandler>();
@@ -151,6 +154,7 @@ public static class DocumentsModule
             ListCategoriesHandler>();
 
         services.AddScoped<IDataSeeder, RootCategorySeeder>();
+        services.AddScoped<IDataSeeder, FiscalYearBackfillSeeder>();
 
         return services;
     }
@@ -177,6 +181,30 @@ public sealed class RootCategorySeeder(DocumentsDbContext context, TimeProvider 
 
         var root = Category.Create(null, "اسناد", RootCode, "ریشه‌ی بایگانی", createdBy: null, timeProvider.GetUtcNow());
         context.Categories.Add(root.Value);
+    }
+}
+
+/// <summary>
+/// Documents filed before fiscal years existed get the Jalali year of their creation time.
+/// A year of 0 is closed, so this runs with the migrator before anyone edits those rows.
+/// </summary>
+public sealed class FiscalYearBackfillSeeder(DocumentsDbContext context) : IDataSeeder
+{
+    public int Order => 31;
+
+    public string Name => "fiscal year backfill";
+
+    public async Task SeedAsync(CancellationToken cancellationToken)
+    {
+        var pending = await context.Documents
+            .IgnoreQueryFilters()
+            .Where(document => document.FiscalYear == 0)
+            .ToListAsync(cancellationToken);
+
+        foreach (var document in pending)
+        {
+            document.AssignFiscalYear(PersianFiscalYear.Of(document.CreatedAt));
+        }
     }
 }
 

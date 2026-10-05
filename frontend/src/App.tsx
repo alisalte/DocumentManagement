@@ -30,6 +30,7 @@ import { HelpGuidePage } from './pages/HelpGuidePage';
 import { SettingsHome, SettingsLayout } from './pages/SettingsPage';
 import { adminSections } from './pages/admin/sections';
 import { TasksPage } from './pages/TasksPage';
+import { FiscalYearProvider } from './lib/fiscalYear';
 import { SessionProvider, useSession } from './session';
 
 const queryClient = new QueryClient({
@@ -58,9 +59,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <BrowserRouter>
-          <Shell />
-        </BrowserRouter>
+        <FiscalYearProvider>
+          <BrowserRouter>
+            <Shell />
+          </BrowserRouter>
+        </FiscalYearProvider>
       </SessionProvider>
     </QueryClientProvider>
   );

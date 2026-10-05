@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api, type CategoryNode } from '../lib/api';
+import { subtreeFileCounts } from '../lib/categories';
+import { formatFiscalYear, useFiscalYear } from '../lib/fiscalYear';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { a as audit } from '../pages/admin/auditStrings';
@@ -17,6 +19,15 @@ import { applyTheme, type Theme } from '../theme';
 import { Menu, MenuItem, Switch, cx, menuItemClasses } from './ui';
 
 const sidebarWidth = 280;
+
+const demoFolders: CategoryNode[] = [
+  { id: 'root', parentId: null, name: 'اسناد', code: 'ROOT', description: 'ریشه‌ی بایگانی', depth: 0, isActive: true, sortOrder: 0, canView: true, canCreate: false },
+  { id: 'd1', parentId: 'root', name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+  { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 2, isActive: true, sortOrder: 1, canView: true, canCreate: true },
+  { id: 'd2', parentId: 'root', name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 1, isActive: true, sortOrder: 2, canView: true, canCreate: true },
+  { id: 'd3', parentId: 'root', name: 'دارایی‌های برند', code: 'br', description: null, depth: 1, isActive: true, sortOrder: 3, canView: true, canCreate: true },
+  { id: 'd4', parentId: 'root', name: 'مستندات محصول', code: 'pd', description: null, depth: 1, isActive: true, sortOrder: 4, canView: true, canCreate: true },
+];
 
 function BrandMark({ className }: { className?: string }) {
   return (
@@ -35,9 +46,14 @@ function BrandMark({ className }: { className?: string }) {
   );
 }
 
-function NavIcon({ children }: { children: ReactNode }) {
+function NavIcon({ children, compact = false }: { children: ReactNode; compact?: boolean }) {
   return (
-    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-paper-300/40 text-paper-600 [&_svg]:size-4">
+    <span
+      className={cx(
+        'grid shrink-0 place-items-center rounded-lg bg-paper-300/40 text-paper-600 [&_svg]:size-4',
+        compact ? 'size-6' : 'size-8',
+      )}
+    >
       {children}
     </span>
   );
@@ -84,7 +100,7 @@ function SidebarNav({
     path === '/' ? autoManageActive : pathname === path || pathname.startsWith(`${path}/`);
   const item = (active: boolean) =>
     cx(
-      'flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors',
+      'inline-flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-medium transition-colors',
       active
         ? 'bg-ink-500/15 text-ink-800 shadow-[inset_0_0_0_1px_rgb(139_92_246/0.25)]'
         : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
@@ -92,7 +108,7 @@ function SidebarNav({
 
   const link = (to: string, label: ReactNode, active: boolean, icon: ReactNode, badge?: number) => (
     <RouterLink to={to} onClick={onNavigate} className={item(active)}>
-      <NavIcon>{icon}</NavIcon>
+      <NavIcon compact>{icon}</NavIcon>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge != null && badge > 0 && (
         <span className="rounded-md bg-paper-300/80 px-1.5 py-0.5 text-[10px] font-semibold text-paper-600">
@@ -123,24 +139,14 @@ function SidebarNav({
     </svg>
   );
   return (
-    <nav className="space-y-6">
-      <div>
-        <p className="section-label pb-2">منوی اصلی</p>
-        <div className="space-y-0.5">
-          {link('/', 'مدیریت خودکار', has('/'), boltIcon)}
-          {link('/search', t.searchEverything, has('/search'), gridIcon)}
-          {link(newDocumentHref, t.newDocument, has('/new'), folderIcon)}
-          {link('/tasks', w.inbox, has('/tasks'), taskIcon, pending)}
-        </div>
-      </div>
-
-      <div>
-        <p className="section-label pb-2">اشتراک‌گذاری</p>
-        <div className="space-y-0.5">
-          {link('/shared', sharing.sharedWithMe, has('/shared'), folderIcon)}
-          {link('/recycle-bin', t.recycleBin, has('/recycle-bin'), folderIcon)}
-        </div>
-      </div>
+    <nav aria-label="منوی اصلی" className="flex items-center gap-1 overflow-x-auto px-3 py-1.5 sm:px-4">
+      {link('/', 'مدیریت خودکار', has('/'), boltIcon)}
+      {link('/search', t.searchEverything, has('/search'), gridIcon)}
+      {link(newDocumentHref, t.newDocument, has('/new'), folderIcon)}
+      {link('/tasks', w.inbox, has('/tasks'), taskIcon, pending)}
+      <span className="mx-1 h-5 w-px shrink-0 bg-paper-300" aria-hidden />
+      {link('/shared', sharing.sharedWithMe, has('/shared'), folderIcon)}
+      {link('/recycle-bin', t.recycleBin, has('/recycle-bin'), folderIcon)}
     </nav>
   );
 }
@@ -205,35 +211,33 @@ function StorageWidget({ demo }: { demo?: boolean }) {
 }
 
 function SidebarContent({
-  pending,
   searchText,
   setSearchText,
   submitSearch,
   onNavigate,
   pathname,
-  autoManageActive,
   selectedCategory,
   onSelectCategory,
   categories,
   showFolderTree,
-  newDocumentHref,
+  fileCounts,
+  onCreateDocument,
   demo,
   theme,
   onThemeChange,
   themeInputId,
 }: {
-  pending: number;
   searchText: string;
   setSearchText: (v: string) => void;
   submitSearch: (e: FormEvent) => void;
   onNavigate?: () => void;
   pathname: string;
-  autoManageActive: boolean;
   selectedCategory: string | null;
   onSelectCategory: (categoryId: string | null) => void;
   categories: CategoryNode[];
   showFolderTree: boolean;
-  newDocumentHref: string;
+  fileCounts: Record<string, number> | null;
+  onCreateDocument?: (categoryId: string) => void;
   demo?: boolean;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -241,12 +245,7 @@ function SidebarContent({
 }) {
   const settingsActive = pathname === '/settings' || pathname.startsWith('/settings/');
   return (
-    <div className="flex h-full flex-col gap-4 p-4">
-      <RouterLink to="/" onClick={onNavigate} className="flex items-center gap-2.5 px-1">
-        <BrandMark />
-        <span className="text-lg font-bold tracking-tight text-ink-900">Fillo</span>
-      </RouterLink>
-
+    <div className="flex h-full flex-col gap-3 p-3">
       <form onSubmit={submitSearch} role="search">
         <div className="relative">
           <svg
@@ -272,26 +271,21 @@ function SidebarContent({
         </div>
       </form>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
-        <SidebarNav
-          pending={pending}
-          onNavigate={onNavigate}
-          pathname={pathname}
-          autoManageActive={autoManageActive}
-          newDocumentHref={newDocumentHref}
-        />
-
+      <div className="min-h-0 flex-1 overflow-hidden">
         {showFolderTree && (
-          <div className="rounded-2xl border border-paper-200 bg-paper-50 p-3">
-            <p className="section-label pb-2.5">{t.categories}</p>
-            <CategoryTree
-              categories={categories}
-              selectedId={selectedCategory}
-              onSelect={onSelectCategory}
-            />
+          <div className="flex h-full min-h-0 flex-col rounded-2xl border border-paper-200 bg-paper-50 p-3">
+            <p className="section-label shrink-0 pb-2.5">{t.categories}</p>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <CategoryTree
+                categories={categories}
+                selectedId={selectedCategory}
+                onSelect={onSelectCategory}
+                fileCounts={fileCounts}
+                onCreateDocument={onCreateDocument}
+              />
+            </div>
           </div>
         )}
-
       </div>
 
       <StorageWidget demo={demo} />
@@ -359,16 +353,29 @@ export function Layout({ children }: { children: ReactNode }) {
   const categoryId = searchParams.get('category');
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories });
   const isDemo = import.meta.env.DEV && searchParams.get('demo') === '1';
-  const demoCategories: CategoryNode[] = [
-    { id: 'root', parentId: null, name: 'اسناد', code: 'ROOT', description: 'ریشه‌ی بایگانی', depth: 0, isActive: true, sortOrder: 0, canView: true, canCreate: false },
-    { id: 'd1', parentId: 'root', name: 'ویدیوهای پژوهش کاربر', code: 'ur', description: null, depth: 1, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd1a', parentId: 'd1', name: 'مصاحبه‌ها', code: 'ur-i', description: null, depth: 2, isActive: true, sortOrder: 1, canView: true, canCreate: true },
-    { id: 'd2', parentId: 'root', name: 'کتابخانه کامپوننت UI', code: 'ui', description: null, depth: 1, isActive: true, sortOrder: 2, canView: true, canCreate: true },
-    { id: 'd3', parentId: 'root', name: 'دارایی‌های برند', code: 'br', description: null, depth: 1, isActive: true, sortOrder: 3, canView: true, canCreate: true },
-    { id: 'd4', parentId: 'root', name: 'مستندات محصول', code: 'pd', description: null, depth: 1, isActive: true, sortOrder: 4, canView: true, canCreate: true },
-  ];
-  const folderCategories =
-    categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoCategories : [];
+  const folderCategories = useMemo(
+    () => (categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoFolders : []),
+    [categories.data, isDemo],
+  );
+  const fiscal = useFiscalYear();
+  const fiscalYear = fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
+  const categoryCounts = useQuery({
+    queryKey: ['document-counts-by-category', fiscalYear ?? null],
+    queryFn: () => api.documentCounts(fiscalYear),
+    enabled: !isDemo && (fiscal.ready || fiscal.failed),
+    staleTime: 30_000,
+  });
+  const fileCounts = useMemo(() => {
+    if (!isDemo && !categoryCounts.isSuccess) return null;
+    const direct: Record<string, number> = {};
+    if (isDemo) {
+      direct.d1a = 1;
+      direct.d4 = 1;
+    } else {
+      for (const row of categoryCounts.data ?? []) direct[row.categoryId] = row.count;
+    }
+    return subtreeFileCounts(folderCategories, direct);
+  }, [isDemo, categoryCounts.isSuccess, categoryCounts.data, folderCategories]);
   const categoryName =
     folderCategories.find((c) => c.id === categoryId)?.name ?? null;
   const title = pageTitle(location.pathname, categoryName);
@@ -395,6 +402,10 @@ export function Layout({ children }: { children: ReactNode }) {
     }
     navigate(isDemo ? `/?category=${id}&demo=1` : `/?category=${id}`);
   };
+  const createInCategory = (id: string) => {
+    setDrawerOpen(false);
+    navigate(isDemo ? `/new?category=${id}&demo=1` : `/new?category=${id}`);
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -407,8 +418,25 @@ export function Layout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [navigate]);
 
+  const sidebarProps = {
+    searchText,
+    setSearchText,
+    submitSearch,
+    pathname: location.pathname,
+    selectedCategory: categoryId,
+    onSelectCategory: selectCategory,
+    categories: folderCategories,
+    showFolderTree,
+    fileCounts,
+    onCreateDocument: fiscal.closed ? undefined : createInCategory,
+    demo: isDemo,
+    theme,
+    onThemeChange: setTheme,
+  };
+
   const topBar = (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b border-paper-200 bg-paper-50/70 px-4 sm:px-6 backdrop-blur-md">
+    <header className="shrink-0 border-b border-paper-200 bg-paper-50/80 backdrop-blur-md">
+      <div className="flex h-14 items-center gap-3 px-3 sm:px-4">
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
@@ -420,14 +448,31 @@ export function Layout({ children }: { children: ReactNode }) {
         </svg>
       </button>
 
-      <div className="flex min-w-0 items-center gap-2">
-        <span className="grid size-9 place-items-center rounded-xl bg-ink-500/15 text-ink-600">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="size-5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
-          </svg>
-        </span>
-        <h1 className="truncate text-lg font-semibold text-ink-900">{title}</h1>
-      </div>
+      <RouterLink to={isDemo ? '/?demo=1' : '/'} className="flex shrink-0 items-center gap-2">
+        <BrandMark />
+        <span className="hidden text-lg font-bold tracking-tight text-ink-900 sm:inline">Fillo</span>
+      </RouterLink>
+
+      <h1 className="min-w-0 truncate text-base font-semibold text-ink-900 sm:text-lg">{title}</h1>
+
+      {fiscal.years.length > 0 && (
+        <select
+          aria-label={t.fiscalYear}
+          value={fiscal.selectedYear}
+          onChange={(event) => fiscal.selectYear(Number(event.target.value))}
+          className="max-w-[11rem] truncate rounded-xl border border-paper-200 bg-paper-50 px-2 py-1.5 text-xs text-ink-900"
+        >
+          {fiscal.years.map((year) => (
+            <option key={year.year} value={year.year}>
+              {formatFiscalYear(year.year)}
+              {' · '}
+              {year.status === 'Open' ? t.fiscalYearOpen : t.fiscalYearClosed}
+              {' · '}
+              {formatNumber(year.documentCount)}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
         <RouterLink
@@ -483,37 +528,36 @@ export function Layout({ children }: { children: ReactNode }) {
           </MenuItem>
         </Menu>
       </div>
+      </div>
+      <SidebarNav
+        pending={pending}
+        onNavigate={() => setDrawerOpen(false)}
+        pathname={location.pathname}
+        autoManageActive={autoManageActive}
+        newDocumentHref={newDocumentHref}
+      />
     </header>
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen flex-col overflow-hidden">
+      {topBar}
+      {fiscal.closed && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          {t.fiscalYearClosedBanner} {t.fiscalYearFiling}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1">
       <aside
-        className="sticky top-0 hidden h-screen shrink-0 overflow-hidden border-e border-paper-200 bg-paper-50/80 lg:block"
+        className="hidden h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-paper-200 bg-paper-50/80 lg:flex"
         style={{ width: sidebarWidth }}
       >
-        <SidebarContent
-          pending={pending}
-          searchText={searchText}
-          setSearchText={setSearchText}
-          submitSearch={submitSearch}
-          pathname={location.pathname}
-          autoManageActive={autoManageActive}
-          selectedCategory={categoryId}
-          onSelectCategory={selectCategory}
-          categories={folderCategories}
-          showFolderTree={showFolderTree}
-          newDocumentHref={newDocumentHref}
-          demo={isDemo}
-          theme={theme}
-          onThemeChange={setTheme}
-          themeInputId="theme-light"
-        />
+        <SidebarContent {...sidebarProps} themeInputId="theme-light" />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {topBar}
         <main className="page-enter min-h-0 flex-1 overflow-auto p-4 sm:p-6">{children}</main>
+      </div>
       </div>
 
       {drawerOpen && (
@@ -527,21 +571,8 @@ export function Layout({ children }: { children: ReactNode }) {
             style={{ maxWidth: sidebarWidth }}
           >
             <SidebarContent
-              pending={pending}
-              searchText={searchText}
-              setSearchText={setSearchText}
-              submitSearch={submitSearch}
+              {...sidebarProps}
               onNavigate={() => setDrawerOpen(false)}
-              pathname={location.pathname}
-              autoManageActive={autoManageActive}
-              selectedCategory={categoryId}
-              onSelectCategory={selectCategory}
-              categories={folderCategories}
-              showFolderTree={showFolderTree}
-              newDocumentHref={newDocumentHref}
-              demo={isDemo}
-              theme={theme}
-              onThemeChange={setTheme}
               themeInputId="theme-light-drawer"
             />
           </div>

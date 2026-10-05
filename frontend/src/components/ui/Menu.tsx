@@ -4,8 +4,10 @@ import { createPortal } from 'react-dom';
 import { cx } from './cx';
 
 export interface MenuProps {
-  /** The button the menu is attached to; `null` closes it. */
+  /** The button the menu is attached to; `null` closes it. Ignored when `point` is set. */
   anchor: HTMLElement | null;
+  /** Viewport point for a context menu opened at the pointer. */
+  point?: { x: number; y: number } | null;
   onClose: () => void;
   children: ReactNode;
   className?: string;
@@ -16,9 +18,9 @@ interface Position {
   left: number;
 }
 
-/** Anchored dropdown, rendered in a portal so overflow never clips it. */
-export function Menu({ anchor, onClose, children, className }: MenuProps) {
-  const open = anchor !== null;
+/** Anchored dropdown, or a context menu at `point`. Rendered in a portal so overflow never clips it. */
+export function Menu({ anchor, point = null, onClose, children, className }: MenuProps) {
+  const open = point !== null || anchor !== null;
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<Position | null>(null);
 
@@ -26,7 +28,7 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (ref.current?.contains(target) || anchor.contains(target)) return;
+      if (ref.current?.contains(target) || anchor?.contains(target)) return;
       onClose();
     };
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
@@ -46,15 +48,28 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
     const place = () => {
       const element = ref.current;
       if (!element) return;
-      const rect = anchor.getBoundingClientRect();
       const width = element.offsetWidth;
       const height = element.offsetHeight;
+      const clampLeft = (rawLeft: number) =>
+        Math.min(Math.max(8, rawLeft), Math.max(8, window.innerWidth - width - 8));
+
+      const commit = (top: number, left: number) => {
+        setPosition((current) => (current && current.top === top && current.left === left ? current : { top, left }));
+      };
+
+      if (point) {
+        const top = point.y + height > window.innerHeight - 8 ? Math.max(8, point.y - height) : point.y;
+        commit(top, clampLeft(point.x));
+        return;
+      }
+
+      if (!anchor) return;
+      const rect = anchor.getBoundingClientRect();
       const rtl = document.documentElement.dir === 'rtl';
       const rawLeft = rtl ? rect.right - width : rect.left;
-      const left = Math.min(Math.max(8, rawLeft), Math.max(8, window.innerWidth - width - 8));
       const rawTop = rect.bottom + 6;
       const top = rawTop + height > window.innerHeight - 8 ? Math.max(8, rect.top - height - 6) : rawTop;
-      setPosition({ top, left });
+      commit(top, clampLeft(rawLeft));
     };
     place();
     window.addEventListener('resize', place);
@@ -63,7 +78,7 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-  }, [open, anchor]);
+  }, [open, anchor, point]);
 
   if (!open) return null;
 
@@ -76,6 +91,7 @@ export function Menu({ anchor, onClose, children, className }: MenuProps) {
         top: position?.top ?? -10000,
         left: position?.left ?? -10000,
         visibility: position ? 'visible' : 'hidden',
+        zIndex: 70,
       }}
       className={cx(
         'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-paper-50 py-1',

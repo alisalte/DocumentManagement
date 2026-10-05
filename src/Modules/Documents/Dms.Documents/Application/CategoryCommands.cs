@@ -33,6 +33,10 @@ internal static class DocumentErrors
 
     public static readonly Error VersionNotFound =
         Error.NotFound("version.not_found", "The version does not exist.");
+
+    public static readonly Error FiscalYearClosed = Error.Conflict(
+        "fiscal_year.closed",
+        "This fiscal year is closed and can only be used for reporting.");
 }
 
 public sealed class CreateCategoryHandler(

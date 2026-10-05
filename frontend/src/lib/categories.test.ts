@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CategoryNode } from './api';
-import { topLevelArchiveFolders } from './categories';
+import { subtreeFileCounts, topLevelArchiveFolders, visibleChildFolders } from './categories';
 
 function folder(partial: Partial<CategoryNode> & Pick<CategoryNode, 'id' | 'name'>): CategoryNode {
   return {
@@ -51,5 +51,37 @@ describe('topLevelArchiveFolders', () => {
     ];
 
     expect(topLevelArchiveFolders(categories).map((item) => item.id)).toEqual(['d1', 'd2']);
+  });
+});
+
+describe('visibleChildFolders', () => {
+  it('lists only viewable direct children, in sort order', () => {
+    const categories = [
+      folder({ id: 'a', name: 'قراردادها' }),
+      folder({ id: 'late', name: 'بعد', parentId: 'a', sortOrder: 2 }),
+      folder({ id: 'early', name: 'قبل', parentId: 'a', sortOrder: 1 }),
+      folder({ id: 'hidden', name: 'پنهان', parentId: 'a', canView: false }),
+      folder({ id: 'deep', name: 'عمیق', parentId: 'early' }),
+    ];
+
+    expect(visibleChildFolders(categories, 'a').map((item) => item.id)).toEqual(['early', 'late']);
+  });
+});
+
+describe('subtreeFileCounts', () => {
+  it('adds files inside descendant folders to the parent', () => {
+    const categories = [
+      { id: 'root', parentId: null },
+      { id: 'a', parentId: 'root' },
+      { id: 'nested', parentId: 'a' },
+      { id: 'b', parentId: 'root' },
+    ];
+
+    expect(subtreeFileCounts(categories, { a: 1, nested: 2 })).toEqual({
+      root: 3,
+      a: 3,
+      nested: 2,
+      b: 0,
+    });
   });
 });

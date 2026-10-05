@@ -3,11 +3,13 @@ import { useState } from 'react';
 import { DocumentList } from '../components/DocumentList';
 import { Alert, Button, Card, Pagination, ProgressBar, Toast } from '../components/ui';
 import { api } from '../lib/api';
+import { useFiscalYear } from '../lib/fiscalYear';
 import { describeError, t } from '../strings';
 
 /** Deleted documents the user may restore. Nothing here has left storage yet. */
 export function RecycleBinPage() {
   const queryClient = useQueryClient();
+  const fiscal = useFiscalYear();
   const [page, setPage] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,11 +58,20 @@ export function RecycleBinPage() {
                 dateOf={(item) => item.deletedAt ?? item.updatedAt}
                 dateLabel={t.deletedAt}
                 emptyHint="سندی در سطل بازیافت نیست."
-                renderAction={(item) => (
-                  <Button size="sm" variant="ghost" onClick={() => restore(item.id)}>
-                    {t.restore}
-                  </Button>
-                )}
+                renderAction={(item) => {
+                  const closed = fiscal.currentYear > 0 && item.fiscalYear !== fiscal.currentYear;
+                  return (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={closed}
+                      title={closed ? t.fiscalYearClosedBanner : undefined}
+                      onClick={() => restore(item.id)}
+                    >
+                      {t.restore}
+                    </Button>
+                  );
+                }}
               />
             </div>
           )

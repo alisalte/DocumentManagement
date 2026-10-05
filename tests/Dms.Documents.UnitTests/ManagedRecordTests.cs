@@ -62,7 +62,8 @@ public sealed class ManagedRecordTests
             CategoryId.New(),
             Actor,
             Actor,
-            Now);
+            Now,
+            1405);
         var version = document.AddContentVersion(
             StorageObjectId.New(),
             "a.pdf",

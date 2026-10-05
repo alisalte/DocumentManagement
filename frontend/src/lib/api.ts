@@ -58,6 +58,11 @@ export interface CategoryNode {
   canCreate: boolean;
 }
 
+export interface CategoryDocumentCount {
+  categoryId: string;
+  count: number;
+}
+
 export interface DocumentListItem {
   id: string;
   title: string;
@@ -71,6 +76,18 @@ export interface DocumentListItem {
   updatedAt: string;
   deletedAt: string | null;
   deleteReason: string | null;
+  fiscalYear: number;
+}
+
+export interface FiscalYearOption {
+  year: number;
+  status: 'Open' | 'Closed';
+  documentCount: number;
+}
+
+export interface FiscalYearOverview {
+  currentYear: number;
+  years: FiscalYearOption[];
 }
 
 export interface Tag {
@@ -100,6 +117,8 @@ export interface DocumentDetails {
   deletedAt: string | null;
   deleteReason: string | null;
   allowedActions: string[];
+  fiscalYear: number;
+  fiscalYearOpen: boolean;
 }
 
 export interface DocumentVersion {
@@ -1040,7 +1059,15 @@ export const api = {
     search?: string;
     page?: number;
     pageSize?: number;
+    fiscalYear?: number;
   }) => request<Paged<DocumentListItem>>(`/api/v1/documents${query(params)}`),
+
+  /** Documents filed directly in each category. Folder cards add descendant folders themselves. */
+  documentCounts: (fiscalYear?: number) =>
+    request<CategoryDocumentCount[]>(`/api/v1/documents/counts${query({ fiscalYear })}`),
+
+  /** Current Jalali year plus every year the caller can still open. Closed years are report-only. */
+  fiscalYears: () => request<FiscalYearOverview>('/api/v1/fiscal-years'),
 
   document: (id: string) => request<DocumentDetails>(`/api/v1/documents/${id}`),
 

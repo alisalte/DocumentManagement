@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
 import { DocumentList } from '../components/DocumentList';
 import { api, type CategoryNode, type DocumentListItem } from '../lib/api';
+import { useFiscalYear } from '../lib/fiscalYear';
 import { formatNumber } from '../lib/format';
 import { describeError, t } from '../strings';
 import { DashboardHome } from './DashboardHome';
@@ -32,12 +33,14 @@ export function BrowsePage() {
 
   const search = params.get('q') ?? '';
   const isDemo = import.meta.env.DEV && params.get('demo') === '1';
+  const fiscal = useFiscalYear();
+  const fiscalYear = !isDemo && fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
   const categories = useQuery({ queryKey: ['categories'], queryFn: api.categories, enabled: !isDemo });
   const documents = useQuery({
-    queryKey: ['documents', categoryId, includeSubcategories, search, page],
-    queryFn: () => api.documents({ categoryId, includeSubcategories, search, page, pageSize }),
+    queryKey: ['documents', categoryId, includeSubcategories, search, page, fiscalYear ?? null],
+    queryFn: () => api.documents({ categoryId, includeSubcategories, search, page, pageSize, fiscalYear }),
     placeholderData: keepPreviousData,
-    enabled: !isDemo && !!(categoryId || search),
+    enabled: !isDemo && !!(categoryId || search) && (fiscal.ready || fiscal.failed),
   });
 
   const demoFolders: CategoryNode[] = [
@@ -66,6 +69,7 @@ export function BrowsePage() {
       updatedAt: new Date().toISOString(),
       deletedAt: null,
       deleteReason: null,
+      fiscalYear: 1404,
     },
     {
       id: 'demo-2',
@@ -80,6 +84,7 @@ export function BrowsePage() {
       updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
       deletedAt: null,
       deleteReason: null,
+      fiscalYear: 1405,
     },
     {
       id: 'demo-3',
@@ -94,6 +99,7 @@ export function BrowsePage() {
       updatedAt: new Date(Date.now() - 172_800_000).toISOString(),
       deletedAt: null,
       deleteReason: null,
+      fiscalYear: 1405,
     },
   ];
 
@@ -125,6 +131,14 @@ export function BrowsePage() {
         categories={folderSource ?? []}
         filingTarget={filingTarget ?? (isDemo ? 'd1' : undefined)}
         demo={isDemo}
+        directFileCounts={
+          isDemo
+            ? demoDocs.reduce<Record<string, number>>((counts, item) => {
+                counts[item.categoryId] = (counts[item.categoryId] ?? 0) + 1;
+                return counts;
+              }, {})
+            : undefined
+        }
         onOpenCategory={(id) => {
           const next = new URLSearchParams(params);
           next.set('category', id);
