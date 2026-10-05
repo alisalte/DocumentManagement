@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Select, TextArea, TextField } from '../components/ui';
+import { Alert, Button, Card, ProgressBar, Select, TextArea, TextField } from '../components/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
@@ -70,6 +70,8 @@ export function NewDocumentPage() {
   const [stagedUpload, setStagedUpload] = useState<UploadResult | null>(incomingUpload);
   const [progress, setProgress] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Upload shows a percent. Registration is the quiet stretch after the file has arrived.
+  const [phase, setPhase] = useState<'uploading' | 'registering' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<UploadResult['duplicates']>(incomingUpload?.duplicates ?? []);
   const [metadata, setMetadata] = useState<Metadata>({});
@@ -123,13 +125,16 @@ export function NewDocumentPage() {
 
     submitting.current = true;
     setBusy(true);
+    setPhase(pending ? 'registering' : 'uploading');
     setError(null);
+    let filed = false;
     try {
       let uploadId: string;
       if (pending) {
         uploadId = pending.uploadId;
       } else {
         if (staged.current?.file !== file) {
+          setPhase('uploading');
           setProgress(0);
           const upload = await api.upload(file!, setProgress);
           staged.current = { file: file!, upload };
@@ -143,6 +148,7 @@ export function NewDocumentPage() {
         uploadId = staged.current!.upload.uploadId;
       }
 
+      setPhase('registering');
       setProgress(null);
       const created = await api.createDocument(
         {
@@ -158,10 +164,13 @@ export function NewDocumentPage() {
         idempotencyKey.current,
       );
 
-      await queryClient.invalidateQueries({ queryKey: ['documents'] });
-      await queryClient.invalidateQueries({ queryKey: ['document-counts-by-category'] });
-      await queryClient.invalidateQueries({ queryKey: ['dashboard-recent'] });
-      await queryClient.invalidateQueries({ queryKey: ['fiscal-years'] });
+      // The document already exists. Refresh the lists in the background so a large archive
+      // does not keep this form open after the server has accepted the filing.
+      void queryClient.invalidateQueries({ queryKey: ['documents'] });
+      void queryClient.invalidateQueries({ queryKey: ['document-counts-by-category'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard-recent'] });
+      void queryClient.invalidateQueries({ queryKey: ['fiscal-years'] });
+      filed = true;
       navigate(`/documents/${created.documentId}`, { state: { notice: t.created } });
     } catch (caught) {
       setError(describeError(caught));
@@ -169,7 +178,10 @@ export function NewDocumentPage() {
       setProgress(null);
     } finally {
       submitting.current = false;
-      setBusy(false);
+      if (!filed) {
+        setBusy(false);
+        setPhase(null);
+      }
     }
   }
 
@@ -301,6 +313,14 @@ export function NewDocumentPage() {
 
           {error && <Alert severity="error">{error}</Alert>}
 
+          {phase === 'registering' && (
+            <div role="status" aria-live="polite" className="space-y-2">
+              <ProgressBar />
+              <p className="text-sm font-medium text-ink-800">{t.registeringDocument}</p>
+              <p className="text-xs leading-5 text-paper-500">{t.registeringDocumentSlow}</p>
+            </div>
+          )}
+
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             <Button variant="ghost" onClick={() => navigate(-1)} disabled={busy}>
               {t.cancel}
@@ -310,7 +330,7 @@ export function NewDocumentPage() {
               loading={busy}
               disabled={busy || (!file && !stagedUpload) || !selectedCategory || !selectedType || !title.trim() || duplicates.length > 0}
             >
-              {busy ? t.saving : t.submit}
+              {phase === 'uploading' ? t.uploading : phase === 'registering' ? t.saving : t.submit}
             </Button>
           </div>
         </Card>

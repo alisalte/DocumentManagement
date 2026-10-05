@@ -63,7 +63,7 @@ export function FilePicker({ file, staged, onChange, progress, disabled }: Props
               />
             </div>
             <p className="mt-1.5 text-xs text-paper-500">
-              {t.uploading} {formatNumber(percent)}٪
+              {percent >= 100 ? t.uploadFinishing : `${t.uploading} ${formatNumber(percent)}٪`}
             </p>
           </div>
         )}
