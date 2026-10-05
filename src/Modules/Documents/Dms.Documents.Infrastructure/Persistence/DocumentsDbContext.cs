@@ -134,6 +134,7 @@ public sealed class DocumentsDbContext : DbContext
             entity.Property(document => document.UpdatedBy).HasColumnName("updated_by")
                 .HasConversion(id => id.Value, value => new UserId(value));
             entity.Property(document => document.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(document => document.FiscalYear).HasColumnName("fiscal_year").HasDefaultValue(0);
             entity.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
 
             entity.HasOne<Category>().WithMany()
@@ -165,6 +166,8 @@ public sealed class DocumentsDbContext : DbContext
                 .HasFilter("deleted_at IS NULL").HasDatabaseName("ix_documents_owner");
             entity.HasIndex(document => document.UpdatedAt)
                 .HasFilter("deleted_at IS NULL").HasDatabaseName("ix_documents_updated_at");
+            entity.HasIndex(document => new { document.FiscalYear, document.CategoryId })
+                .HasFilter("deleted_at IS NULL").HasDatabaseName("ix_documents_fiscal_year_category");
             entity.HasIndex(document => document.DeletedAt)
                 .HasFilter("deleted_at IS NOT NULL").HasDatabaseName("ix_documents_trash");
 

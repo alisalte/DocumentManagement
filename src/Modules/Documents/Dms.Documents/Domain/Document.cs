@@ -33,7 +33,8 @@ public sealed class Document : AggregateRoot<DocumentId>
         CategoryId categoryId,
         UserId ownerId,
         UserId createdBy,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        int fiscalYear)
         : base(id)
     {
         Title = title;
@@ -46,6 +47,7 @@ public sealed class Document : AggregateRoot<DocumentId>
         CreatedAt = now;
         UpdatedBy = createdBy;
         UpdatedAt = now;
+        FiscalYear = fiscalYear;
     }
 
     public string Title { get; private set; } = string.Empty;
@@ -83,6 +85,9 @@ public sealed class Document : AggregateRoot<DocumentId>
 
     public DateTimeOffset UpdatedAt { get; private set; }
 
+    /// <summary>Jalali fiscal year the document was filed in. 0 until backfill.</summary>
+    public int FiscalYear { get; private set; }
+
     public bool IsDeleted => DeletedAt is not null;
 
     public IReadOnlyList<DocumentVersion> Versions => _versions;
@@ -96,9 +101,15 @@ public sealed class Document : AggregateRoot<DocumentId>
         CategoryId categoryId,
         UserId ownerId,
         UserId createdBy,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        int fiscalYear)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        if (fiscalYear is < 1200 or > 1600)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fiscalYear), "A fiscal year is a Jalali year.");
+        }
+
         return new Document(
             DocumentId.New(),
             title.Trim(),
@@ -107,7 +118,24 @@ public sealed class Document : AggregateRoot<DocumentId>
             categoryId,
             ownerId,
             createdBy,
-            now);
+            now,
+            fiscalYear);
+    }
+
+    /// <summary>One-time assignment for documents created before fiscal years existed.</summary>
+    public void AssignFiscalYear(int fiscalYear)
+    {
+        if (FiscalYear != 0)
+        {
+            return;
+        }
+
+        if (fiscalYear is < 1200 or > 1600)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fiscalYear), "A fiscal year is a Jalali year.");
+        }
+
+        FiscalYear = fiscalYear;
     }
 
     /// <summary>

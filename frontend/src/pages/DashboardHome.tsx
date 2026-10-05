@@ -5,6 +5,7 @@ import { Link as RouterLink, useNavigate } from 'react-router';
 import { FileTypeBadge } from '../components/FileTypeBadge';
 import { FolderIcon } from '../components/FolderIcon';
 import { api, type CategoryNode, type DocumentListItem, type UploadResult, type WorkflowTask } from '../lib/api';
+import { useFiscalYear } from '../lib/fiscalYear';
 import { subtreeFileCounts, topLevelArchiveFolders, visibleChildFolders } from '../lib/categories';
 import { formatDate, formatDateTime } from '../lib/dates';
 import { formatBytes, formatNumber, newIdempotencyKey } from '../lib/format';
@@ -332,8 +333,10 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
 
 function UploadRail({
   filingTarget,
+  closed,
 }: {
   filingTarget: string | undefined;
+  closed: boolean;
 }) {
   const navigate = useNavigate();
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -380,6 +383,15 @@ function UploadRail({
   const registerUpload = (upload: UploadResult) => {
     navigate(newDocHref, { state: { stagedUpload: upload } });
   };
+
+  if (closed) {
+    return (
+      <Card className="border-dashed border-paper-300 bg-paper-50">
+        <p className="text-sm font-semibold text-ink-900">بارگذاری سریع</p>
+        <p className="mt-2 text-xs leading-5 text-paper-600">{t.fiscalYearQuickUploadClosed}</p>
+      </Card>
+    );
+  }
 
   return (
     <div className="dashboard-stagger space-y-3" style={{ animationDelay: '80ms' }}>
@@ -551,20 +563,22 @@ export function DashboardHome({
   directFileCounts?: Record<string, number>;
 }) {
   const { user } = useSession();
+  const fiscal = useFiscalYear();
+  const fiscalYear = !demo && fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
   // Real folders sit under the fixed archive root («اسناد»), not at parentId null.
   const roots = useMemo(() => topLevelArchiveFolders(categories), [categories]);
 
   const categoryCounts = useQuery({
-    queryKey: ['document-counts-by-category'],
-    queryFn: api.documentCounts,
-    enabled: !demo,
+    queryKey: ['document-counts-by-category', fiscalYear ?? null],
+    queryFn: () => api.documentCounts(fiscalYear),
+    enabled: !demo && (fiscal.ready || fiscal.failed),
     staleTime: 30_000,
   });
 
   const recent = useQuery({
-    queryKey: ['dashboard-recent'],
-    queryFn: () => api.documents({ page: 1, pageSize: 8, includeSubcategories: true }),
-    enabled: !demo,
+    queryKey: ['dashboard-recent', fiscalYear ?? null],
+    queryFn: () => api.documents({ page: 1, pageSize: 8, includeSubcategories: true, fiscalYear }),
+    enabled: !demo && (fiscal.ready || fiscal.failed),
     staleTime: 30_000,
   });
   const tasks = useQuery({
@@ -641,6 +655,7 @@ export function DashboardHome({
           updatedAt: new Date().toISOString(),
           deletedAt: null,
           deleteReason: null,
+          fiscalYear: 1404,
         },
         {
           id: 'demo-2',
@@ -655,6 +670,7 @@ export function DashboardHome({
           updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
           deletedAt: null,
           deleteReason: null,
+          fiscalYear: 1405,
         },
       ] satisfies DocumentListItem[])
     : (recent.data?.items ?? []);
@@ -764,7 +780,7 @@ export function DashboardHome({
         </div>
 
         <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
-          <UploadRail filingTarget={filingTarget} />
+          <UploadRail filingTarget={filingTarget} closed={fiscal.closed} />
           <TasksPanel tasks={demo ? [] : (tasks.data ?? [])} loading={!demo && tasks.isLoading} />
 
           <section

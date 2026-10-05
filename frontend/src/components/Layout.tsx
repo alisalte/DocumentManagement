@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import { Link as RouterLink, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { api, type CategoryNode } from '../lib/api';
 import { subtreeFileCounts } from '../lib/categories';
+import { formatFiscalYear, useFiscalYear } from '../lib/fiscalYear';
 import { useSession } from '../session';
 import { t } from '../strings';
 import { a as audit } from '../pages/admin/auditStrings';
@@ -236,7 +237,7 @@ function SidebarContent({
   categories: CategoryNode[];
   showFolderTree: boolean;
   fileCounts: Record<string, number> | null;
-  onCreateDocument: (categoryId: string) => void;
+  onCreateDocument?: (categoryId: string) => void;
   demo?: boolean;
   theme: Theme;
   onThemeChange: (theme: Theme) => void;
@@ -356,10 +357,12 @@ export function Layout({ children }: { children: ReactNode }) {
     () => (categories.data && categories.data.length > 0 ? categories.data : isDemo ? demoFolders : []),
     [categories.data, isDemo],
   );
+  const fiscal = useFiscalYear();
+  const fiscalYear = fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
   const categoryCounts = useQuery({
-    queryKey: ['document-counts-by-category'],
-    queryFn: api.documentCounts,
-    enabled: !isDemo,
+    queryKey: ['document-counts-by-category', fiscalYear ?? null],
+    queryFn: () => api.documentCounts(fiscalYear),
+    enabled: !isDemo && (fiscal.ready || fiscal.failed),
     staleTime: 30_000,
   });
   const fileCounts = useMemo(() => {
@@ -425,7 +428,7 @@ export function Layout({ children }: { children: ReactNode }) {
     categories: folderCategories,
     showFolderTree,
     fileCounts,
-    onCreateDocument: createInCategory,
+    onCreateDocument: fiscal.closed ? undefined : createInCategory,
     demo: isDemo,
     theme,
     onThemeChange: setTheme,
@@ -451,6 +454,25 @@ export function Layout({ children }: { children: ReactNode }) {
       </RouterLink>
 
       <h1 className="min-w-0 truncate text-base font-semibold text-ink-900 sm:text-lg">{title}</h1>
+
+      {fiscal.years.length > 0 && (
+        <select
+          aria-label={t.fiscalYear}
+          value={fiscal.selectedYear}
+          onChange={(event) => fiscal.selectYear(Number(event.target.value))}
+          className="max-w-[11rem] truncate rounded-xl border border-paper-200 bg-paper-50 px-2 py-1.5 text-xs text-ink-900"
+        >
+          {fiscal.years.map((year) => (
+            <option key={year.year} value={year.year}>
+              {formatFiscalYear(year.year)}
+              {' · '}
+              {year.status === 'Open' ? t.fiscalYearOpen : t.fiscalYearClosed}
+              {' · '}
+              {formatNumber(year.documentCount)}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
         <RouterLink
@@ -520,6 +542,11 @@ export function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       {topBar}
+      {fiscal.closed && (
+        <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+          {t.fiscalYearClosedBanner} {t.fiscalYearFiling}
+        </div>
+      )}
       <div className="flex min-h-0 flex-1">
       <aside
         className="hidden h-full min-h-0 shrink-0 flex-col overflow-hidden border-e border-paper-200 bg-paper-50/80 lg:flex"

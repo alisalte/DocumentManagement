@@ -64,6 +64,11 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             query = query.Where(document => document.Tags.Any(tag => tag.TagId == new TagId(tagId)));
         }
 
+        if (filter.FiscalYear is { } fiscalYear)
+        {
+            query = query.Where(document => document.FiscalYear == fiscalYear);
+        }
+
         return await PageAsync(query.OrderByDescending(document => document.UpdatedAt), filter.Page, filter.PageSize, cancellationToken);
     }
 
@@ -135,6 +140,7 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             // Raw; the handler shapes it with the schema (decimals as strings).
             CurrentMetadata = row.Current is null ? null : JsonDocument.Parse(row.Current.DynamicData).RootElement.Clone(),
             CurrentSchemaVersionId = row.Current?.DocumentTypeVersionId.Value,
+            FiscalYear = document.FiscalYear,
         };
     }
 
@@ -207,10 +213,16 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
     public async Task<IReadOnlyList<CategoryDocumentCountDto>> CountByCategoryAsync(
         AccessScope scope,
         UserId viewer,
+        int? fiscalYear,
         CancellationToken cancellationToken)
     {
         var query = ApplyScope(context.Documents.AsNoTracking(), scope)
             .Where(document => document.EffectiveVersionId != null || document.CreatedBy == viewer);
+
+        if (fiscalYear is { } year)
+        {
+            query = query.Where(document => document.FiscalYear == year);
+        }
 
         var rows = await query
             .GroupBy(document => document.CategoryId)
@@ -219,6 +231,23 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
 
         return rows
             .Select(row => new CategoryDocumentCountDto(row.CategoryId.Value, row.Count))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<FiscalYearCountDto>> CountByFiscalYearAsync(
+        AccessScope scope,
+        UserId viewer,
+        CancellationToken cancellationToken)
+    {
+        var rows = await ApplyScope(context.Documents.AsNoTracking(), scope)
+            .Where(document => document.EffectiveVersionId != null || document.CreatedBy == viewer)
+            .Where(document => document.FiscalYear > 0)
+            .GroupBy(document => document.FiscalYear)
+            .Select(group => new { Year = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new FiscalYearCountDto(row.Year, row.Count))
             .ToList();
     }
 
@@ -285,7 +314,8 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
                 item.Current?.FileSize,
                 item.Document.UpdatedAt,
                 item.Document.DeletedAt,
-                item.Document.DeleteReason)).ToList(),
+                item.Document.DeleteReason,
+                item.Document.FiscalYear)).ToList(),
             total,
             page,
             pageSize);

@@ -548,6 +548,7 @@ public sealed class ImportItemImporter(
                 return;
             }
 
+            var filedAt = entry.CreatedAt ?? now;
             var document = Document.Create(
                 entry.Title!.Trim(),
                 string.IsNullOrWhiteSpace(entry.Description) ? null : entry.Description.Trim(),
@@ -555,7 +556,8 @@ public sealed class ImportItemImporter(
                 category.Id,
                 owner,
                 actor,
-                entry.CreatedAt ?? now);
+                filedAt,
+                PersianFiscalYear.Of(filedAt));
 
             var version = document.AddContentVersion(
                 uploadInfo.Id,

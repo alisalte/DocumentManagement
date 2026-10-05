@@ -15,6 +15,7 @@ import { TagInput } from '../components/TagInput';
 import { api, ApiError, type DocumentDetails, type DocumentVersion, type Metadata } from '../lib/api';
 import { clientErrors, toSubmission } from '../lib/metadata';
 import { formatDateTime } from '../lib/dates';
+import { formatFiscalYear } from '../lib/fiscalYear';
 import { formatBytes, newIdempotencyKey } from '../lib/format';
 import { describeError, t } from '../strings';
 
@@ -87,6 +88,11 @@ export function DocumentPage() {
 
   return (
     <div className="max-w-[1000px] space-y-5">
+      {!doc.fiscalYearOpen && (
+        <Alert severity="warning">
+          سال {formatFiscalYear(doc.fiscalYear)} بسته است و فقط برای گزارش است.
+        </Alert>
+      )}
       <Card>
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">

@@ -1,13 +1,15 @@
 using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.DocumentTypes.Contracts;
+using Dms.Documents.Domain;
 using Dms.SharedKernel;
 using Dms.Storage.Contracts;
 
 namespace Dms.Documents.Application;
 
 /// <summary>Direct document counts per category, for folder cards. The UI adds descendant folders.</summary>
-public sealed record ListCategoryDocumentCountsQuery : IQuery<Result<IReadOnlyList<CategoryDocumentCountDto>>>;
+public sealed record ListCategoryDocumentCountsQuery(int? FiscalYear = null)
+    : IQuery<Result<IReadOnlyList<CategoryDocumentCountDto>>>;
 
 public sealed record ListDocumentsQuery(
     Guid? CategoryId,
@@ -15,7 +17,15 @@ public sealed record ListDocumentsQuery(
     string? Search,
     Guid? TagId,
     int? Page,
-    int? PageSize) : IQuery<Result<PagedResult<DocumentListItemDto>>>;
+    int? PageSize,
+    int? FiscalYear = null) : IQuery<Result<PagedResult<DocumentListItemDto>>>;
+
+/// <summary>One Jalali year the caller can switch to. Open is the current Tehran year; earlier years are report-only.</summary>
+public sealed record FiscalYearOptionDto(int Year, string Status, int DocumentCount);
+
+public sealed record FiscalYearOverviewDto(int CurrentYear, IReadOnlyList<FiscalYearOptionDto> Years);
+
+public sealed record ListFiscalYearsQuery : IQuery<Result<FiscalYearOverviewDto>>;
 
 public sealed record GetDocumentQuery(Guid Id) : IQuery<Result<DocumentDetailsDto>>;
 
@@ -75,7 +85,14 @@ public sealed class ListDocumentsHandler(
 
         var search = string.IsNullOrWhiteSpace(query.Search) ? null : query.Search.Trim();
         var result = await readModel.ListAsync(
-            new DocumentListFilter(query.CategoryId, query.IncludeSubcategories, search, query.TagId, page, pageSize),
+            new DocumentListFilter(
+                query.CategoryId,
+                query.IncludeSubcategories,
+                search,
+                query.TagId,
+                page,
+                pageSize,
+                query.FiscalYear),
             scope,
             viewer,
             cancellationToken);
@@ -99,8 +116,43 @@ public sealed class ListCategoryDocumentCountsHandler(
         }
 
         var scope = await scopes.GetScopeAsync(viewer, PermissionCodes.DocumentView, cancellationToken);
-        var counts = await readModel.CountByCategoryAsync(scope, viewer, cancellationToken);
+        var counts = await readModel.CountByCategoryAsync(scope, viewer, query.FiscalYear, cancellationToken);
         return Result.Success(counts);
+    }
+}
+
+public sealed class ListFiscalYearsHandler(
+    IAccessScopeProvider scopes,
+    IDocumentReadModel readModel,
+    ICurrentUser currentUser,
+    TimeProvider timeProvider) : IQueryHandler<ListFiscalYearsQuery, Result<FiscalYearOverviewDto>>
+{
+    public async Task<Result<FiscalYearOverviewDto>> HandleAsync(
+        ListFiscalYearsQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } viewer)
+        {
+            return Result.Failure<FiscalYearOverviewDto>(DocumentErrors.Unauthenticated);
+        }
+
+        var current = PersianFiscalYear.Of(timeProvider.GetUtcNow());
+        var scope = await scopes.GetScopeAsync(viewer, PermissionCodes.DocumentView, cancellationToken);
+        var counts = await readModel.CountByFiscalYearAsync(scope, viewer, cancellationToken);
+
+        var years = counts
+            .Where(row => row.Year > 0)
+            .Select(row => row.Year)
+            .Append(current)
+            .Distinct()
+            .OrderByDescending(year => year)
+            .Select(year => new FiscalYearOptionDto(
+                year,
+                year == current ? "Open" : "Closed",
+                counts.FirstOrDefault(row => row.Year == year)?.Count ?? 0))
+            .ToList();
+
+        return Result.Success(new FiscalYearOverviewDto(current, years));
     }
 }
 
@@ -108,7 +160,8 @@ public sealed class GetDocumentHandler(
     DocumentAccess access,
     IDocumentReadModel readModel,
     IDocumentTypeCatalog documentTypes,
-    IRecordReadModel records)
+    IRecordReadModel records,
+    TimeProvider timeProvider)
     : IQueryHandler<GetDocumentQuery, Result<DocumentDetailsDto>>
 {
     /// <summary>Actions the UI may offer. Checked one by one with the real evaluator.</summary>
@@ -147,6 +200,16 @@ public sealed class GetDocumentHandler(
             }
         }
 
+        var fiscalYearOpen = PersianFiscalYear.IsOpen(details.FiscalYear, timeProvider.GetUtcNow());
+        if (!fiscalYearOpen)
+        {
+            actions.RemoveAll(action => action is not (
+                PermissionCodes.DocumentView
+                or PermissionCodes.DocumentViewDraft
+                or PermissionCodes.DocumentDownload
+                or PermissionCodes.DocumentPrint));
+        }
+
         var schema = details.CurrentSchemaVersionId is { } schemaId
             ? await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(schemaId), cancellationToken)
             : null;
@@ -156,6 +219,7 @@ public sealed class GetDocumentHandler(
         return Result.Success(details with
         {
             AllowedActions = actions,
+            FiscalYearOpen = fiscalYearOpen,
             CurrentMetadata = MetadataPresenter.ForApi(schema, details.CurrentMetadata?.GetRawText()),
             Record = record,
         });

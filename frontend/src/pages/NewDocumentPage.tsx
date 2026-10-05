@@ -8,6 +8,7 @@ import { TagInput } from '../components/TagInput';
 import { api, ApiError, type CategoryNode, type Metadata, type UploadResult } from '../lib/api';
 import { clientErrors, defaultsOf, toSubmission } from '../lib/metadata';
 import { newIdempotencyKey } from '../lib/format';
+import { formatFiscalYear, useFiscalYear } from '../lib/fiscalYear';
 import { useSession } from '../session';
 import { describeError, t } from '../strings';
 
@@ -37,6 +38,7 @@ export function NewDocumentPage() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useSession();
+  const fiscal = useFiscalYear();
   const [params] = useSearchParams();
   const incomingUpload =
     (location.state as { stagedUpload?: UploadResult } | null)?.stagedUpload ?? null;
@@ -159,6 +161,7 @@ export function NewDocumentPage() {
       await queryClient.invalidateQueries({ queryKey: ['documents'] });
       await queryClient.invalidateQueries({ queryKey: ['document-counts-by-category'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard-recent'] });
+      await queryClient.invalidateQueries({ queryKey: ['fiscal-years'] });
       navigate(`/documents/${created.documentId}`, { state: { notice: t.created } });
     } catch (caught) {
       setError(describeError(caught));
@@ -188,6 +191,11 @@ export function NewDocumentPage() {
       <form onSubmit={submit}>
         <Card className="space-y-4">
           <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
+          {fiscal.currentYear > 0 && (
+            <Alert severity="info">
+              این سند در سال مالی {formatFiscalYear(fiscal.currentYear)} ثبت می‌شود.
+            </Alert>
+          )}
 
           <FilePicker
             file={file}

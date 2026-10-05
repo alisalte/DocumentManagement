@@ -19,6 +19,12 @@ export const t = {
   allDocuments: 'همه‌ی اسناد',
   folderMenu: 'عملیات پوشه',
   viewFolderDocuments: 'مشاهده اسناد',
+  fiscalYear: 'سال مالی',
+  fiscalYearOpen: 'سال جاری',
+  fiscalYearClosed: 'فقط گزارش',
+  fiscalYearClosedBanner: 'این سال بسته است و فقط برای گزارش است.',
+  fiscalYearFiling: 'سند جدید در سال جاری ثبت می‌شود.',
+  fiscalYearQuickUploadClosed: 'بارگذاری سریع در سال بسته خاموش است. سال جاری را از بالای صفحه انتخاب کنید.',
   includeSubcategories: 'با زیرپوشه‌ها',
   search: 'جستجو در عنوان',
   noDocuments: 'سندی برای نمایش نیست.',
@@ -167,6 +173,7 @@ export function describeError(error: unknown): string {
     const { status, code, message } = error as { status: number; code?: string; message: string };
     if (code === 'version.stale') return t.staleVersion;
     if (code === 'document.duplicate_file') return t.duplicateBlocked;
+    if (code === 'fiscal_year.closed') return 'این سال مالی بسته است و فقط برای گزارش‌گیری است.';
     if (code === 'category.root_fixed') return 'پوشه‌ی ریشه‌ی سامانه جابه‌جا نمی‌شود.';
     if (code === 'category.duplicate_code') return 'در مقصد پوشه‌ی دیگری با همین کد وجود دارد.';
     if (code === 'category.duplicate_name') return 'در مقصد پوشه‌ی دیگری با همین نام وجود دارد.';

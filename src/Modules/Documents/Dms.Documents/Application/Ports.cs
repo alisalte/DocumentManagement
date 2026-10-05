@@ -93,7 +93,8 @@ public sealed record DocumentListFilter(
     string? Search,
     Guid? TagId,
     int Page,
-    int PageSize);
+    int PageSize,
+    int? FiscalYear = null);
 
 /// <summary>
 /// Read side of the module: AsNoTracking projections straight to DTOs (CQRS without a library).
@@ -133,6 +134,13 @@ public interface IDocumentReadModel
     Task<IReadOnlyList<CategoryDocumentCountDto>> CountByCategoryAsync(
         AccessScope scope,
         UserId viewer,
+        int? fiscalYear,
+        CancellationToken cancellationToken);
+
+    /// <summary>Visible documents grouped by the Jalali year they were filed in. Year 0 is omitted.</summary>
+    Task<IReadOnlyList<FiscalYearCountDto>> CountByFiscalYearAsync(
+        AccessScope scope,
+        UserId viewer,
         CancellationToken cancellationToken);
 }
 
@@ -152,6 +160,8 @@ public sealed record TagDto(Guid Id, string Name);
 
 public sealed record CategoryDocumentCountDto(Guid CategoryId, int Count);
 
+public sealed record FiscalYearCountDto(int Year, int Count);
+
 public sealed record DocumentListItemDto(
     Guid Id,
     string Title,
@@ -164,7 +174,8 @@ public sealed record DocumentListItemDto(
     long? FileSize,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? DeletedAt,
-    string? DeleteReason);
+    string? DeleteReason,
+    int FiscalYear);
 
 public sealed record DocumentDetailsDto(
     Guid Id,
@@ -199,6 +210,12 @@ public sealed record DocumentDetailsDto(
 
     /// <summary>Present when the document has been declared as a Record (phase 10.1).</summary>
     public RecordSummaryDto? Record { get; init; }
+
+    /// <summary>Jalali year the document was filed in.</summary>
+    public int FiscalYear { get; init; }
+
+    /// <summary>False when the year is before the current Tehran year: the document is report-only.</summary>
+    public bool FiscalYearOpen { get; init; }
 }
 
 public sealed record DocumentVersionDto(

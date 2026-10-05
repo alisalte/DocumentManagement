@@ -421,7 +421,8 @@ public sealed class CreateDocumentHandler(
             category.Id,
             ownerId: actor,
             createdBy: actor,
-            now);
+            now,
+            PersianFiscalYear.Of(now));
 
         var file = upload.Value;
         var version = document.AddContentVersion(
@@ -542,6 +543,11 @@ public sealed class AddVersionHandler(
         if (document is null)
         {
             return Result.Failure<CreatedVersionDto>(DocumentErrors.DocumentNotFound);
+        }
+
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure<CreatedVersionDto>(closedYear);
         }
 
         // Section 4.11: "someone created V5 since you opened V4".
@@ -697,6 +703,11 @@ public sealed class UpdateDocumentHandler(
             return Result.Failure(DocumentErrors.DocumentNotFound);
         }
 
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
+        }
+
         var targetCategory = new CategoryId(command.CategoryId);
         var moved = targetCategory != document.CategoryId;
         if (moved)
@@ -800,6 +811,11 @@ public sealed class SetDocumentTagsHandler(
             return Result.Failure(DocumentErrors.DocumentNotFound);
         }
 
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
+        }
+
         var tagIds = await tagResolver.ResolveAsync(command.Tags, actor, cancellationToken);
         if (tagIds.IsFailure)
         {
@@ -858,6 +874,11 @@ public sealed class DeleteDocumentHandler(
             return Result.Failure(DocumentErrors.DocumentNotFound);
         }
 
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
+        }
+
         // Soft delete never touches storage (section 7.7): restoring is always possible.
         document.SoftDelete(actor, command.Reason?.Trim(), timeProvider.GetUtcNow());
 
@@ -897,6 +918,11 @@ public sealed class RestoreDocumentHandler(
         if (document is null || !document.IsDeleted)
         {
             return Result.Failure(DocumentErrors.DocumentNotFound);
+        }
+
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
         }
 
         var allowed = await access.RequireOnDeletedAsync(command.Id, PermissionCodes.DocumentRestore, cancellationToken);
@@ -967,6 +993,11 @@ public sealed class PurgeDocumentHandler(
         if (document is null)
         {
             return Result.Failure(DocumentErrors.DocumentNotFound);
+        }
+
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
         }
 
         // Purge is the second step, never the first: the document has to sit in the recycle bin.
@@ -1161,6 +1192,11 @@ public sealed class UpdateMetadataHandler(
         if (document?.Versions.FirstOrDefault(version => version.Id == document.CurrentVersionId) is not { } current)
         {
             return Result.Failure<MetadataUpdateDto>(DocumentErrors.DocumentNotFound);
+        }
+
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure<MetadataUpdateDto>(closedYear);
         }
 
         if (command.BaseVersionId is { } baseVersion && current.Id.Value != baseVersion)

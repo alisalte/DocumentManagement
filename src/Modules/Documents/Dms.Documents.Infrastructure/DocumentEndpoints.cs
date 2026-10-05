@@ -220,6 +220,7 @@ public static class DocumentEndpoints
                 Guid? tagId,
                 int? page,
                 int? pageSize,
+                int? fiscalYear,
                 IDispatcher dispatcher,
                 CancellationToken ct) =>
             {
@@ -229,15 +230,22 @@ public static class DocumentEndpoints
                     search,
                     tagId,
                     page,
-                    pageSize);
+                    pageSize,
+                    fiscalYear);
 
                 return (await dispatcher.QueryAsync(query, ct)).ToHttpResult();
             })
             .WithSummary("Documents the caller may see, newest first.");
 
-        documents.MapGet("/counts", async (IDispatcher dispatcher, CancellationToken ct) =>
-                (await dispatcher.QueryAsync(new ListCategoryDocumentCountsQuery(), ct)).ToHttpResult())
+        documents.MapGet("/counts", async (int? fiscalYear, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListCategoryDocumentCountsQuery(fiscalYear), ct)).ToHttpResult())
             .WithSummary("How many visible documents are filed directly in each category.");
+
+        endpoints.MapGet("/api/v1/fiscal-years", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListFiscalYearsQuery(), ct)).ToHttpResult())
+            .WithTags("Documents")
+            .RequireAuthorization()
+            .WithSummary("Jalali fiscal years the caller can browse. The current Tehran year is open; earlier years are report-only.");
 
         documents.MapPost("", async (
                 CreateDocumentRequest request,
