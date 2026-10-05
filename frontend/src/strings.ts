@@ -17,6 +17,8 @@ export const t = {
   recycleBin: 'سطل بازیافت',
   categories: 'پوشه‌ها',
   allDocuments: 'همه‌ی اسناد',
+  folderMenu: 'عملیات پوشه',
+  viewFolderDocuments: 'مشاهده اسناد',
   includeSubcategories: 'با زیرپوشه‌ها',
   search: 'جستجو در عنوان',
   noDocuments: 'سندی برای نمایش نیست.',
