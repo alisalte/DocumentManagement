@@ -45,6 +45,14 @@ namespace Dms.Search.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTimeOffset?>("EditedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("edited_at");
+
+                    b.Property<Guid?>("EditedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("edited_by");
+
                     b.Property<string>("Engine")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)")

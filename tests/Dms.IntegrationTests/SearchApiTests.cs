@@ -376,6 +376,84 @@ public sealed class SearchApiTests(DmsApiFactory factory)
     }
 
     [Fact]
+    public async Task Ocr_text_opens_only_with_document_access_and_a_correction_is_kept_and_reindexed()
+    {
+        const string recognised = "متن اسکن شده با خطای OCR";
+        const string corrected = "متن اسکن‌شده، اصلاح‌شده با دست";
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FixedExtractor(recognised, ExtractionMethod.Ocr));
+        var admin = host.As(await factory.AdminAsync());
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "ocr.text");
+        var (documentId, _) = await owner.CreateDocumentAsync(categoryId, "اسکن برای اصلاح", fileName: "fix.png");
+        await host.Services.RunJobsAsync();
+
+        var rows = await admin.GetFromJsonAsync<JsonElement>("/api/v1/admin/search/extractions?q=fix.png");
+        var objectId = rows.EnumerateArray().Single(row => row.GetProperty("documentId").GetGuid() == documentId)
+            .GetProperty("storageObjectId").GetGuid();
+        var url = $"/api/v1/admin/search/extractions/{objectId}/text";
+
+        // Decision D5: managing search is not content access.
+        (await admin.GetAsync(url)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await host.As(owner).GetAsync(url)).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "the owner does not manage search");
+
+        var adminId = (await admin.GetFromJsonAsync<JsonElement>("/api/v1/auth/me")).GetProperty("id").GetGuid();
+        await admin.GrantAsync("Category", categoryId, adminId, "DOCUMENT_VIEW");
+
+        var read = await admin.GetFromJsonAsync<JsonElement>(url);
+        read.GetProperty("text").GetString().ShouldBe(recognised);
+        read.GetProperty("documentId").GetGuid().ShouldBe(documentId);
+        read.GetProperty("canEdit").GetBoolean().ShouldBeFalse();
+        await factory.ShouldHaveAuditAsync("EXTRACTED_TEXT_VIEWED");
+
+        (await admin.PutAsJsonAsync(url, new { text = corrected })).StatusCode.ShouldBe(HttpStatusCode.Forbidden, "reading is not editing");
+
+        await admin.GrantAsync("Category", categoryId, adminId, "DOCUMENT_EDIT");
+        var saved = await admin.PutAsJsonAsync(url, new { text = corrected });
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        var body = await saved.Content.ReadFromJsonAsync<JsonElement>();
+        body.GetProperty("charCount").GetInt32().ShouldBe(corrected.Length);
+        body.GetProperty("method").GetString().ShouldBe("Ocr", "a correction still counts as OCR");
+        body.GetProperty("editedBy").GetGuid().ShouldBe(adminId);
+        await factory.ShouldHaveAuditAsync("EXTRACTED_TEXT_UPDATED");
+
+        await host.Services.RunJobsAsync();
+        (await admin.GetFromJsonAsync<JsonElement>(url)).GetProperty("text").GetString().ShouldBe(corrected);
+        engine.VersionsOf(documentId)[^1]["content"]!.GetValue<string>().ShouldBe(corrected);
+
+        // A rerun of extraction must not throw the correction away.
+        (await admin.PostAsync("/api/v1/admin/search/retry-failed", null)).EnsureSuccessStatusCode();
+        await host.Services.RunJobsAsync();
+        (await admin.GetFromJsonAsync<JsonElement>(url)).GetProperty("text").GetString().ShouldBe(corrected);
+    }
+
+    [Fact]
+    public async Task Text_can_be_added_where_nothing_was_read()
+    {
+        var engine = new FakeSearchEngine();
+        await using var host = factory.WithSearchFakes(engine, new FixedExtractor(string.Empty, ExtractionMethod.None));
+        var admin = host.As(await factory.AdminAsync());
+        var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(admin, "ocr.add");
+        var (documentId, _) = await owner.CreateDocumentAsync(categoryId, "اسکن بی‌متن", fileName: "blank.png");
+        await host.Services.RunJobsAsync();
+
+        var adminId = (await admin.GetFromJsonAsync<JsonElement>("/api/v1/auth/me")).GetProperty("id").GetGuid();
+        await admin.GrantManyAsync("Category", categoryId, adminId, "DOCUMENT_VIEW", "DOCUMENT_EDIT");
+
+        var rows = await admin.GetFromJsonAsync<JsonElement>("/api/v1/admin/search/extractions?q=blank.png");
+        var objectId = rows.EnumerateArray().Single(row => row.GetProperty("documentId").GetGuid() == documentId)
+            .GetProperty("storageObjectId").GetGuid();
+        var url = $"/api/v1/admin/search/extractions/{objectId}/text";
+        (await admin.GetFromJsonAsync<JsonElement>(url)).GetProperty("text").GetString().ShouldBeEmpty();
+
+        var saved = await admin.PutAsJsonAsync(url, new { text = "شماره نامه ۱۲۳" });
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        (await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("method").GetString().ShouldBe("Manual");
+
+        await host.Services.RunJobsAsync();
+        engine.VersionsOf(documentId)[^1]["content"]!.GetValue<string>().ShouldBe("شماره نامه ۱۲۳");
+    }
+
+    [Fact]
     public async Task File_text_search_matches_a_fragment_inside_a_longer_word()
     {
         var engine = new FakeSearchEngine();

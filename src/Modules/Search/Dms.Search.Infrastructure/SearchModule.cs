@@ -77,6 +77,9 @@ public static class SearchModule
         services.AddScoped<IQueryHandler<ListExtractionsQuery, Result<IReadOnlyList<ExtractionActivityDto>>>, ListExtractionsHandler>();
         services.AddScoped<ICommandHandler<StartReindexCommand, Result>, StartReindexHandler>();
         services.AddScoped<ICommandHandler<RetryFailedExtractionsCommand, Result<int>>, RetryFailedExtractionsHandler>();
+        services.AddScoped<ExtractedTextAccess>();
+        services.AddScoped<IQueryHandler<GetExtractedTextQuery, Result<ExtractedTextDto>>, GetExtractedTextHandler>();
+        services.AddScoped<ICommandHandler<UpdateExtractedTextCommand, Result<ExtractedTextDto>>, UpdateExtractedTextHandler>();
 
         return services;
     }
@@ -95,6 +98,8 @@ public static class SearchModule
         int? Page,
         int? PageSize,
         bool InFile = false);
+
+    public sealed record ExtractedTextRequest(string Text);
 
     public sealed record MetadataFilterRequest(string Field, string Op, JsonElement Value);
 
@@ -159,6 +164,18 @@ public static class SearchModule
                 CancellationToken ct) =>
             (await dispatcher.QueryAsync(new ListExtractionsQuery(q, status, method, take), ct)).ToHttpResult())
             .WithSummary("Recent text extractions: which files OCR read, how many characters, and which failed.");
+
+        admin.MapGet("/extractions/{storageObjectId:guid}/text", async (Guid storageObjectId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetExtractedTextQuery(storageObjectId), ct)).ToHttpResult())
+            .WithSummary("The text OCR or the text layer read from one file; needs VIEW on a document that uses it (D5).");
+
+        admin.MapPut("/extractions/{storageObjectId:guid}/text", async (
+                Guid storageObjectId,
+                ExtractedTextRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+            (await dispatcher.SendAsync(new UpdateExtractedTextCommand(storageObjectId, request.Text), ct)).ToHttpResult())
+            .WithSummary("Correct the file text by hand, or add it where nothing was read; needs EDIT on the document. Reindexes it.");
 
         admin.MapPost("/reindex", async (IDispatcher dispatcher, CancellationToken ct) =>
             {

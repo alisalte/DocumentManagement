@@ -144,6 +144,10 @@ public static class AuditActions
     public const string FileInfected = "FILE_INFECTED";
     public const string SearchReindexStarted = "SEARCH_REINDEX_STARTED";
 
+    /// <summary>The text OCR or the text layer produced for a file was read, or corrected by hand.</summary>
+    public const string ExtractedTextViewed = "EXTRACTED_TEXT_VIEWED";
+    public const string ExtractedTextUpdated = "EXTRACTED_TEXT_UPDATED";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

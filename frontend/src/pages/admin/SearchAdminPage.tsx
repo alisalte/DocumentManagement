@@ -6,6 +6,7 @@ import { api, type ExtractionActivity } from '../../lib/api';
 import { formatDateTime } from '../../lib/dates';
 import { formatNumber } from '../../lib/format';
 import { describeError, t } from '../../strings';
+import { ExtractedTextDialog } from './ExtractedTextDialog';
 
 const extractionLabels: Record<string, string> = {
   Pending: 'در صف',
@@ -17,6 +18,7 @@ const extractionLabels: Record<string, string> = {
 const methodLabels: Record<string, string> = {
   Ocr: 'OCR',
   TextLayer: 'لایهٔ متن',
+  Manual: 'دستی',
   None: 'بدون متن',
 };
 
@@ -29,6 +31,7 @@ export function SearchAdminPage() {
   const [outcome, setOutcome] = useState('');
   const [lookup, setLookup] = useState('');
   const [debounced, setDebounced] = useState('');
+  const [reading, setReading] = useState<ExtractionActivity | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebounced(lookup.trim()), 300);
@@ -218,13 +221,19 @@ export function SearchAdminPage() {
               </THead>
               <TBody>
                 {activity.data.map((row) => (
-                  <ActivityRow key={row.storageObjectId} row={row} />
+                  <ActivityRow key={row.storageObjectId} row={row} onOpenText={() => setReading(row)} />
                 ))}
               </TBody>
             </Table>
           )}
         </div>
       </Card>
+
+      <ExtractedTextDialog
+        storageObjectId={reading?.storageObjectId ?? null}
+        name={reading?.title || reading?.fileName || 'فایل'}
+        onClose={() => setReading(null)}
+      />
 
       <Card>
         <div className="space-y-3">
@@ -284,7 +293,7 @@ function Stat({
   );
 }
 
-function ActivityRow({ row }: { row: ExtractionActivity }) {
+function ActivityRow({ row, onOpenText }: { row: ExtractionActivity; onOpenText: () => void }) {
   const name = row.fileName || row.title || 'فایل';
   return (
     <>
@@ -311,7 +320,20 @@ function ActivityRow({ row }: { row: ExtractionActivity }) {
             label={extractionLabels[row.status] ?? row.status}
           />
         </TD>
-        <TD>{formatNumber(row.charCount)}</TD>
+        <TD>
+          {row.status === 'Pending' ? (
+            formatNumber(row.charCount)
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenText}
+              title={t.ocrTextOpen}
+              className="rounded-lg px-1.5 py-0.5 font-medium text-ink-700 underline decoration-dotted underline-offset-4 hover:bg-ink-50 hover:text-ink-900"
+            >
+              {formatNumber(row.charCount)}
+            </button>
+          )}
+        </TD>
         <TD>{row.completedAt ? formatDateTime(row.completedAt) : '—'}</TD>
       </TR>
       {row.error && (

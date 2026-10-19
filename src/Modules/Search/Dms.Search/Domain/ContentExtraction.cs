@@ -21,6 +21,9 @@ public enum ExtractionMethod
 
     /// <summary>Text recognised from images of pages (Tesseract, fas + eng).</summary>
     Ocr,
+
+    /// <summary>Typed in by a person because nothing could be read from the file.</summary>
+    Manual,
 }
 
 /// <summary>
@@ -59,6 +62,11 @@ public sealed class ContentExtraction : Entity<Guid>
 
     public DateTimeOffset? CompletedAt { get; private set; }
 
+    /// <summary>Who last corrected or added the text by hand; null while it is the engine's own output.</summary>
+    public Guid? EditedBy { get; private set; }
+
+    public DateTimeOffset? EditedAt { get; private set; }
+
     public static ContentExtraction Start(Guid storageObjectId, DateTimeOffset now) => new(Guid.CreateVersion7())
     {
         StorageObjectId = storageObjectId,
@@ -77,6 +85,28 @@ public sealed class ContentExtraction : Entity<Guid>
         Engine = engine;
         LastError = null;
         CompletedAt = now;
+    }
+
+    /// <summary>
+    /// A person's correction of the text, or text added where the engine read nothing. A correction
+    /// keeps the method, so OCR totals still count the file; text added from nothing is
+    /// <see cref="ExtractionMethod.Manual"/>. Automatic extraction never overwrites it again.
+    /// </summary>
+    public void ReplaceText(Guid? textObjectId, int charCount, Guid editor, DateTimeOffset now)
+    {
+        if (Status != ExtractionStatus.Completed || Method == ExtractionMethod.None)
+        {
+            Method = charCount > 0 ? ExtractionMethod.Manual : ExtractionMethod.None;
+            Engine = null;
+        }
+
+        Status = ExtractionStatus.Completed;
+        TextObjectId = textObjectId;
+        CharCount = charCount;
+        LastError = null;
+        CompletedAt ??= now;
+        EditedBy = editor;
+        EditedAt = now;
     }
 
     public void Skip(string reason, DateTimeOffset now)

@@ -35,6 +35,8 @@ public sealed class SearchDbContext : DbContext
             entity.Property(extraction => extraction.LastError).HasColumnName("last_error").HasMaxLength(2000);
             entity.Property(extraction => extraction.CreatedAt).HasColumnName("created_at");
             entity.Property(extraction => extraction.CompletedAt).HasColumnName("completed_at");
+            entity.Property(extraction => extraction.EditedBy).HasColumnName("edited_by");
+            entity.Property(extraction => extraction.EditedAt).HasColumnName("edited_at");
             entity.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
 
             entity.HasIndex(extraction => extraction.StorageObjectId).IsUnique().HasDatabaseName("ux_content_extractions_object");

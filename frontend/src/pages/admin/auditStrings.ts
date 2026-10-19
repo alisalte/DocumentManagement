@@ -133,6 +133,8 @@ export const actionLabels: Record<string, string> = {
 
   FILE_INFECTED: 'فایل آلوده',
   SEARCH_REINDEX_STARTED: 'شروع بازسازی نمایهٔ جستجو',
+  EXTRACTED_TEXT_VIEWED: 'دیدن متن OCR فایل',
+  EXTRACTED_TEXT_UPDATED: 'اصلاح دستی متن OCR فایل',
 
   CATEGORY_CREATED: 'ایجاد پوشه',
   CATEGORY_UPDATED: 'به‌روزرسانی پوشه',

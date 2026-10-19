@@ -534,6 +534,22 @@ export interface ExtractionActivity {
   completedAt: string | null;
 }
 
+/** The text read from one file. Needs VIEW on a document that uses it (decision D5); editing needs EDIT. */
+export interface ExtractedText {
+  storageObjectId: string;
+  documentId: string;
+  title: string;
+  fileName: string | null;
+  status: string;
+  method: string;
+  charCount: number;
+  engine: string | null;
+  text: string;
+  canEdit: boolean;
+  editedBy: string | null;
+  editedAt: string | null;
+}
+
 export type SharePermission = 'View' | 'Download' | 'Print';
 export type ShareState = 'Active' | 'Expired' | 'Revoked' | 'UsedUp';
 
@@ -1408,6 +1424,12 @@ export const api = {
     status: () => request<SearchStatus>('/api/v1/admin/search/status'),
     extractions: (params: { q?: string; status?: string; method?: string; take?: number }) =>
       request<ExtractionActivity[]>(`/api/v1/admin/search/extractions${query(params)}`),
+    text: (storageObjectId: string) => request<ExtractedText>(`/api/v1/admin/search/extractions/${storageObjectId}/text`),
+    saveText: (storageObjectId: string, text: string) =>
+      request<ExtractedText>(`/api/v1/admin/search/extractions/${storageObjectId}/text`, {
+        method: 'PUT',
+        body: JSON.stringify({ text }),
+      }),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
   },

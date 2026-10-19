@@ -145,6 +145,19 @@ export const t = {
   ocrSearchPlaceholder: 'نام فایل، عنوان سند یا متن خطا…',
   ocrNothing: 'موردی با این مشخصات نیست.',
   ocrAll: 'همه',
+  ocrTextTitle: 'متن خوانده‌شده',
+  ocrTextOpen: 'دیدن متن',
+  ocrTextEmpty: 'از این فایل متنی خوانده نشده است.',
+  ocrTextPlaceholder: 'از این فایل متنی خوانده نشده است؛ متن را اینجا وارد کنید تا در جستجو بیاید.',
+  ocrTextHelp: 'اشتباه‌های OCR را اصلاح کنید یا متن جاافتاده را اضافه کنید. پس از ذخیره، سند با همین متن جستجو می‌شود و OCR دوباره آن را بازنویسی نمی‌کند.',
+  ocrTextReadOnly: 'فقط خواندنی: برای اصلاح متن به دسترسی ویرایش همین سند نیاز دارید.',
+  ocrTextSaved: 'متن ذخیره شد و نمایهٔ جستجو به‌روز می‌شود.',
+  ocrTextEdited: 'اصلاح دستی',
+  ocrTextNoAccess:
+    'متن فایل جزو محتوای سند است و نقش مدیریت جستجو به‌تنهایی آن را باز نمی‌کند. برای دیدن آن باید روی سند (یا پوشهٔ آن) دسترسی مشاهده داشته باشید.',
+  ocrTextNoEdit: 'برای اصلاح متن باید روی این سند دسترسی ویرایش داشته باشید.',
+  ocrTextTooLong: 'متن بیش از اندازهٔ مجاز است.',
+  ocrTextChanged: 'تغییرات ذخیره نشده دارید. بدون ذخیره بسته شود؟',
   inFile: 'جستجو در متن فایل',
   inFileHelp: 'بخشی از کلمه هم کافی است. برای متن OCR که ممکن است کامل تشخیص داده نشده باشد.',
   searchOcrHint: 'جستجو عنوان و متن داخل فایل را می‌گردد، از جمله متنی که OCR از اسکن خوانده است.',
@@ -175,6 +188,9 @@ export function describeError(error: unknown): string {
   if (error && typeof error === 'object' && 'status' in error) {
     const { status, code, message } = error as { status: number; code?: string; message: string };
     if (code === 'version.stale') return t.staleVersion;
+    if (code === 'search.text_no_access') return t.ocrTextNoAccess;
+    if (code === 'search.text_no_edit') return t.ocrTextNoEdit;
+    if (code === 'search.text_too_long') return t.ocrTextTooLong;
     if (code === 'document.duplicate_file') return t.duplicateBlocked;
     if (code === 'fiscal_year.closed') return 'این سال مالی بسته است و فقط برای گزارش‌گیری است.';
     if (code === 'category.root_fixed') return 'پوشه‌ی ریشه‌ی سامانه جابه‌جا نمی‌شود.';
