@@ -135,6 +135,7 @@ export const actionLabels: Record<string, string> = {
   SEARCH_REINDEX_STARTED: 'شروع بازسازی نمایهٔ جستجو',
   EXTRACTED_TEXT_VIEWED: 'دیدن متن OCR فایل',
   EXTRACTED_TEXT_UPDATED: 'اصلاح دستی متن OCR فایل',
+  EXTRACTED_TEXT_REQUEUED: 'اجرای دوبارهٔ OCR فایل',
 
   CATEGORY_CREATED: 'ایجاد پوشه',
   CATEGORY_UPDATED: 'به‌روزرسانی پوشه',

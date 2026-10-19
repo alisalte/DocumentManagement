@@ -76,6 +76,25 @@ public sealed class ContentExtraction : Entity<Guid>
 
     public void BeginAttempt() => Attempts++;
 
+    /// <summary>
+    /// Queues the file to be read again, for example after OCR improved. The current text stays
+    /// readable and searchable until the new one replaces it.
+    /// </summary>
+    public Result Requeue()
+    {
+        if (EditedAt is not null)
+        {
+            return Result.Failure(Error.Conflict(
+                "search.text_edited",
+                "The text was corrected by hand; reading the file again would overwrite the correction."));
+        }
+
+        Status = ExtractionStatus.Pending;
+        Attempts = 0;
+        LastError = null;
+        return Result.Success();
+    }
+
     public void Complete(ExtractionMethod method, Guid? textObjectId, int charCount, string engine, DateTimeOffset now)
     {
         Status = ExtractionStatus.Completed;

@@ -158,6 +158,10 @@ export const t = {
   ocrTextNoEdit: 'برای اصلاح متن باید روی این سند دسترسی ویرایش داشته باشید.',
   ocrTextTooLong: 'متن بیش از اندازهٔ مجاز است.',
   ocrTextChanged: 'تغییرات ذخیره نشده دارید. بدون ذخیره بسته شود؟',
+  ocrRerun: 'OCR دوباره',
+  ocrRerunHelp: 'فایل دوباره خوانده می‌شود؛ متن فعلی تا آماده شدن متن تازه در جستجو می‌ماند.',
+  ocrRerunQueued: 'فایل برای خواندن دوباره در صف قرار گرفت.',
+  ocrRerunEdited: 'متن این فایل دستی اصلاح شده است؛ OCR دوباره آن را بازنویسی نمی‌کند.',
   inFile: 'جستجو در متن فایل',
   inFileHelp: 'بخشی از کلمه هم کافی است. برای متن OCR که ممکن است کامل تشخیص داده نشده باشد.',
   searchOcrHint: 'جستجو عنوان و متن داخل فایل را می‌گردد، از جمله متنی که OCR از اسکن خوانده است.',
@@ -191,6 +195,7 @@ export function describeError(error: unknown): string {
     if (code === 'search.text_no_access') return t.ocrTextNoAccess;
     if (code === 'search.text_no_edit') return t.ocrTextNoEdit;
     if (code === 'search.text_too_long') return t.ocrTextTooLong;
+    if (code === 'search.text_edited') return t.ocrRerunEdited;
     if (code === 'document.duplicate_file') return t.duplicateBlocked;
     if (code === 'fiscal_year.closed') return 'این سال مالی بسته است و فقط برای گزارش‌گیری است.';
     if (code === 'category.root_fixed') return 'پوشه‌ی ریشه‌ی سامانه جابه‌جا نمی‌شود.';

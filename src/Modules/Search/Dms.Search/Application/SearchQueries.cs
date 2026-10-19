@@ -83,7 +83,8 @@ public sealed record ExtractionActivityDto(
     string? Engine,
     string? Error,
     int Attempts,
-    DateTimeOffset? CompletedAt);
+    DateTimeOffset? CompletedAt,
+    bool Edited = false);
 
 public sealed record ListExtractionsQuery(string? Text, string? Status, string? Method, int? Take)
     : IQuery<Result<IReadOnlyList<ExtractionActivityDto>>>;
@@ -91,6 +92,9 @@ public sealed record ListExtractionsQuery(string? Text, string? Status, string? 
 public sealed record StartReindexCommand : ICommand<Result>;
 
 public sealed record RetryFailedExtractionsCommand : ICommand<Result<int>>;
+
+/// <summary>Reads one file again with the current extractor, for example after OCR improved.</summary>
+public sealed record RequeueExtractionCommand(Guid StorageObjectId) : ICommand<Result>;
 
 /// <summary>
 /// Secured search (section 8.3). Access is enforced three times over, and the engine is never
@@ -609,7 +613,8 @@ public sealed class ListExtractionsHandler(
                 row.Engine,
                 row.LastError,
                 row.Attempts,
-                row.CompletedAt);
+                row.CompletedAt,
+                row.EditedAt is not null);
         });
 
         if (!string.IsNullOrEmpty(needle))
@@ -763,5 +768,49 @@ public sealed class RetryFailedExtractionsHandler(
         }
 
         return Result.Success(failed.Count);
+    }
+}
+
+/// <summary>
+/// Re-running OCR reveals no content (the text itself still needs document access to read), so
+/// ADMIN_MANAGE_SEARCH is enough, as for "retry failed". Text corrected by hand is never replaced.
+/// </summary>
+public sealed class RequeueExtractionHandler(
+    IDmsAuthorizer authorizer,
+    IContentExtractionRepository extractions,
+    IJobQueue jobs,
+    IAuditWriter audit) : ICommandHandler<RequeueExtractionCommand, Result>
+{
+    public async Task<Result> HandleAsync(RequeueExtractionCommand command, CancellationToken cancellationToken)
+    {
+        var decision = await authorizer.AuthorizeSystemAsync(PermissionCodes.AdminManageSearch, cancellationToken);
+        if (!decision.Allowed)
+        {
+            return Result.Failure(Error.Forbidden("auth.forbidden", decision.Explanation));
+        }
+
+        var extraction = await extractions.FindAsync(command.StorageObjectId, cancellationToken);
+        if (extraction is null)
+        {
+            return Result.Failure(ExtractedTextAccess.NotFound);
+        }
+
+        var requeued = extraction.Requeue();
+        if (requeued.IsFailure)
+        {
+            return requeued;
+        }
+
+        await jobs.EnqueueAsync(ExtractTextJob.For(extraction.StorageObjectId), cancellationToken);
+        await audit.WriteAsync(
+            new AuditRecord
+            {
+                Action = AuditActions.ExtractedTextRequeued,
+                EntityType = "ContentExtraction",
+                EntityId = extraction.Id,
+                Metadata = new Dictionary<string, object?> { ["storageObjectId"] = extraction.StorageObjectId },
+            },
+            cancellationToken);
+        return Result.Success();
     }
 }

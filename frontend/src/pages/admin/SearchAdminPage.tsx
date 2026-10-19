@@ -217,11 +217,25 @@ export function SearchAdminPage() {
                   <TH>وضعیت</TH>
                   <TH>نویسه</TH>
                   <TH>زمان</TH>
+                  <TH>
+                    <span className="sr-only">{t.ocrRerun}</span>
+                  </TH>
                 </TR>
               </THead>
               <TBody>
                 {activity.data.map((row) => (
-                  <ActivityRow key={row.storageObjectId} row={row} onOpenText={() => setReading(row)} />
+                  <ActivityRow
+                    key={row.storageObjectId}
+                    row={row}
+                    busy={busy}
+                    onOpenText={() => setReading(row)}
+                    onRerun={() =>
+                      run(async () => {
+                        await api.searchAdmin.rerun(row.storageObjectId);
+                        return t.ocrRerunQueued;
+                      })
+                    }
+                  />
                 ))}
               </TBody>
             </Table>
@@ -293,7 +307,17 @@ function Stat({
   );
 }
 
-function ActivityRow({ row, onOpenText }: { row: ExtractionActivity; onOpenText: () => void }) {
+function ActivityRow({
+  row,
+  busy,
+  onOpenText,
+  onRerun,
+}: {
+  row: ExtractionActivity;
+  busy: boolean;
+  onOpenText: () => void;
+  onRerun: () => void;
+}) {
   const name = row.fileName || row.title || 'فایل';
   return (
     <>
@@ -335,10 +359,22 @@ function ActivityRow({ row, onOpenText }: { row: ExtractionActivity; onOpenText:
           )}
         </TD>
         <TD>{row.completedAt ? formatDateTime(row.completedAt) : '—'}</TD>
+        <TD>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy || row.status === 'Pending' || row.edited}
+            title={row.edited ? t.ocrRerunEdited : t.ocrRerunHelp}
+            onClick={onRerun}
+            className="whitespace-nowrap"
+          >
+            {t.ocrRerun}
+          </Button>
+        </TD>
       </TR>
       {row.error && (
         <TR>
-          <TD colSpan={5}>
+          <TD colSpan={6}>
             <p className="break-words text-xs text-rose-700">{row.error}</p>
           </TD>
         </TR>

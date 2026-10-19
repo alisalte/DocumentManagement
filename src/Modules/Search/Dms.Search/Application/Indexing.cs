@@ -277,7 +277,14 @@ public sealed class ExtractTextJob(
                 textObject = (await storage.StoreDerivedAsync(file.Id, packed, $"{file.Id}.txt.gz", "application/gzip", DerivedPurpose.ExtractedText, cancellationToken)).Value;
             }
 
+            var previous = extraction.TextObjectId;
             extraction.Complete(extracted.Method, textObject, text.Length, extracted.Engine, timeProvider.GetUtcNow());
+
+            // Read again on request: the earlier text goes with it.
+            if (previous is { } old && old != textObject)
+            {
+                await storage.MarkForDeletionAsync(new StorageObjectId(old), cancellationToken);
+            }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

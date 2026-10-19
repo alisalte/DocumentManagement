@@ -148,6 +148,9 @@ public static class AuditActions
     public const string ExtractedTextViewed = "EXTRACTED_TEXT_VIEWED";
     public const string ExtractedTextUpdated = "EXTRACTED_TEXT_UPDATED";
 
+    /// <summary>A file was queued to be read (OCR) again.</summary>
+    public const string ExtractedTextRequeued = "EXTRACTED_TEXT_REQUEUED";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

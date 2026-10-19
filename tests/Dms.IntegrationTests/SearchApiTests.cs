@@ -427,6 +427,71 @@ public sealed class SearchApiTests(DmsApiFactory factory)
     }
 
     [Fact]
+    public async Task A_file_can_be_read_again_but_never_over_a_hand_correction()
+    {
+        const string before = "متن ضعیف";
+        const string after = "متن کامل‌تر پس از بهبود OCR";
+        var engine = new FakeSearchEngine();
+        await using (var first = factory.WithSearchFakes(engine, new FixedExtractor(before, ExtractionMethod.Ocr)))
+        {
+            var setupAdmin = first.As(await factory.AdminAsync());
+            var (owner, _, categoryId) = await OwnerOfNewCategoryAsync(setupAdmin, "ocr.rerun");
+            await owner.CreateDocumentAsync(categoryId, "پوستر", fileName: "rerun.webp");
+            await owner.CreateDocumentAsync(categoryId, "پوستر اصلاح‌شده", fileName: "rerun-edited.webp");
+            await first.Services.RunJobsAsync();
+
+            var adminId = (await setupAdmin.GetFromJsonAsync<JsonElement>("/api/v1/auth/me")).GetProperty("id").GetGuid();
+            await setupAdmin.GrantManyAsync("Category", categoryId, adminId, "DOCUMENT_VIEW", "DOCUMENT_EDIT");
+        }
+
+        await using var host = factory.WithSearchFakes(engine, new FixedExtractor(after, ExtractionMethod.Ocr));
+        var admin = host.As(await factory.AdminAsync());
+        async Task<JsonElement> RowAsync(string fileName) =>
+            (await admin.GetFromJsonAsync<JsonElement>($"/api/v1/admin/search/extractions?q={fileName}"))
+                .EnumerateArray().Single(row => row.GetProperty("fileName").GetString() == fileName);
+
+        var plain = (await RowAsync("rerun.webp")).GetProperty("storageObjectId").GetGuid();
+        var edited = (await RowAsync("rerun-edited.webp")).GetProperty("storageObjectId").GetGuid();
+        (await admin.PutAsJsonAsync($"/api/v1/admin/search/extractions/{edited}/text", new { text = "اصلاح دستی" })).EnsureSuccessStatusCode();
+        (await RowAsync("rerun-edited.webp")).GetProperty("edited").GetBoolean().ShouldBeTrue();
+
+        var oldTextObject = await TextObjectOfAsync(plain);
+        (await admin.PostAsync($"/api/v1/admin/search/extractions/{plain}/rerun", null)).StatusCode.ShouldBe(HttpStatusCode.Accepted);
+        (await RowAsync("rerun.webp")).GetProperty("status").GetString().ShouldBe("Pending");
+        await factory.ShouldHaveAuditAsync("EXTRACTED_TEXT_REQUEUED");
+
+        var refused = await admin.PostAsync($"/api/v1/admin/search/extractions/{edited}/rerun", null);
+        refused.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await refused.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("code").GetString().ShouldBe("search.text_edited");
+
+        await host.Services.RunJobsAsync();
+        var row = await RowAsync("rerun.webp");
+        row.GetProperty("status").GetString().ShouldBe("Completed");
+        row.GetProperty("charCount").GetInt32().ShouldBe(after.Length);
+        (await admin.GetFromJsonAsync<JsonElement>($"/api/v1/admin/search/extractions/{plain}/text")).GetProperty("text").GetString().ShouldBe(after);
+        (await admin.GetFromJsonAsync<JsonElement>($"/api/v1/admin/search/extractions/{edited}/text")).GetProperty("text").GetString().ShouldBe("اصلاح دستی");
+
+        // The text it replaced is released with the rest of the storage clean-up.
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT status FROM storage.storage_objects WHERE id = @id;";
+        command.Parameters.AddWithValue("id", oldTextObject);
+        ((string?)await command.ExecuteScalarAsync()).ShouldNotBe("Committed");
+
+        var (nobody, _) = await factory.CreateUserAsync("ocr.rerun.nobody");
+        (await host.As(nobody).PostAsync($"/api/v1/admin/search/extractions/{plain}/rerun", null)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    private async Task<Guid> TextObjectOfAsync(Guid storageObjectId)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT text_object_id FROM search.content_extractions WHERE storage_object_id = @id;";
+        command.Parameters.AddWithValue("id", storageObjectId);
+        return (Guid)(await command.ExecuteScalarAsync())!;
+    }
+
+    [Fact]
     public async Task Text_can_be_added_where_nothing_was_read()
     {
         var engine = new FakeSearchEngine();

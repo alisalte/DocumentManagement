@@ -77,6 +77,7 @@ public static class SearchModule
         services.AddScoped<IQueryHandler<ListExtractionsQuery, Result<IReadOnlyList<ExtractionActivityDto>>>, ListExtractionsHandler>();
         services.AddScoped<ICommandHandler<StartReindexCommand, Result>, StartReindexHandler>();
         services.AddScoped<ICommandHandler<RetryFailedExtractionsCommand, Result<int>>, RetryFailedExtractionsHandler>();
+        services.AddScoped<ICommandHandler<RequeueExtractionCommand, Result>, RequeueExtractionHandler>();
         services.AddScoped<ExtractedTextAccess>();
         services.AddScoped<IQueryHandler<GetExtractedTextQuery, Result<ExtractedTextDto>>, GetExtractedTextHandler>();
         services.AddScoped<ICommandHandler<UpdateExtractedTextCommand, Result<ExtractedTextDto>>, UpdateExtractedTextHandler>();
@@ -176,6 +177,13 @@ public static class SearchModule
                 CancellationToken ct) =>
             (await dispatcher.SendAsync(new UpdateExtractedTextCommand(storageObjectId, request.Text), ct)).ToHttpResult())
             .WithSummary("Correct the file text by hand, or add it where nothing was read; needs EDIT on the document. Reindexes it.");
+
+        admin.MapPost("/extractions/{storageObjectId:guid}/rerun", async (Guid storageObjectId, IDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new RequeueExtractionCommand(storageObjectId), ct);
+                return result.IsSuccess ? Results.Accepted() : ApiResults.Problem(result.Error);
+            })
+            .WithSummary("Read one file again (OCR) with the current extractor; refused for text corrected by hand.");
 
         admin.MapPost("/reindex", async (IDispatcher dispatcher, CancellationToken ct) =>
             {

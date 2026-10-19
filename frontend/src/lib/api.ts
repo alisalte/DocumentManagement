@@ -532,6 +532,8 @@ export interface ExtractionActivity {
   error: string | null;
   attempts: number;
   completedAt: string | null;
+  /** The text was corrected by hand, so OCR is never run on it again. */
+  edited: boolean;
 }
 
 /** The text read from one file. Needs VIEW on a document that uses it (decision D5); editing needs EDIT. */
@@ -1430,6 +1432,8 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify({ text }),
       }),
+    rerun: (storageObjectId: string) =>
+      request<void>(`/api/v1/admin/search/extractions/${storageObjectId}/rerun`, { method: 'POST' }),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
   },
