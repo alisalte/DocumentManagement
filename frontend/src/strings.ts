@@ -5,7 +5,7 @@ import { describeShareError } from './components/sharing/sharingStrings';
  * is a new table rather than a hunt through components.
  */
 export const t = {
-  appTitle: 'بایگانی اسناد',
+  appTitle: 'مدیریت اسناد',
   username: 'نام کاربری',
   password: 'گذرواژه',
   signIn: 'ورود',

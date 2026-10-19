@@ -20,7 +20,7 @@ export type GuideSection = {
 
 export const guideIntro = {
   title: 'راهنمای استفاده',
-  brand: 'بایگانی اسناد',
+  brand: 'مدیریت اسناد',
   lead: 'از ورود تا ثبت سند، جستجو، تأیید و اشتراک — گام‌به‌گام با تصویر مسیر.',
   tocLabel: 'موضوعات',
 } as const;

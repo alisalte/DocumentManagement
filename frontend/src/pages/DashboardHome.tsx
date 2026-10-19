@@ -688,7 +688,7 @@ export function DashboardHome({
         />
         <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-7">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-[0.18em] text-ink-200 uppercase">Fillo · بایگانی اسناد</p>
+            <p className="text-xs font-semibold tracking-[0.18em] text-ink-200 uppercase">Fillo · مدیریت اسناد</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
               {hello}، {displayName}
             </h1>
