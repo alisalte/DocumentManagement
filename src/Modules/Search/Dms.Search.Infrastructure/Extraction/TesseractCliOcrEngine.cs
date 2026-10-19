@@ -8,7 +8,9 @@ namespace Dms.Search.Infrastructure.Extraction;
 
 /// <summary>
 /// Shells out to the system <c>tesseract</c> binary with <c>fas+eng</c> (section 8.1, risk R2).
-/// Keeps OCR out of process so a hung page cannot take down the worker.
+/// Keeps OCR out of process so a hung page cannot take down the worker. Pages are read in
+/// grayscale; small letters are read again from an enlarged copy, and a sparse-text pass picks up
+/// labels and captions outside the main layout (posters, photos).
 /// </summary>
 public sealed class TesseractCliOcrEngine(
     IOptions<SearchOptions> options,
@@ -38,23 +40,34 @@ public sealed class TesseractCliOcrEngine(
                 await image.CopyToAsync(file, cancellationToken);
             }
 
-            var outputBase = Path.Combine(work.FullName, "out");
-            var args = $"\"{input}\" \"{outputBase}\" -l {_options.OcrLanguages} --psm 3";
-            var (exit, stderr) = await RunAsync(
-                _options.Tesseract.Command,
-                args,
-                _options.Tesseract.TimeoutSeconds,
-                cancellationToken);
+            var tesseract = _options.Tesseract;
+            var (page, enlarged) = OcrImage.Prepare(input, work.FullName, tesseract, logger);
 
-            var textPath = outputBase + ".txt";
-            if (exit != 0 || !File.Exists(textPath))
+            // Page layout first (paragraphs, columns). Small letters are read again from the
+            // enlarged copy; tesseract misses text only a few pixels high.
+            var layoutTsv = await RunTsvAsync(page, work.FullName, "layout", 3, cancellationToken);
+            if (layoutTsv is null)
             {
-                logger.LogWarning("tesseract failed (exit {Exit}): {Error}", exit, stderr.Trim());
                 return string.Empty;
             }
 
-            var text = await File.ReadAllTextAsync(textPath, Encoding.UTF8, cancellationToken);
-            return text.Trim();
+            var layout = OcrText.Parse(layoutTsv, tesseract.MinWordConfidence);
+            if (enlarged is not null
+                && layout.MedianWordHeight < tesseract.SmallTextHeight
+                && await RunTsvAsync(enlarged, work.FullName, "layout-enlarged", 3, cancellationToken) is { } enlargedTsv)
+            {
+                layout = OcrText.Parse(enlargedTsv, tesseract.MinWordConfidence);
+            }
+
+            // Then scattered text the layout pass skips: labels, cards, captions on posters and photos.
+            var lines = layout.Lines;
+            if (tesseract.SparseTextPass
+                && await RunTsvAsync(enlarged ?? page, work.FullName, "sparse", 11, cancellationToken) is { } sparseTsv)
+            {
+                lines = OcrText.Merge(lines, OcrText.Parse(sparseTsv, tesseract.SparseMinWordConfidence).Lines);
+            }
+
+            return OcrText.Join(lines);
         }
         finally
         {
@@ -67,6 +80,27 @@ public sealed class TesseractCliOcrEngine(
                 // Best-effort cleanup of temp OCR pages.
             }
         }
+    }
+
+    /// <summary>Runs one tesseract pass with word-level TSV output (text, position and confidence).</summary>
+    private async Task<string?> RunTsvAsync(string page, string workDir, string name, int pageSegmentation, CancellationToken cancellationToken)
+    {
+        var outputBase = Path.Combine(workDir, name);
+        var args = $"\"{page}\" \"{outputBase}\" -l {_options.OcrLanguages} --psm {pageSegmentation} tsv";
+        var (exit, stderr) = await RunAsync(
+            _options.Tesseract.Command,
+            args,
+            _options.Tesseract.TimeoutSeconds,
+            cancellationToken);
+
+        var tsvPath = outputBase + ".tsv";
+        if (exit != 0 || !File.Exists(tsvPath))
+        {
+            logger.LogWarning("tesseract --psm {Mode} failed (exit {Exit}): {Error}", pageSegmentation, exit, stderr.Trim());
+            return null;
+        }
+
+        return await File.ReadAllTextAsync(tsvPath, Encoding.UTF8, cancellationToken);
     }
 
     public static bool CommandExists(string command)

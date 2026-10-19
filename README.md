@@ -93,6 +93,13 @@ sudo apt-get install -y tesseract-ocr tesseract-ocr-fas tesseract-ocr-eng popple
 
 The backend image already bundles those packages. Disable with `Dms__Search__Tesseract__Enabled=false`.
 
+Each page is read in grayscale with a page-layout pass and then a sparse-text pass, which finds
+labels and captions on posters and photos. Small images get an enlarged copy (`UpscaleShortSide`),
+and when the letters are small (`SmallTextHeight`) the layout pass runs again on that copy. Words
+below `MinWordConfidence` (layout pass) or `SparseMinWordConfidence` (sparse pass) are dropped as
+noise. These settings live under `Dms:Search:Tesseract`. Text an administrator has already
+corrected by hand is never re-extracted.
+
 **OpenSearch (full-text search) and optional Tika.** Without OpenSearch the API still runs and
 search falls back to title, description, and file name (`degraded: true`). Development points at
 `http://localhost:9200` by default; start the engine with:

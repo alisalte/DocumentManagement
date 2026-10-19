@@ -140,4 +140,29 @@ public sealed class TesseractOptions
 
     /// <summary>Per-process timeout for tesseract / poppler.</summary>
     public int TimeoutSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// An enlarged copy of a small image (phone photos, posters, screenshots) is made with its
+    /// shorter side about this many pixels; it is used for small letters and for the sparse pass.
+    /// 0 turns enlarging off.
+    /// </summary>
+    public int UpscaleShortSide { get; set; } = 2800;
+
+    /// <summary>A median word height below this (pixels) means small letters: the page is read again enlarged.</summary>
+    public int SmallTextHeight { get; set; } = 20;
+
+    /// <summary>Upper bound on an enlarged image, so a big scan is not blown up into a slow one.</summary>
+    public int MaxUpscaledPixels { get; set; } = 16_000_000;
+
+    /// <summary>
+    /// A second pass that looks for scattered text (labels, cards, captions) the page-layout pass
+    /// skips. Doubles OCR time per page.
+    /// </summary>
+    public bool SparseTextPass { get; set; } = true;
+
+    /// <summary>Words recognised with less confidence (0–100) are dropped: they are mostly noise from pictures.</summary>
+    public int MinWordConfidence { get; set; } = 30;
+
+    /// <summary>The same for the sparse pass, which reads far more noise from photographs.</summary>
+    public int SparseMinWordConfidence { get; set; } = 75;
 }
