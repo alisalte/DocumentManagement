@@ -54,6 +54,9 @@ public sealed class InfraDbContext : DbContext
                 .HasDatabaseName("ux_jobs_idempotency_key")
                 .IsUnique()
                 .HasFilter("status IN ('QUEUED','RUNNING')");
+
+            // Recurring jobs look up a period's key among finished rows too.
+            entity.HasIndex(job => job.IdempotencyKey, "ix_jobs_idempotency_key_any");
         });
 
         modelBuilder.Entity<IdempotencyRecord>(entity =>

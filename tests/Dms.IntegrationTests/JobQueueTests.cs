@@ -187,6 +187,30 @@ public sealed class JobQueueTests(DmsApiFactory factory)
         (await StatusOfAsync(job.Id)).ShouldBe("QUEUED");
     }
 
+    [Fact]
+    public async Task A_recurring_job_runs_once_per_period_even_after_it_finished()
+    {
+        // The scheduler ticks every minute with the same key until the period ends; a daily job
+        // used to be enqueued again each minute as soon as the previous run had finished.
+        var type = $"test.recurring.{Guid.NewGuid():N}";
+        var store = factory.Services.GetRequiredService<JobStore>();
+
+        (await store.TryEnqueueRecurringAsync(type, $"{type}:1", CancellationToken.None)).ShouldBeTrue();
+        await using (var connection = await factory.OpenConnectionAsync())
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE infra.jobs SET status = 'SUCCEEDED' WHERE type = @type;";
+            command.Parameters.AddWithValue("type", type);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        await store.TryEnqueueRecurringAsync(type, $"{type}:1", CancellationToken.None);
+        (await CountJobsAsync(type)).ShouldBe(1, "the same period must not run twice");
+
+        await store.TryEnqueueRecurringAsync(type, $"{type}:2", CancellationToken.None);
+        (await CountJobsAsync(type)).ShouldBe(2, "the next period runs");
+    }
+
     private static async Task<DequeuedJob?> DequeueAsync(JobStore store, string type)
     {
         // Other tests share the queue, so skip past jobs that are not ours.

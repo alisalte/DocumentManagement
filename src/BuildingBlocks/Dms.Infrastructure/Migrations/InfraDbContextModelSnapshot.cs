@@ -110,6 +110,8 @@ namespace Dms.Infrastructure.Migrations
                         .HasDatabaseName("ix_jobs_dequeue")
                         .HasFilter("status = 'QUEUED'");
 
+                    b.HasIndex(new[] { "IdempotencyKey" }, "ix_jobs_idempotency_key_any");
+
                     b.ToTable("jobs", "infra", t =>
                         {
                             t.HasCheckConstraint("ck_jobs_status", "status IN ('QUEUED','RUNNING','SUCCEEDED','FAILED','DEAD')");

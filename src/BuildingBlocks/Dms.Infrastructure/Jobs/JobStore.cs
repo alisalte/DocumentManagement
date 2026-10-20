@@ -103,7 +103,9 @@ public sealed class JobStore(NpgsqlDataSource dataSource)
 
     /// <summary>
     /// Enqueues a recurring job under a single-holder advisory lock, so only one instance in the
-    /// cluster schedules a given tick. The idempotency key collapses duplicates for the period.
+    /// cluster schedules a given tick. The key names the period, and a period runs once: a job that
+    /// already finished for it (succeeded, failed or dead) is not enqueued again. The unique index
+    /// covers only queued and running rows, which is why the finished ones are checked here.
     /// </summary>
     public async Task<bool> TryEnqueueRecurringAsync(
         string type,
@@ -129,7 +131,8 @@ public sealed class JobStore(NpgsqlDataSource dataSource)
         const string insert = """
             INSERT INTO infra.jobs (id, queue, type, payload, idempotency_key, status, priority,
                                     run_after, attempts, max_attempts, created_at)
-            VALUES (@id, 'default', @type, '{}'::jsonb, @key, 'QUEUED', 0, now(), 0, 5, now())
+            SELECT @id, 'default', @type, '{}'::jsonb, @key, 'QUEUED', 0, now(), 0, 5, now()
+            WHERE NOT EXISTS (SELECT 1 FROM infra.jobs WHERE idempotency_key = @key)
             ON CONFLICT (idempotency_key) WHERE status IN ('QUEUED','RUNNING') DO NOTHING;
             """;
 
