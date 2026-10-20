@@ -77,6 +77,7 @@ public static class DocumentsModule
         services.AddScoped<ICommandHandler<UpdateDocumentCommand, Result>, UpdateDocumentHandler>();
         services.AddScoped<ICommandHandler<UpdateMetadataCommand, Result<MetadataUpdateDto>>, UpdateMetadataHandler>();
         services.AddScoped<ICommandHandler<SetDocumentTagsCommand, Result>, SetDocumentTagsHandler>();
+        services.AddScoped<ICommandHandler<SetDocumentWatermarkCommand, Result>, SetDocumentWatermarkHandler>();
         services.AddScoped<ICommandHandler<DeleteDocumentCommand, Result>, DeleteDocumentHandler>();
         services.AddScoped<ICommandHandler<RestoreDocumentCommand, Result>, RestoreDocumentHandler>();
         services.AddScoped<ICommandHandler<PurgeDocumentCommand, Result>, PurgeDocumentHandler>();

@@ -141,6 +141,7 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             CurrentMetadata = row.Current is null ? null : JsonDocument.Parse(row.Current.DynamicData).RootElement.Clone(),
             CurrentSchemaVersionId = row.Current?.DocumentTypeVersionId.Value,
             FiscalYear = document.FiscalYear,
+            WatermarkText = document.WatermarkText,
         };
     }
 

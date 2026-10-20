@@ -88,6 +88,9 @@ public sealed class Document : AggregateRoot<DocumentId>
     /// <summary>Jalali fiscal year the document was filed in. 0 until backfill.</summary>
     public int FiscalYear { get; private set; }
 
+    /// <summary>Text stamped across preview and print pages, or null for none.</summary>
+    public string? WatermarkText { get; private set; }
+
     public bool IsDeleted => DeletedAt is not null;
 
     public IReadOnlyList<DocumentVersion> Versions => _versions;
@@ -310,6 +313,20 @@ public sealed class Document : AggregateRoot<DocumentId>
         Title = title.Trim();
         Description = description;
         CategoryId = categoryId;
+        UpdatedAt = now;
+        UpdatedBy = actor;
+        return Result.Success();
+    }
+
+    /// <summary>Sets the text stamped across preview and print pages; null or blank removes it.</summary>
+    public Result SetWatermark(string? text, UserId actor, DateTimeOffset now)
+    {
+        if (IsDeleted)
+        {
+            return Result.Failure(Error.Conflict("document.deleted", "A deleted document cannot be edited."));
+        }
+
+        WatermarkText = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         UpdatedAt = now;
         UpdatedBy = actor;
         return Result.Success();

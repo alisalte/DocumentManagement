@@ -111,6 +111,7 @@ public sealed class DocumentsDbContext : DbContext
                 .HasConversion(id => id.Value, value => new DocumentId(value));
             entity.Property(document => document.Title).HasColumnName("title").HasMaxLength(500).IsRequired();
             entity.Property(document => document.Description).HasColumnName("description").HasMaxLength(4000);
+            entity.Property(document => document.WatermarkText).HasColumnName("watermark_text").HasMaxLength(200);
             entity.Property(document => document.DocumentTypeId).HasColumnName("document_type_id")
                 .HasConversion(id => id.Value, value => new DocumentTypeId(value));
             entity.Property(document => document.CategoryId).HasColumnName("category_id")

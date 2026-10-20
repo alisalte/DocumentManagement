@@ -67,6 +67,7 @@ export const actionLabels: Record<string, string> = {
   DOCUMENT_RESTORED: 'بازگردانی سند',
   DOCUMENT_PURGED: 'حذف همیشگی سند',
   DOCUMENT_TAGS_CHANGED: 'تغییر برچسب‌های سند',
+  DOCUMENT_WATERMARK_CHANGED: 'تغییر واترمارک سند',
   DOCUMENT_PRINTED: 'چاپ سند',
   DOCUMENT_SHARED: 'اشتراک‌گذاری سند',
 

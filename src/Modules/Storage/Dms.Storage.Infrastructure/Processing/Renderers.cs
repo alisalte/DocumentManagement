@@ -167,8 +167,8 @@ public sealed class OfficePageRenderer(HttpClient http, IOptions<StorageOptions>
 }
 
 /// <summary>
-/// Stamps the viewer and the time diagonally across a page, repeated, at low opacity: readable
-/// enough to identify a leaked photo of the screen, faint enough to read through.
+/// Stamps the document's watermark diagonally across a page, repeated, at low opacity: visible on
+/// a photo of the screen, faint enough to read through. Shaped with HarfBuzz so Persian text joins.
 /// </summary>
 public sealed class SkiaWatermarker : IWatermarker
 {
@@ -178,17 +178,24 @@ public sealed class SkiaWatermarker : IWatermarker
     public byte[] Apply(byte[] image, string text)
     {
         using var bitmap = SKBitmap.Decode(image) ?? throw new InvalidOperationException("Not an image.");
-        using var canvas = new SKCanvas(bitmap);
         using var font = new SKFont(Typeface, Math.Max(bitmap.Width / 32f, 12f));
+        using var line = ShapedLine.Build(text, Typeface, font, out var width);
+        if (line is null)
+        {
+            return image;
+        }
+
+        using var canvas = new SKCanvas(bitmap);
         using var paint = new SKPaint { Color = new SKColor(90, 90, 90, 56), IsAntialias = true };
 
-        var step = font.Size * 9;
+        var rowStep = (int)(font.Size * 9);
+        var columnStep = (int)Math.Max(width + (font.Size * 4), font.Size * 8);
         canvas.RotateDegrees(-30, bitmap.Width / 2f, bitmap.Height / 2f);
-        for (var y = -bitmap.Height; y < bitmap.Height * 2; y += (int)step)
+        for (var y = -bitmap.Height; y < bitmap.Height * 2; y += rowStep)
         {
-            for (var x = -bitmap.Width; x < bitmap.Width * 2; x += (int)(step * 2.5))
+            for (var x = -bitmap.Width; x < bitmap.Width * 2; x += columnStep)
             {
-                canvas.DrawText(text, x, y, SKTextAlign.Left, font, paint);
+                canvas.DrawText(line, x, y, paint);
             }
         }
 

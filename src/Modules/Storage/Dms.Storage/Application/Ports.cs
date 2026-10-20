@@ -89,7 +89,7 @@ public interface IPageRenderer
 /// <param name="FileName">The original name, for converters that pick a format by extension.</param>
 public sealed record RenderRequest(int Width, int MaxPages, string? FileName = null);
 
-/// <summary>Draws the viewer's name and the time across a page image when it is served.</summary>
+/// <summary>Draws a document's watermark text across a page image when it is served.</summary>
 public interface IWatermarker
 {
     byte[] Apply(byte[] image, string text);

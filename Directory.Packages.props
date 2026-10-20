@@ -17,6 +17,8 @@
     <PackageVersion Include="PDFtoImage" Version="5.4.0" />
     <PackageVersion Include="SkiaSharp" Version="4.150.1" />
     <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="4.150.1" />
+    <PackageVersion Include="SkiaSharp.HarfBuzz" Version="4.150.1" />
+    <PackageVersion Include="HarfBuzzSharp.NativeAssets.Linux" Version="14.2.1.1" />
   </ItemGroup>
 
   <ItemGroup Label="Hosting and API">

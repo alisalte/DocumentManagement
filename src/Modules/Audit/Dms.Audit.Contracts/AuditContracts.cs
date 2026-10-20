@@ -73,6 +73,7 @@ public static class AuditActions
     public const string DocumentRestored = "DOCUMENT_RESTORED";
     public const string DocumentPurged = "DOCUMENT_PURGED";
     public const string DocumentTagsChanged = "DOCUMENT_TAGS_CHANGED";
+    public const string DocumentWatermarkChanged = "DOCUMENT_WATERMARK_CHANGED";
 
     public const string RecordDeclared = "RECORD_DECLARED";
     public const string RecordStatusChanged = "RECORD_STATUS_CHANGED";

@@ -119,6 +119,8 @@ export interface DocumentDetails {
   allowedActions: string[];
   fiscalYear: number;
   fiscalYearOpen: boolean;
+  /** Text stamped across preview and print pages; null for none. */
+  watermarkText: string | null;
 }
 
 export interface DocumentVersion {
@@ -1310,6 +1312,9 @@ export const api = {
 
   setTags: (id: string, tags: string[]) =>
     request<void>(`/api/v1/documents/${id}/tags`, { method: 'PUT', body: JSON.stringify({ tags }) }),
+
+  setWatermark: (id: string, text: string | null) =>
+    request<void>(`/api/v1/documents/${id}/watermark`, { method: 'PUT', body: JSON.stringify({ text }) }),
 
   deleteDocument: (id: string, reason: string) =>
     request<void>(`/api/v1/documents/${id}${query({ reason })}`, { method: 'DELETE' }),

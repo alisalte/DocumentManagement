@@ -5,8 +5,8 @@ import { describeError, t } from '../strings';
 import { Alert, Button, Card, ProgressBar, Spinner } from './ui';
 
 /**
- * The in-app viewer (section 7.4): page images rendered by the server, watermarked with the
- * viewer's name, never the original file. Opening it is one audited DOCUMENT_VIEWED; the pages
+ * The in-app viewer (section 7.4): page images rendered by the server, with the document's
+ * watermark when it has one, never the original file. Opening it is one audited DOCUMENT_VIEWED; the pages
  * themselves are fetched one at a time as the reader moves through them.
  */
 export function DocumentViewer({
@@ -139,7 +139,7 @@ export function DocumentViewer({
               <img
                 src={image.data}
                 alt={`${t.page} ${page}`}
-                // Right-click "save image" would still give only a watermarked page image.
+                // Right-click "save image" would still give only the page image.
                 onContextMenu={(event) => event.preventDefault()}
                 className="block w-full select-none"
               />

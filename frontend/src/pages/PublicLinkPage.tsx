@@ -17,7 +17,7 @@ import { describeError, t } from '../strings';
 
 /**
  * What someone outside the organisation sees when they open a shared link: no sign-in, one
- * version, page images watermarked with the link, and the file only if the link includes it.
+ * version, page images with the document's watermark, and the file only if the link includes it.
  * Opening is an explicit click, because each opening counts against the link's limit.
  */
 export function PublicLinkPage() {
@@ -251,7 +251,6 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
             )}
           </>
         )}
-        <p className="text-xs text-paper-500">{s.linkWatermark}</p>
       </div>
     </Card>
   );

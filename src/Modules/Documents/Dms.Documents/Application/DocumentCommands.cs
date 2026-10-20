@@ -71,6 +71,9 @@ public sealed record UpdateDocumentCommand(Guid Id, string Title, string? Descri
 
 public sealed record SetDocumentTagsCommand(Guid Id, IReadOnlyList<string> Tags) : ICommand<Result>;
 
+/// <summary>Sets the text stamped across the document's preview and print pages; null removes it.</summary>
+public sealed record SetDocumentWatermarkCommand(Guid Id, string? Text) : ICommand<Result>;
+
 public sealed record DeleteDocumentCommand(Guid Id, string? Reason) : ICommand<Result>;
 
 public sealed record RestoreDocumentCommand(Guid Id) : ICommand<Result>;
@@ -90,6 +93,7 @@ internal static class DocumentRules
     public const int MaxDescriptionLength = 4000;
     public const int MaxTags = 20;
     public const int MaxTagLength = 64;
+    public const int MaxWatermarkLength = 200;
 
     /// <summary>
     /// What an owner receives when a document is created (section 5.5): explicit, visible ACL rows,
@@ -832,6 +836,79 @@ public sealed class SetDocumentTagsHandler(
                 EntityId = document.Id.Value,
                 DocumentId = document.Id.Value,
                 Metadata = new Dictionary<string, object?> { ["tags"] = command.Tags },
+            },
+            cancellationToken);
+
+        await changes.NotifyAsync(document.Id.Value, cancellationToken);
+        return Result.Success();
+    }
+}
+
+public sealed class SetDocumentWatermarkHandler(
+    DocumentAccess access,
+    IDocumentRepository documents,
+    IAuditWriter audit,
+    DocumentChanges changes,
+    ICurrentUser currentUser,
+    TimeProvider timeProvider,
+    IRecordImmutabilityGuard recordGuard) : ICommandHandler<SetDocumentWatermarkCommand, Result>
+{
+    public async Task<Result> HandleAsync(SetDocumentWatermarkCommand command, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } actor)
+        {
+            return Result.Failure(DocumentErrors.Unauthenticated);
+        }
+
+        var allowed = await access.RequireAsync(command.Id, PermissionCodes.DocumentEdit, cancellationToken);
+        if (allowed.IsFailure)
+        {
+            return allowed;
+        }
+
+        var mutable = await recordGuard.EnsureMutableAsync(new DocumentId(command.Id), cancellationToken);
+        if (mutable.IsFailure)
+        {
+            return mutable;
+        }
+
+        if (command.Text?.Trim() is { Length: > DocumentRules.MaxWatermarkLength })
+        {
+            return Result.Failure(Error.Validation(
+                "document.watermark_too_long",
+                $"The watermark is limited to {DocumentRules.MaxWatermarkLength} characters."));
+        }
+
+        var document = await documents.FindAsync(new DocumentId(command.Id), cancellationToken);
+        if (document is null)
+        {
+            return Result.Failure(DocumentErrors.DocumentNotFound);
+        }
+
+        if (FiscalYearRules.RejectClosed(document.FiscalYear, timeProvider) is { } closedYear)
+        {
+            return Result.Failure(closedYear);
+        }
+
+        var before = document.WatermarkText;
+        var updated = document.SetWatermark(command.Text, actor, timeProvider.GetUtcNow());
+        if (updated.IsFailure || before == document.WatermarkText)
+        {
+            return updated;
+        }
+
+        await audit.WriteAsync(
+            new AuditRecord
+            {
+                Action = AuditActions.DocumentWatermarkChanged,
+                EntityType = "Document",
+                EntityId = document.Id.Value,
+                DocumentId = document.Id.Value,
+                Metadata = new Dictionary<string, object?>
+                {
+                    ["before"] = before,
+                    ["after"] = document.WatermarkText,
+                },
             },
             cancellationToken);
 

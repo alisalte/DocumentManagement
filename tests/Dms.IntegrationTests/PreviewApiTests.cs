@@ -44,7 +44,7 @@ public sealed class PreviewApiTests(DmsApiFactory factory)
     }
 
     [Fact]
-    public async Task Previews_are_watermarked_page_images_and_opening_them_is_audited()
+    public async Task Previews_are_page_images_and_opening_them_is_audited()
     {
         var (admin, owner, categoryId) = await ArrangeAsync("preview.owner");
         var (documentId, versionId) = await owner.CreateDocumentAsync(categoryId, "پیش‌نمایش", ProcessingTestKit.RealPdf("Page one", "Page two"), "two-pages.pdf");
@@ -72,9 +72,9 @@ public sealed class PreviewApiTests(DmsApiFactory factory)
             image.Width.ShouldBe(1240);
         }
 
-        // The watermark names the viewer, so two people never get the same bytes.
+        // No watermark until someone adds one, so everybody gets the same page.
         var ownerBytes = await owner.GetByteArrayAsync($"/api/v1/documents/{documentId}/versions/{versionId}/pages/1");
-        ownerBytes.ShouldNotBe(readerBytes);
+        ownerBytes.ShouldBe(readerBytes);
 
         (await reader.GetAsync($"/api/v1/documents/{documentId}/versions/{versionId}/pages/3")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await reader.GetAsync($"/api/v1/documents/{documentId}/content")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -96,6 +96,41 @@ public sealed class PreviewApiTests(DmsApiFactory factory)
         (await outsider.PostAsync($"/api/v1/documents/{documentId}/preview", null)).StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await outsider.GetAsync($"/api/v1/documents/{documentId}/versions/{versionId}/pages/1")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
         (await outsider.GetAsync($"/api/v1/documents/{documentId}/thumbnail")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Whoever_may_edit_the_document_sets_its_watermark_text_or_removes_it()
+    {
+        var (admin, owner, categoryId) = await ArrangeAsync("preview.watermark");
+        var (documentId, versionId) = await owner.CreateDocumentAsync(categoryId, "واترمارک", ProcessingTestKit.RealPdf("Page one"), "watermark.pdf");
+        await factory.Services.RunJobsAsync();
+        var pageUrl = $"/api/v1/documents/{documentId}/versions/{versionId}/pages/1";
+        var plain = await owner.GetByteArrayAsync(pageUrl);
+
+        // A reader may look but not stamp.
+        var (reader, readerId) = await factory.CreateUserAsync("preview.watermark.reader");
+        await admin.GrantAsync("Category", categoryId, readerId, "DOCUMENT_VIEW", inherit: true);
+        (await reader.PutAsJsonAsync($"/api/v1/documents/{documentId}/watermark", new { text = "x" })).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var set = await owner.PutAsJsonAsync($"/api/v1/documents/{documentId}/watermark", new { text = "  محرمانه - شرکت ۱۴۰۵  " });
+        set.StatusCode.ShouldBe(HttpStatusCode.NoContent, await set.Content.ReadAsStringAsync());
+        var details = await owner.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{documentId}");
+        details.GetProperty("watermarkText").GetString().ShouldBe("محرمانه - شرکت ۱۴۰۵");
+
+        // The same stamp for everyone, owner and reader alike.
+        var stamped = await reader.GetByteArrayAsync(pageUrl);
+        stamped.ShouldNotBe(plain);
+        (await owner.GetByteArrayAsync(pageUrl)).ShouldBe(stamped);
+
+        var tooLong = await owner.PutAsJsonAsync($"/api/v1/documents/{documentId}/watermark", new { text = new string('x', 201) });
+        tooLong.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var cleared = await owner.PutAsJsonAsync($"/api/v1/documents/{documentId}/watermark", new { text = (string?)null });
+        cleared.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await owner.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{documentId}")).GetProperty("watermarkText").ValueKind.ShouldBe(JsonValueKind.Null);
+        (await reader.GetByteArrayAsync(pageUrl)).ShouldBe(plain);
+
+        (await CountAuditAsync("DOCUMENT_WATERMARK_CHANGED", documentId)).ShouldBe(2);
     }
 
     [Fact]

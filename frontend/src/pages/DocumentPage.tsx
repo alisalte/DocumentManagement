@@ -59,6 +59,8 @@ export function DocumentPage() {
       queryClient.invalidateQueries({ queryKey: ['document', id] }),
       queryClient.invalidateQueries({ queryKey: ['versions', id] }),
       queryClient.invalidateQueries({ queryKey: ['documents'] }),
+      // Page images carry the watermark, so a changed one shows at once.
+      queryClient.invalidateQueries({ queryKey: ['preview-page', id] }),
     ]);
   };
 
@@ -157,6 +159,12 @@ export function DocumentPage() {
                 <Chip key={tag.id} label={tag.name} size="small" />
               ))}
             </div>
+          )}
+
+          {doc.watermarkText && (
+            <p className="break-words text-xs text-paper-500">
+              {t.watermark}: «{doc.watermarkText}»
+            </p>
           )}
 
           <p className="text-xs text-paper-400">
@@ -492,6 +500,7 @@ function EditDialog({
   const [description, setDescription] = useState(document.description ?? '');
   const [categoryId, setCategoryId] = useState(document.categoryId);
   const [tags, setTags] = useState(document.tags.map((tag) => tag.name));
+  const [watermark, setWatermark] = useState(document.watermarkText ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -510,6 +519,9 @@ function EditDialog({
         categoryId,
       });
       await api.setTags(document.id, tags);
+      if (watermark.trim() !== (document.watermarkText ?? '')) {
+        await api.setWatermark(document.id, watermark.trim() || null);
+      }
       onSaved();
     } catch (caught) {
       setError(describeError(caught));
@@ -546,6 +558,13 @@ function EditDialog({
         rows={3}
       />
       <TagInput value={tags} onChange={setTags} disabled={busy} />
+      <TextField
+        label={t.watermark}
+        value={watermark}
+        onChange={(event) => setWatermark(event.target.value)}
+        helperText={t.watermarkHelp}
+        maxLength={200}
+      />
     </FormDialog>
   );
 }

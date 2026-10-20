@@ -451,6 +451,11 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasColumnType("xid")
                         .HasColumnName("xmin");
 
+                    b.Property<string>("WatermarkText")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("watermark_text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId")

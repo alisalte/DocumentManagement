@@ -45,6 +45,8 @@ public static class DocumentEndpoints
 
     public sealed record SetTagsRequest(IReadOnlyList<string> Tags);
 
+    public sealed record SetWatermarkRequest(string? Text);
+
     public sealed record ReasonRequest(string? Reason);
 
     public sealed record CreateCategoryRequest(Guid? ParentId, string Name, string Code, string? Description);
@@ -293,6 +295,14 @@ public static class DocumentEndpoints
                 (await dispatcher.SendAsync(new SetDocumentTagsCommand(id, request.Tags), ct)).ToHttpResult())
             .WithSummary("Replace the document's tags.");
 
+        documents.MapPut("/{id:guid}/watermark", async (
+                Guid id,
+                SetWatermarkRequest request,
+                IDispatcher dispatcher,
+                CancellationToken ct) =>
+                (await dispatcher.SendAsync(new SetDocumentWatermarkCommand(id, request.Text), ct)).ToHttpResult())
+            .WithSummary("Set the text stamped across preview and print pages; null or blank for no watermark.");
+
         documents.MapDelete("/{id:guid}", async (
                 Guid id,
                 string? reason,
@@ -387,7 +397,7 @@ public static class DocumentEndpoints
                 HttpContext http,
                 CancellationToken ct) =>
                 PageAsync(new GetPreviewPageQuery(id, versionId, page, PagePurpose.View), dispatcher, http, ct))
-            .WithSummary("One page of the preview as an image, watermarked. Never the original file.");
+            .WithSummary("One page of the preview as an image, with the document's watermark if it has one. Never the original file.");
 
         documents.MapPost("/{id:guid}/versions/{versionId:guid}/print", async (Guid id, Guid versionId, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.SendAsync(new StartPrintCommand(id, versionId), ct)).ToHttpResult())
@@ -401,7 +411,7 @@ public static class DocumentEndpoints
                 HttpContext http,
                 CancellationToken ct) =>
                 PageAsync(new GetPreviewPageQuery(id, versionId, page, PagePurpose.Print), dispatcher, http, ct))
-            .WithSummary("One print page (DOCUMENT_PRINT), watermarked.");
+            .WithSummary("One print page (DOCUMENT_PRINT), with the document's watermark if it has one.");
 
         documents.MapGet("/{id:guid}/thumbnail", (Guid id, IDispatcher dispatcher, HttpContext http, CancellationToken ct) =>
                 ImageAsync(dispatcher.QueryAsync(new GetThumbnailQuery(id), ct), http))
@@ -475,7 +485,7 @@ public static class DocumentEndpoints
             return ApiResults.Problem(result.Error);
         }
 
-        // Inline, but still never cached by shared caches: the watermark names the viewer.
+        // Inline, but never cached: the document's watermark can change at any time.
         http.Response.Headers.XContentTypeOptions = "nosniff";
         http.Response.Headers.CacheControl = "private, no-store";
         return Results.Stream(result.Value.Content, result.Value.MimeType);

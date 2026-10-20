@@ -1,9 +1,7 @@
-using System.Globalization;
 using Dms.Application;
 using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Contracts;
-using Dms.Identity.Contracts;
 using Dms.SharedKernel;
 using Dms.Storage.Contracts;
 using Microsoft.Extensions.Options;
@@ -14,7 +12,10 @@ public sealed class PreviewOptions
 {
     public const string SectionName = "Dms:Preview";
 
-    /// <summary>Stamp every preview and print page with the viewer and the time.</summary>
+    /// <summary>
+    /// Stamp preview and print pages with the document's watermark. Each document sets its own text
+    /// and has none until someone adds it; false turns every watermark off.
+    /// </summary>
     public bool Watermark { get; set; } = true;
 }
 
@@ -55,11 +56,8 @@ public sealed class PreviewService(
     DocumentAccess access,
     IDocumentRepository documents,
     IRenditionService renditions,
-    IUserDirectory users,
-    ICurrentUser currentUser,
     IAuditWriter audit,
-    IOptions<PreviewOptions> options,
-    TimeProvider timeProvider)
+    IOptions<PreviewOptions> options)
 {
     public async Task<Result<(DocumentVersionView Version, PreviewDto Preview)>> OpenAsync(
         Guid documentId,
@@ -113,7 +111,8 @@ public sealed class PreviewService(
             return Result.Failure<StoredContent>(allowed.Error);
         }
 
-        return await renditions.OpenPageAsync(version.StorageObjectId, query.Page, await WatermarkAsync(cancellationToken), cancellationToken);
+        var watermark = options.Value.Watermark ? version.Watermark : null;
+        return await renditions.OpenPageAsync(version.StorageObjectId, query.Page, watermark, cancellationToken);
     }
 
     public async Task<Result<StoredContent>> OpenThumbnailAsync(Guid documentId, CancellationToken cancellationToken)
@@ -163,23 +162,12 @@ public sealed class PreviewService(
         var version = await documents.FindVersionAsync(new DocumentVersionId(id), cancellationToken);
         return version is null || version.DocumentId != document.Id
             ? null
-            : new DocumentVersionView(version.Id.Value, version.Label, version.StorageObjectId);
-    }
-
-    private async Task<string?> WatermarkAsync(CancellationToken cancellationToken)
-    {
-        if (!options.Value.Watermark || currentUser.UserId is not { } viewer)
-        {
-            return null;
-        }
-
-        var user = await users.FindAsync(viewer, cancellationToken);
-        var stamp = timeProvider.GetUtcNow().ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
-        return $"{user?.Username ?? viewer.Value.ToString()} · {stamp}";
+            : new DocumentVersionView(version.Id.Value, version.Label, version.StorageObjectId, document.WatermarkText);
     }
 }
 
-public sealed record DocumentVersionView(Guid Id, string Label, StorageObjectId StorageObjectId);
+/// <param name="Watermark">The document's watermark text, or null for none.</param>
+public sealed record DocumentVersionView(Guid Id, string Label, StorageObjectId StorageObjectId, string? Watermark);
 
 public sealed class OpenPreviewHandler(PreviewService previews) : ICommandHandler<OpenPreviewCommand, Result<PreviewDto>>
 {

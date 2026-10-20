@@ -38,6 +38,8 @@ export const t = {
   documentType: 'نوع سند',
   tags: 'برچسب‌ها',
   tagsHelp: 'برای افزودن برچسب Enter بزنید.',
+  watermark: 'واترمارک',
+  watermarkHelp: 'روی صفحه‌های پیش‌نمایش و چاپ نوشته می‌شود. خالی بگذارید تا این سند واترمارک نداشته باشد.',
   file: 'فایل',
   chooseFile: 'انتخاب فایل',
   changeDescription: 'شرح تغییر',

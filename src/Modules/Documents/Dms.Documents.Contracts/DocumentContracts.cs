@@ -201,7 +201,11 @@ public sealed record VersionSummary(
     string FileName,
     string MimeType,
     long FileSize,
-    bool IsPublished);
+    bool IsPublished)
+{
+    /// <summary>The document's watermark for page images, or null for none.</summary>
+    public string? WatermarkText { get; init; }
+}
 
 /// <summary>
 /// Read access to single versions for Sharing, which pins everything it hands out to one version

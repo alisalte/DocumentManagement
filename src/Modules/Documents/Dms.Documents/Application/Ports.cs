@@ -214,6 +214,9 @@ public sealed record DocumentDetailsDto(
     /// <summary>Jalali year the document was filed in.</summary>
     public int FiscalYear { get; init; }
 
+    /// <summary>Text stamped across preview and print pages, or null for none.</summary>
+    public string? WatermarkText { get; init; }
+
     /// <summary>False when the year is before the current Tehran year: the document is report-only.</summary>
     public bool FiscalYearOpen { get; init; }
 }

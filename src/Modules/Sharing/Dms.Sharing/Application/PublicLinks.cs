@@ -1,4 +1,3 @@
-using System.Globalization;
 using Dms.Application;
 using Dms.Audit.Contracts;
 using Dms.Documents.Contracts;
@@ -97,10 +96,6 @@ internal static class LinkAudit
             ? new Dictionary<string, object?> { ["prefix"] = link.TokenPrefix }
             : new Dictionary<string, object?> { ["prefix"] = link.TokenPrefix, ["reason"] = reason },
     };
-
-    /// <summary>Page images of a link say which link and when, since there is no user name to stamp.</summary>
-    public static string Watermark(ShareLink link, TimeProvider timeProvider) =>
-        $"link {link.TokenPrefix} · {timeProvider.GetUtcNow().ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture)}";
 }
 
 public sealed class GetPublicLinkHandler(PublicLinkResolver resolver, SharingPolicy policy, TimeProvider timeProvider)
@@ -225,8 +220,7 @@ public sealed class OpenPublicLinkHandler(
 
 public sealed class GetPublicLinkPageHandler(
     PublicLinkResolver resolver,
-    IRenditionService renditions,
-    TimeProvider timeProvider) : IQueryHandler<GetPublicLinkPageQuery, Result<StoredContent>>
+    IRenditionService renditions) : IQueryHandler<GetPublicLinkPageQuery, Result<StoredContent>>
 {
     public async Task<Result<StoredContent>> HandleAsync(GetPublicLinkPageQuery query, CancellationToken cancellationToken)
     {
@@ -236,7 +230,7 @@ public sealed class GetPublicLinkPageHandler(
             return Result.Failure<StoredContent>(resolved.Error);
         }
 
-        var (link, session, version, effective) = resolved.Value;
+        var (_, session, version, effective) = resolved.Value;
         if (query.ForPrint && !effective.HasFlag(SharePermissions.Print))
         {
             return Result.Failure<StoredContent>(SharingErrors.NotIncluded);
@@ -248,10 +242,11 @@ public sealed class GetPublicLinkPageHandler(
             return Result.Failure<StoredContent>(SharingErrors.PrintNotStarted);
         }
 
+        // The same watermark the document shows inside the archive, or none.
         return await renditions.OpenPageAsync(
             new StorageObjectId(version.StorageObjectId),
             query.Page,
-            LinkAudit.Watermark(link, timeProvider),
+            version.WatermarkText,
             cancellationToken);
     }
 }

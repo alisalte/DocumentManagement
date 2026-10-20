@@ -52,7 +52,6 @@ export const s = {
   linkLocked: 'به دلیل تلاش‌های ناموفق، پیوند موقتاً قفل شده است. بعداً دوباره امتحان کنید.',
   linkSessionEnded: 'زمان مشاهده تمام شد. برای ادامه، پیوند را دوباره باز کنید.',
   linkNotIncluded: 'این پیوند شامل این کار نیست.',
-  linkWatermark: 'صفحه‌ها با نشان پیوند و زمان مشاهده علامت‌گذاری می‌شوند.',
 } as const;
 
 export const permissionLabels: Record<SharePermission, string> = {
