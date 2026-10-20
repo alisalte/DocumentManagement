@@ -1,4 +1,5 @@
 using Dms.Application;
+using Dms.Audit.Contracts;
 using Dms.Authorization.Application;
 using Dms.Authorization.Contracts;
 using Dms.Authorization.Infrastructure.Persistence;
@@ -18,6 +19,7 @@ public static class AuthorizationModule
     public static IServiceCollection AddAuthorizationModule(this IServiceCollection services)
     {
         services.AddDmsModuleDbContext<AuthorizationDbContext>(MigrationOrder, AuthorizationDbContext.Schema);
+        services.AddScoped<IAuditNameSource, AuthorizationAuditNames>();
 
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<UserRoleRepository>();

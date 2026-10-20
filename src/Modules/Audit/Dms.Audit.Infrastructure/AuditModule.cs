@@ -26,7 +26,7 @@ public static class AuditModule
 
         services.AddScoped<IAuditWriter, AuditWriter>();
         services.AddScoped<IAuditQueries, AuditQueries>();
-        services.AddScoped<AuditUserNames>();
+        services.AddScoped<AuditNames>();
         services.AddSingleton<AuditSealKeys>();
         services.AddScoped<IAuditSealing, AuditSealing>();
 

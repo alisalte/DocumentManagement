@@ -88,9 +88,10 @@ public static class AuditEndpoints
         Guid? UserId,
         Guid? DocumentId,
         Guid? EntityId,
-        string? EntityType)
+        string? EntityType,
+        bool? HideRoutine)
     {
-        public AuditFilter ToFilter() => new(From, To, Action, Outcome, ActorType, UserId, DocumentId, EntityId, EntityType);
+        public AuditFilter ToFilter() => new(From, To, Action, Outcome, ActorType, UserId, DocumentId, EntityId, EntityType, HideRoutine ?? false);
     }
 }
 

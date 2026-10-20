@@ -1,4 +1,5 @@
 using Dms.Application;
+using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Contracts;
 using Dms.Infrastructure;
@@ -26,6 +27,7 @@ public static class WorkflowModule
     public static IServiceCollection AddWorkflowModule(this IServiceCollection services)
     {
         services.AddDmsModuleDbContext<WorkflowDbContext>(MigrationOrder, WorkflowDbContext.Schema);
+        services.AddScoped<IAuditNameSource, WorkflowAuditNames>();
         services.AddSingleton<PublishedWorkflowCache>();
         services.AddScoped<IWorkflowDefinitionRepository, WorkflowDefinitionRepository>();
         services.AddScoped<IWorkflowInstanceRepository, WorkflowInstanceRepository>();

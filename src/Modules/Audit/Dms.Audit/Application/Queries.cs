@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.Json;
 using Dms.Application;
 using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
@@ -24,7 +25,14 @@ public sealed record AuditEntryDto(
     string? IpAddress,
     string? UserAgent,
     string? CorrelationId,
-    string Metadata);
+    string Metadata)
+{
+    /// <summary>
+    /// Display names for the ids in this row (document, entity, version, and ids inside the
+    /// metadata), keyed by the id. Filled for the viewer only, never for exports.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, string>? Names { get; init; }
+}
 
 /// <summary>The filters the viewer and the export share. Every one is optional.</summary>
 public sealed record AuditFilter(
@@ -36,7 +44,8 @@ public sealed record AuditFilter(
     Guid? UserId = null,
     Guid? DocumentId = null,
     Guid? EntityId = null,
-    string? EntityType = null);
+    string? EntityType = null,
+    bool HideRoutine = false);
 
 public sealed record ListAuditEntriesQuery(AuditFilter Filter, int Skip, int Take)
     : IQuery<Result<IReadOnlyList<AuditEntryDto>>>;
@@ -91,7 +100,7 @@ internal static class AuditAccess
     private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
-public sealed class ListAuditEntriesHandler(IDmsAuthorizer authorizer, IAuditQueries queries, AuditUserNames names)
+public sealed class ListAuditEntriesHandler(IDmsAuthorizer authorizer, IAuditQueries queries, AuditNames names)
     : IQueryHandler<ListAuditEntriesQuery, Result<IReadOnlyList<AuditEntryDto>>>
 {
     public async Task<Result<IReadOnlyList<AuditEntryDto>>> HandleAsync(
@@ -163,6 +172,7 @@ public sealed class ExportAuditHandler(
                     ["documentId"] = filter.DocumentId,
                     ["entityId"] = filter.EntityId,
                     ["entityType"] = filter.EntityType,
+                    ["hideRoutine"] = filter.HideRoutine,
                 },
             },
             cancellationToken);
@@ -192,20 +202,100 @@ public sealed class ListAuditActionsHandler(IDmsAuthorizer authorizer) : IQueryH
     }
 }
 
-/// <summary>Display names for the actors on a page of results.</summary>
-public sealed class AuditUserNames(IUserDirectory users)
+/// <summary>
+/// Display names for a page of results: the actor's name, and a name for every id the row
+/// mentions, asked of each module that owns some of them.
+/// </summary>
+public sealed class AuditNames(IUserDirectory users, IEnumerable<IAuditNameSource> sources)
 {
+    /// <summary>A page holds at most 500 rows; the ids inside metadata are capped per row.</summary>
+    private const int MaxIdsPerRow = 20;
+
     public async Task<IReadOnlyList<AuditEntryDto>> AddAsync(IReadOnlyList<AuditEntryDto> entries, CancellationToken cancellationToken)
     {
-        var ids = entries.Where(entry => entry.UserId is not null).Select(entry => new UserId(entry.UserId!.Value)).Distinct().ToList();
-        if (ids.Count == 0)
+        var userIds = entries.Where(entry => entry.UserId is not null).Select(entry => new UserId(entry.UserId!.Value)).Distinct().ToList();
+        var userNames = userIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : (await users.FindManyAsync(userIds, cancellationToken)).ToDictionary(user => user.Id.Value, user => user.DisplayName);
+
+        var mentioned = entries.ToDictionary(entry => entry.Id, Mentioned);
+        var wanted = mentioned.Values.SelectMany(ids => ids).Distinct().ToList();
+        var names = new Dictionary<Guid, string>();
+        foreach (var source in sources)
         {
-            return entries;
+            var missing = wanted.Where(id => !names.ContainsKey(id)).ToList();
+            if (missing.Count == 0)
+            {
+                break;
+            }
+
+            foreach (var (id, name) in await source.FindNamesAsync(missing, cancellationToken))
+            {
+                names.TryAdd(id, name);
+            }
         }
 
-        var names = (await users.FindManyAsync(ids, cancellationToken)).ToDictionary(user => user.Id.Value, user => user.DisplayName);
         return entries
-            .Select(entry => entry.UserId is { } id && names.TryGetValue(id, out var name) ? entry with { UserName = name } : entry)
+            .Select(entry => entry with
+            {
+                UserName = entry.UserId is { } id && userNames.TryGetValue(id, out var userName) ? userName : entry.UserName,
+                Names = mentioned[entry.Id]
+                    .Where(names.ContainsKey)
+                    .ToDictionary(id => id, id => names[id]),
+            })
             .ToList();
+    }
+
+    private static List<Guid> Mentioned(AuditEntryDto entry)
+    {
+        var ids = new List<Guid>();
+        foreach (var id in new[] { entry.DocumentId, entry.EntityId, entry.VersionId })
+        {
+            if (id is { } value)
+            {
+                ids.Add(value);
+            }
+        }
+
+        try
+        {
+            using var metadata = JsonDocument.Parse(entry.Metadata);
+            Collect(metadata.RootElement, ids, ids.Count + MaxIdsPerRow);
+        }
+        catch (JsonException)
+        {
+            // Not JSON: nothing to name.
+        }
+
+        return ids.Distinct().ToList();
+    }
+
+    private static void Collect(JsonElement element, List<Guid> ids, int limit)
+    {
+        if (ids.Count >= limit)
+        {
+            return;
+        }
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.String when element.TryGetGuid(out var id):
+                ids.Add(id);
+                break;
+            case JsonValueKind.Object:
+                foreach (var property in element.EnumerateObject())
+                {
+                    Collect(property.Value, ids, limit);
+                }
+
+                break;
+            case JsonValueKind.Array:
+                foreach (var item in element.EnumerateArray())
+                {
+                    Collect(item, ids, limit);
+                }
+
+                break;
+        }
     }
 }

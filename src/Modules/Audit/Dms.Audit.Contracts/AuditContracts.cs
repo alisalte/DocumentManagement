@@ -54,6 +54,15 @@ public interface IAuditWriter
     Task WriteAsync(AuditRecord record, CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// Display names for ids that appear in audit rows, so the viewer can say «the document X»
+/// instead of showing a GUID. Each module answers for the ids it owns and ignores the rest.
+/// </summary>
+public interface IAuditNameSource
+{
+    Task<IReadOnlyDictionary<Guid, string>> FindNamesAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken);
+}
+
 /// <summary>Action codes. Phase 1 covers identity, authorization and administration events.</summary>
 public static class AuditActions
 {
@@ -197,4 +206,10 @@ public static class AuditActions
 
     /// <summary>Written whenever a system administrator uses the ACL bypass (decision D5).</summary>
     public const string AdminPermissionOverride = "ADMIN_PERMISSION_OVERRIDE";
+
+    /// <summary>
+    /// Written by machinery, not by people: session refreshes, the daily seal check, one row per
+    /// imported item. The viewer hides them unless asked, so what people did stays readable.
+    /// </summary>
+    public static readonly IReadOnlyList<string> Routine = [TokenRefreshed, AuditSealsVerified, ImportItemImported];
 }

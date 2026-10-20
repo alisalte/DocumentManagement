@@ -1,4 +1,5 @@
 using Dms.Application;
+using Dms.Audit.Contracts;
 using Dms.Identity.Application;
 using Dms.Identity.Contracts;
 using Dms.Identity.Infrastructure.Persistence;
@@ -25,6 +26,7 @@ public static class IdentityModule
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
 
         services.AddDmsModuleDbContext<IdentityDbContext>(MigrationOrder, IdentityDbContext.Schema);
+        services.AddScoped<IAuditNameSource, IdentityAuditNames>();
 
         services.AddScoped<UserRepository>();
         services.AddScoped<IUserRepository>(sp => sp.GetRequiredService<UserRepository>());

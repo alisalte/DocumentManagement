@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Dms.Audit.Application;
+using Dms.Audit.Contracts;
 using Dms.Audit.Domain;
 using Dms.SharedKernel;
 using Microsoft.EntityFrameworkCore;
@@ -78,6 +79,12 @@ public sealed class AuditQueries(AuditDbContext context) : IAuditQueries
         if (filter.EntityType is { } entityType)
         {
             entries = entries.Where(entry => entry.EntityType == entityType);
+        }
+
+        if (filter.HideRoutine)
+        {
+            var routine = AuditActions.Routine.ToList();
+            entries = entries.Where(entry => !routine.Contains(entry.Action));
         }
 
         return entries;

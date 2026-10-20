@@ -236,6 +236,33 @@ public sealed class AuditHardeningTests(DmsApiFactory factory)
         (await user.GetAsync("/api/v1/audit/seals/status")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task The_viewer_names_what_each_row_is_about_and_can_hide_routine_rows()
+    {
+        var admin = await factory.AdminAsync();
+        var (owner, ownerId) = await factory.CreateUserAsync("audit.names.owner");
+        var categoryId = await admin.CreateCategoryAsync(name: "پوشه‌ی سوابق");
+        await admin.GrantAsync("Category", categoryId, ownerId, "DOCUMENT_CREATE", inherit: true);
+        await admin.GrantAsync("Category", categoryId, ownerId, "DOCUMENT_VIEW", inherit: true);
+        var (documentId, versionId) = await owner.CreateDocumentAsync(categoryId, "قرارداد اجاره", "lease"u8.ToArray(), "lease.txt");
+
+        var created = (await admin.GetFromJsonAsync<JsonElement>($"/api/v1/audit?documentId={documentId}&action=DOCUMENT_CREATED"))
+            .EnumerateArray().Single();
+        var names = created.GetProperty("names");
+        names.GetProperty(documentId.ToString()).GetString().ShouldBe("قرارداد اجاره");
+        names.GetProperty(versionId.ToString()).GetString().ShouldBe("V1.1");
+        names.GetProperty(categoryId.ToString()).GetString().ShouldBe("پوشه‌ی سوابق");
+
+        // Session refreshes are machinery: there by default, gone when the viewer asks.
+        var client = factory.CreateClient();
+        var tokens = await client.LoginAsync(DmsApiFactory.AdminUsername, DmsApiFactory.AdminPassword);
+        (await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = tokens.RefreshToken })).EnsureSuccessStatusCode();
+        (await admin.GetFromJsonAsync<JsonElement>("/api/v1/audit?action=TOKEN_REFRESHED")).GetArrayLength().ShouldBeGreaterThan(0);
+        (await admin.GetFromJsonAsync<JsonElement>("/api/v1/audit?action=TOKEN_REFRESHED&hideRoutine=true")).GetArrayLength().ShouldBe(0);
+        var people = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/audit?userId={ownerId}&hideRoutine=true");
+        people.EnumerateArray().ShouldContain(entry => entry.GetProperty("action").GetString() == "DOCUMENT_CREATED");
+    }
+
     /// <summary>
     /// Section 4.9's catalog, operation by operation: each one leaves a row that names the actor
     /// and what was acted on.

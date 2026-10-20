@@ -766,6 +766,8 @@ export interface AuditEntry {
   correlationId: string | null;
   /** JSON text. */
   metadata: string;
+  /** Display names for the ids this row mentions (document, entity, version, metadata), by id. */
+  names?: Record<string, string> | null;
 }
 
 export interface AuditFilter {
@@ -777,6 +779,8 @@ export interface AuditFilter {
   userId?: string | null;
   documentId?: string | null;
   entityId?: string | null;
+  /** Leave out machinery: session refreshes, seal checks, per-item import rows. */
+  hideRoutine?: boolean;
 }
 
 export interface PendingDisposalItem {

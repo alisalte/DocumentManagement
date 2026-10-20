@@ -1,4 +1,5 @@
 using Dms.Application;
+using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.DocumentTypes.Application;
 using Dms.DocumentTypes.Contracts;
@@ -23,6 +24,7 @@ public static class DocumentTypesModule
     public static IServiceCollection AddDocumentTypesModule(this IServiceCollection services)
     {
         services.AddDmsModuleDbContext<DocumentTypesDbContext>(MigrationOrder, DocumentTypesDbContext.Schema);
+        services.AddScoped<IAuditNameSource, DocumentTypeAuditNames>();
         services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
         services.AddScoped<IDocumentTypeCatalog, DocumentTypeCatalog>();
         services.AddSingleton<PublishedSchemaCache>();

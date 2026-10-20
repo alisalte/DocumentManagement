@@ -1,4 +1,5 @@
 using Dms.Application;
+using Dms.Audit.Contracts;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
 using Dms.Documents.Contracts;
@@ -48,6 +49,7 @@ public static class DocumentsModule
         services.AddOptions<ImportOptions>().BindConfiguration(ImportOptions.SectionName);
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
+        services.AddScoped<IAuditNameSource, DocumentAuditNames>();
         services.AddScoped<IDocumentApprovalGateway, DocumentApprovalGateway>();
 
         // Replaced by the Workflow module when it is registered.
