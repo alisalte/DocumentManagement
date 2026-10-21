@@ -133,7 +133,7 @@ public sealed class TesseractOptions
     public string PdfToPpmCommand { get; set; } = "pdftoppm";
 
     /// <summary>DPI when rasterising PDF pages for OCR.</summary>
-    public int PdfDpi { get; set; } = 200;
+    public int PdfDpi { get; set; } = 300;
 
     /// <summary>Hard cap on pages OCR'd from one PDF (defence against huge scans).</summary>
     public int MaxPdfPages { get; set; } = 50;

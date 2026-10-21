@@ -30,6 +30,7 @@ public sealed class TesseractCliOcrEngine(
             return string.Empty;
         }
 
+        (image, mimeType) = await OcrImagePreparer.PrepareAsync(image, mimeType, cancellationToken);
         var extension = ExtensionFor(mimeType);
         var work = Directory.CreateTempSubdirectory("dms-ocr-");
         try

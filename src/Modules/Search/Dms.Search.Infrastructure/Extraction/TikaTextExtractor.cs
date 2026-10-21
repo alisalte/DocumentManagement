@@ -31,7 +31,8 @@ public sealed class TikaTextExtractor(HttpClient http, IOptions<SearchOptions> o
 
         if (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
         {
-            return new ExtractedText(await CallAsync(content, mimeType, Mode.Ocr, cancellationToken), ExtractionMethod.Ocr, "tika+tesseract");
+            var (image, imageType) = await OcrImagePreparer.PrepareAsync(content, mimeType, cancellationToken);
+            return new ExtractedText(await CallAsync(image, imageType, Mode.Ocr, cancellationToken), ExtractionMethod.Ocr, "tika+tesseract");
         }
 
         if (mimeType != "application/pdf")
