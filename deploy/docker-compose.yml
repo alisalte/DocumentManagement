@@ -53,6 +53,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APT_MIRROR: ${APT_MIRROR:-}
+        TESSDATA_URL: ${TESSDATA_URL-https://github.com/tesseract-ocr/tessdata_best/raw/main}
     image: dms-backend:latest
     working_dir: /app/migrator
     entrypoint: ["dotnet", "/app/migrator/Dms.Migrator.dll"]
@@ -78,6 +79,7 @@ services:
       dockerfile: deploy/Dockerfile
       args:
         APT_MIRROR: ${APT_MIRROR:-}
+        TESSDATA_URL: ${TESSDATA_URL-https://github.com/tesseract-ocr/tessdata_best/raw/main}
     image: dms-backend:latest
     restart: unless-stopped
     environment: &backend-environment
@@ -172,6 +174,7 @@ services:
       context: ./tika
       args:
         TIKA_IMAGE: ${TIKA_IMAGE:-apache/tika:3.2.3.0-full}
+        TESSDATA_URL: ${TESSDATA_URL-https://github.com/tesseract-ocr/tessdata_best/raw/main}
     image: dms-tika:latest
     restart: unless-stopped
 
