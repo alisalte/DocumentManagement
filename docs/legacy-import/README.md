@@ -57,6 +57,44 @@ Or pass `--sql` + `--dsn` when `pyodbc` / `psycopg` can reach the old server.
 3. Dry-run, then import in the UI with that `manifest.json` and relative root `legacy`
    (if `FilesRoot` is `/var/lib/dms/import-staging`).
 
+## The whole old archive (ArchiveSaman) from one SQL script
+
+The old program keeps every file inside SQL Server. To convert **all** of them at once:
+
+1. In SSMS: right-click the database → **Tasks → Generate Scripts** → *Script entire database
+   and all database objects* → **Advanced** → **Types of data to script = Schema and data** →
+   save to file. (A script with *Schema only* has no INSERTs and therefore no files; the
+   exporter says so and stops.)
+2. Convert it — no database driver needed, UTF-16 or UTF-8:
+
+```bash
+python3 scripts/legacy-export-sql-blobs.py \
+  --sql-script ./ArchiveSaman.sql \
+  --out-dir /var/lib/dms/import-staging/archive-saman \
+  --source archive-saman
+```
+
+3. In `/admin/imports`: manifest `archive-saman/manifest.json`, relative root `archive-saman`,
+   **create missing folders** on → validate → start.
+
+| Old table | Becomes |
+|-----------|---------|
+| `tbl_Parvandeh` (پرونده) | folder `واردات/پرونده {id} (شماره …) - {موضوع}`; سندهای بدون پرونده → `واردات/بدون پرونده` |
+| `tbl_FileSanad` → `tbl_ParvandehSanadPeyvaste3` (سند) | one document per file, `sanad-{IDSanad}-file-{ID}`, title = file Sharh or سند Mozoe |
+| `tbl_FilePeyvast` → `tbl_PeyvasteSanad` (پیوست) | one document per file, `peyvast-{IDPeyvast}-file-{ID}`, in the سند's folder |
+| `tbl_FilesSampleAsnad` → `tbl_SampleAsnad` | `واردات/نمونه اسناد`, `sample-{IDSampleAsnad}-file-{ID}` |
+| `tbl_AnvaeFile` | file-type title on the description; its extension is used when the blob header is unknown |
+| `tbl_ErsalKonandegan` | sender / receiver on the description |
+
+Jalali number dates (`14020512`) are shown as `1402/05/12` on the description, and `DateSanad`
+(or `TarikhSabt`, `DatePeyvast`) becomes `createdAt`. A سند with several files gets
+`(فایل n از m)` on each title. Rows with an empty file column are skipped and counted; a
+`FileSize` that does not match the real length is only a warning. The `sanad-…` ids are the
+same as the single-table export, so files already imported are skipped on a re-run. Blobs are
+streamed to disk while reading, so the script size is limited by disk, not memory.
+
+Tests: `python3 -m unittest discover -s scripts/tests`.
+
 ## Configuration
 
 ```json

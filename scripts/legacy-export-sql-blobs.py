@@ -36,13 +36,26 @@ Input formats
    extension and content type are taken from the blob header (PNG, PDF, JPEG,
    …). FileSize must match the decoded byte length.
 
-2) Optional SQL mode (--sql + --dsn) when pyodbc / psycopg are installed. The
+2) The whole old database as a SQL Server script (--sql-script). In SSMS:
+   right-click the database → Tasks → Generate Scripts → all tables →
+   Advanced → "Types of data to script" = "Schema and data". The .sql file
+   (UTF-16 or UTF-8) is read directly, no database driver needed. Every file
+   in tbl_FileSanad, tbl_FilePeyvast and tbl_FilesSampleAsnad is exported,
+   filed under واردات/<پرونده>, titled from the سند, with dates, sender,
+   receiver and file type on the description. See legacy_sqlscript.py.
+
+3) Optional SQL mode (--sql + --dsn) when pyodbc / psycopg are installed. The
    query may return the generic names above, or the customer columns
    ID, IDTypeFile, IDSanad, FileSize, Files, Sharh. The binary column may also
    be named content / FileData / file_bytes.
 
 Examples
 --------
+  python3 scripts/legacy-export-sql-blobs.py \\
+    --sql-script ./ArchiveSaman.sql \\
+    --out-dir /var/lib/dms/import-staging/legacy \\
+    --source archive-saman
+
   python3 scripts/legacy-export-sql-blobs.py \\
     --rows ./legacy-rows.jsonl \\
     --out-dir /var/lib/dms/import-staging/legacy \\
@@ -60,7 +73,9 @@ import base64
 import binascii
 import hashlib
 import json
+import mimetypes
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -86,6 +101,7 @@ _SIGNATURES: tuple[tuple[bytes, str, str], ...] = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--rows", type=Path, help="JSONL or JSON array of legacy rows")
+    parser.add_argument("--sql-script", type=Path, help="SSMS 'Generate Scripts' file with schema AND data")
     parser.add_argument("--sql", help="SQL query returning legacy columns (optional)")
     parser.add_argument("--dsn", help="ODBC/Postgres DSN or connection URI for --sql")
     parser.add_argument("--driver", choices=("auto", "pyodbc", "psycopg"), default="auto")
@@ -375,10 +391,103 @@ def export(rows: list[dict], out_dir: Path, source: str, relative_prefix: str) -
     return manifest_path
 
 
+def export_sql_script(script: Path, out_dir: Path, source: str, relative_prefix: str) -> int:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from legacy_sqlscript import SqlScriptError, build_entries, read_script
+
+    raw_dir = out_dir / ".raw"
+    try:
+        contents = read_script(script, raw_dir, progress=lambda text: print(f"  {text}", file=sys.stderr))
+        entries = build_entries(contents)
+    except SqlScriptError as exc:
+        raise SystemExit(f"{script}: {exc}") from exc
+
+    if not entries:
+        shutil.rmtree(raw_dir, ignore_errors=True)
+        if not contents.rows_seen:
+            raise SystemExit(
+                f"{script} has table definitions but no data (no INSERT statements), so it holds no files.\n"
+                "This is a schema-only script. In SSMS: right-click the database → Tasks → Generate Scripts →\n"
+                "Advanced → set \"Types of data to script\" to \"Schema and data\", and run this again on that file.\n"
+                "فایل فقط ساختار جدول‌ها را دارد و هیچ داده/فایلی در آن نیست. در SSMS گزینهٔ\n"
+                "\"Types of data to script\" را روی \"Schema and data\" بگذارید و دوباره اسکریپت بگیرید."
+            )
+        raise SystemExit(
+            f"{script}: no files found in tbl_FileSanad / tbl_FilePeyvast / tbl_FilesSampleAsnad "
+            f"(rows read: {contents.rows_seen})"
+        )
+
+    files_dir = out_dir / relative_prefix
+    files_dir.mkdir(parents=True, exist_ok=True)
+    warnings = []
+    manifest_entries = []
+    for entry in entries:
+        staged = entry.staged
+        ext, mime = sniff_type(staged.head)
+        if ext == ".bin" and entry.file_name_hint:
+            ext = "." + entry.file_name_hint.strip().lstrip(".").lower()
+            mime = mimetypes.guess_type(f"x{ext}")[0] or "application/octet-stream"
+        file_name = f"{entry.source_id}{ext}"
+        relative = f"{relative_prefix}/{safe_file_name(file_name, entry.source_id)}"
+        shutil.move(str(staged.raw_path), str(out_dir / relative))
+
+        declared = staged.row.get("filesize", staged.row.get("sizefile"))
+        try:
+            if declared is not None and int(declared) != staged.size:
+                warnings.append(f"{entry.source_id}: FileSize {int(declared)} != actual {staged.size} bytes")
+        except (TypeError, ValueError):
+            pass
+
+        item = {
+            "sourceId": entry.source_id,
+            "title": entry.title,
+            "categoryPath": entry.category_path,
+            "documentTypeCode": "GENERAL",
+            "file": relative,
+            "fileName": file_name,
+            "contentType": mime,
+            "size": staged.size,
+            "sha256": staged.sha256,
+        }
+        if entry.description:
+            item["description"] = entry.description
+        if entry.created_at:
+            item["createdAt"] = entry.created_at
+        manifest_entries.append(item)
+    shutil.rmtree(raw_dir, ignore_errors=True)
+
+    manifest = {"schemaVersion": 2, "source": source, "entries": manifest_entries}
+    manifest_path = out_dir / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    by_table: dict[str, int] = {}
+    for entry in entries:
+        by_table[entry.staged.table] = by_table.get(entry.staged.table, 0) + 1
+    folders = len({entry.category_path for entry in entries})
+    print(f"Wrote {len(entries)} files into {folders} folders under {files_dir}")
+    for table, count in sorted(by_table.items()):
+        print(f"  {table}: {count}")
+    if contents.skipped_empty:
+        print(f"  skipped {contents.skipped_empty} rows with an empty file column")
+    for warning in warnings[:20]:
+        print(f"  warning: {warning}", file=sys.stderr)
+    if len(warnings) > 20:
+        print(f"  … and {len(warnings) - 20} more FileSize warnings", file=sys.stderr)
+    print(f"Manifest: {manifest_path}")
+    print("Next: create an import job in /admin/imports with this manifest, the folder as relative root,")
+    print("      and \"create missing folders\" switched on (one folder per پرونده is created under واردات).")
+    return 0
+
+
 def main() -> int:
     args = parse_args()
+    if args.sql_script:
+        if not args.sql_script.is_file():
+            raise SystemExit(f"Not found: {args.sql_script}")
+        args.out_dir.mkdir(parents=True, exist_ok=True)
+        return export_sql_script(args.sql_script, args.out_dir, args.source, args.relative_prefix)
     if not args.rows and not args.sql:
-        raise SystemExit("Provide --rows FILE or --sql QUERY (with --dsn)")
+        raise SystemExit("Provide --sql-script FILE, --rows FILE or --sql QUERY (with --dsn)")
     if args.sql and not args.dsn:
         raise SystemExit("--sql requires --dsn")
 
