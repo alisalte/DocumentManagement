@@ -57,9 +57,36 @@ Or pass `--sql` + `--dsn` when `pyodbc` / `psycopg` can reach the old server.
 3. Dry-run, then import in the UI with that `manifest.json` and relative root `legacy`
    (if `FilesRoot` is `/var/lib/dms/import-staging`).
 
-## The whole old archive (ArchiveSaman) from one SQL script
+## The whole old archive (ArchiveSaman)
 
-The old program keeps every file inside SQL Server. To convert **all** of them at once:
+The old program keeps every file inside SQL Server. There are two ways to convert **all** of
+them at once; both give the same folders, titles and manifest.
+
+### Straight from SQL Server (recommended for a large database)
+
+Run on a machine that can reach the old server (often the server itself):
+
+```bash
+pip install pyodbc
+python3 scripts/legacy-export-sql-blobs.py --server "HOST\SQLEXPRESS" --database ArchiveSaman --out-dir D:\dms-staging\archive-saman --source archive-saman
+```
+
+- Needs Microsoft **ODBC Driver 18 (or 17) for SQL Server**; the newest one installed is
+  picked, or name one with `--odbc-driver`. Windows' built-in `SQL Server` driver also works.
+- Windows login by default. For a SQL login use `--sql-user sa`: the password is asked for, or
+  read from `LEGACY_SQL_PASSWORD` (never put it on the command line). `--dsn "<ODBC string>"`
+  replaces all of these. `TrustServerCertificate=yes` is set because old in-house servers
+  rarely have a trusted certificate.
+- Only reads (`SELECT`); nothing in the old database is changed.
+- Files are fetched **one at a time** by primary key, so memory stays at one file regardless of
+  database size, and progress (files and MB) is printed every 100 files.
+- **Resumable:** if the run stops (network, power, Ctrl+C), run the same command again. Files
+  already on disk with the right length are not downloaded again. Re-running after a finished
+  export only rebuilds `manifest.json`.
+- Disk: the staging folder needs about as much free space as the files in the database.
+- A table that is missing in the old database is reported as a warning and skipped.
+
+### From one SQL script (small databases)
 
 1. In SSMS: right-click the database → **Tasks → Generate Scripts** → *Script entire database
    and all database objects* → **Advanced** → **Types of data to script = Schema and data** →
@@ -91,7 +118,8 @@ Jalali number dates (`14020512`) are shown as `1402/05/12` on the description, a
 `(فایل n از m)` on each title. Rows with an empty file column are skipped and counted; a
 `FileSize` that does not match the real length is only a warning. The `sanad-…` ids are the
 same as the single-table export, so files already imported are skipped on a re-run. Blobs are
-streamed to disk while reading, so the script size is limited by disk, not memory.
+streamed to disk while reading, so the script size is limited by disk, not memory — but SSMS
+itself struggles to write multi-GB data scripts, which is why the direct mode above exists.
 
 Tests: `python3 -m unittest discover -s scripts/tests`.
 

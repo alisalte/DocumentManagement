@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import codecs
 import hashlib
+import os
+from decimal import Decimal
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -49,8 +51,25 @@ META_TABLES = {
     "tbl_sampleasnad",
     "tbl_anvaefile",
     "tbl_ersalkonandegan",
-    "tbl_user",
-    "tbl_grouhbandi",
+}
+
+# Direct SQL Server reads: (real table name, columns without the blob, blob column).
+DB_FILE_TABLES = {
+    "tbl_filesanad": ("tbl_FileSanad", ["ID", "IDTypeFile", "IDSanad", "FileSize", "Sharh"], "Files"),
+    "tbl_filepeyvast": ("tbl_FilePeyvast", ["ID", "IDTypeFile", "IDPeyvast", "FileSize", "Sharh"], "Files"),
+    "tbl_filessampleasnad": (
+        "tbl_FilesSampleAsnad",
+        ["ID", "IDSampleAsnad", "IDTypeFile", "SizeFile", "Sharh"],
+        "FileSample",
+    ),
+}
+DB_META_TABLES = {
+    "tbl_parvandeh": "tbl_Parvandeh",
+    "tbl_parvandehsanadpeyvaste3": "tbl_ParvandehSanadPeyvaste3",
+    "tbl_peyvastesanad": "tbl_PeyvasteSanad",
+    "tbl_sampleasnad": "tbl_SampleAsnad",
+    "tbl_anvaefile": "tbl_AnvaeFile",
+    "tbl_ersalkonandegan": "tbl_ErsalKonandegan",
 }
 
 
@@ -319,6 +338,8 @@ class ScriptContents:
     meta: dict[str, dict[str, dict]] = field(default_factory=dict)
     files: list[StagedFile] = field(default_factory=list)
     skipped_empty: int = 0
+    reused: int = 0
+    warnings: list[str] = field(default_factory=list)
 
 
 def read_script(path: Path, raw_dir: Path, progress: Callable[[str], None] | None = None) -> ScriptContents:
@@ -377,6 +398,8 @@ def _stage_file(contents: ScriptContents, table: str, row: dict, raw_dir: Path) 
 def _id(value) -> str | None:
     if value is None:
         return None
+    if isinstance(value, Decimal) and value == value.to_integral_value():
+        value = int(value)
     if isinstance(value, float) and value.is_integer():
         value = int(value)
     text = str(value).strip()
@@ -445,6 +468,14 @@ def legacy_date(value) -> tuple[str, date] | None:
 
 def _iso(day: date) -> str:
     return datetime(day.year, day.month, day.day, tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+_SOURCE_PREFIX = {"tbl_filesanad": "sanad", "tbl_filepeyvast": "peyvast", "tbl_filessampleasnad": "sample"}
+
+
+def source_id_for(table: str, row: dict) -> str:
+    parent = _id(row.get(FILE_TABLES[table][1])) or "?"
+    return f"{_SOURCE_PREFIX[table]}-{parent}-file-{_id(row.get('id')) or '?'}"
 
 
 @dataclass
@@ -526,13 +557,13 @@ def build_entries(contents: ScriptContents) -> list[ArchiveEntry]:
         created = None
 
         if staged.table == "tbl_filesanad":
-            source_id = f"sanad-{parent_id}-file-{file_id}"
+            source_id = source_id_for(staged.table, row)
             sanad = sanads.get(parent_id, {})
             base = _text(row.get("sharh")) or _text(sanad.get("mozoe")) or f"سند {parent_id}"
             folder = case_folder(_id(sanad.get("idsanad")))
             lines, created = sanad_lines(sanad)
         elif staged.table == "tbl_filepeyvast":
-            source_id = f"peyvast-{parent_id}-file-{file_id}"
+            source_id = source_id_for(staged.table, row)
             peyvast = peyvasts.get(parent_id, {})
             sanad_id = _id(peyvast.get("idsanad"))
             sanad = sanads.get(sanad_id or "", {})
@@ -552,7 +583,7 @@ def build_entries(contents: ScriptContents) -> list[ArchiveEntry]:
                     lines.append(f"{label}: {parsed[0]}")
                     created = created or _iso(parsed[1])
         else:
-            source_id = f"sample-{parent_id}-file-{file_id}"
+            source_id = source_id_for(staged.table, row)
             sample = samples.get(parent_id, {})
             base = _text(row.get("sharh")) or _text(sample.get("title")) or f"نمونه سند {parent_id}"
             folder = f"{ROOT_FOLDER}/{SAMPLES_FOLDER}"
@@ -574,3 +605,107 @@ def build_entries(contents: ScriptContents) -> list[ArchiveEntry]:
             )
         )
     return entries
+
+
+# ---------------------------------------------------------------------------
+# Reading straight from SQL Server (any DB-API connection, normally pyodbc)
+# ---------------------------------------------------------------------------
+
+def _file_digest(path: Path) -> tuple[str, bytes]:
+    sha = hashlib.sha256()
+    with path.open("rb") as handle:
+        head = handle.read(16)
+        sha.update(head)
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            sha.update(chunk)
+    return sha.hexdigest(), head
+
+
+def _rows(cursor) -> list[dict]:
+    columns = [column[0].lower() for column in cursor.description]
+    return [dict(zip(columns, raw)) for raw in cursor.fetchall()]
+
+
+def read_database(
+    conn,
+    raw_dir: Path,
+    schema: str = "dbo",
+    progress: Callable[[str], None] | None = None,
+    find_existing: Callable[[str], Path | None] | None = None,
+) -> ScriptContents:
+    """Read the old archive table by table. Files are fetched one row at a time
+    (a single blob in memory), and a file already on disk with the right length
+    is not downloaded again, so an interrupted run can simply be started again."""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    contents = ScriptContents()
+    cursor = conn.cursor()
+
+    def qualified(table: str) -> str:
+        return f"[{schema}].[{table}]" if schema else f"[{table}]"
+
+    for key, table in DB_META_TABLES.items():
+        try:
+            cursor.execute(f"SELECT * FROM {qualified(table)}")
+            rows = _rows(cursor)
+        except Exception as exc:  # noqa: BLE001 - driver-specific error types
+            contents.warnings.append(f"{table} not read ({exc.__class__.__name__}: {exc}); its details are left out")
+            continue
+        contents.tables_seen.add(key)
+        contents.rows_seen[key] = len(rows)
+        for row in rows:
+            row_id = _id(row.get("id"))
+            if row_id is not None:
+                contents.meta.setdefault(key, {})[row_id] = row
+
+    plan: list[tuple[str, str, str, dict, int]] = []
+    for key, (table, columns, blob) in DB_FILE_TABLES.items():
+        select = ", ".join(f"[{column}]" for column in columns)
+        try:
+            cursor.execute(
+                f"SELECT {select}, DATALENGTH([{blob}]) AS blob_length FROM {qualified(table)} ORDER BY [ID]"
+            )
+            rows = _rows(cursor)
+        except Exception as exc:  # noqa: BLE001
+            contents.warnings.append(f"{table} not read ({exc.__class__.__name__}: {exc})")
+            continue
+        contents.tables_seen.add(key)
+        contents.rows_seen[key] = len(rows)
+        for row in rows:
+            length = row.pop("blob_length", None)
+            if not length:
+                contents.skipped_empty += 1
+                continue
+            plan.append((key, table, blob, row, int(length)))
+
+    total = len(plan)
+    total_bytes = sum(item[4] for item in plan)
+    done_bytes = 0
+    if progress:
+        progress(f"{total} files to export ({total_bytes / 1048576:,.1f} MB)")
+    for index, (key, table, blob, row, length) in enumerate(plan, start=1):
+        file_id = _id(row.get("id")) or str(index)
+        raw_path = raw_dir / f"{key}-{file_id}.bin"
+        existing = raw_path if raw_path.is_file() else None
+        if existing is None and find_existing is not None:
+            existing = find_existing(source_id_for(key, row))
+        if existing is not None and existing.stat().st_size == length:
+            sha, head = _file_digest(existing)
+            contents.reused += 1
+            contents.files.append(StagedFile(key, row, existing, length, sha, head))
+        else:
+            cursor.execute(f"SELECT [{blob}] FROM {qualified(table)} WHERE [ID] = ?", row.get("id"))
+            fetched = cursor.fetchone()
+            data = bytes(fetched[0]) if fetched and fetched[0] is not None else b""
+            if not data:
+                contents.skipped_empty += 1
+                continue
+            partial = raw_path.with_suffix(".part")
+            partial.write_bytes(data)
+            os.replace(partial, raw_path)
+            contents.files.append(
+                StagedFile(key, row, raw_path, len(data), hashlib.sha256(data).hexdigest(), data[:16])
+            )
+        done_bytes += length
+        if progress and (index % 100 == 0 or index == total):
+            progress(f"{index}/{total} files, {done_bytes / 1048576:,.1f} of {total_bytes / 1048576:,.1f} MB")
+    return contents

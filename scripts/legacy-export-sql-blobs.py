@@ -44,7 +44,18 @@ Input formats
    filed under واردات/<پرونده>, titled from the سند, with dates, sender,
    receiver and file type on the description. See legacy_sqlscript.py.
 
-3) Optional SQL mode (--sql + --dsn) when pyodbc / psycopg are installed. The
+3) Straight from the old SQL Server (--server, needs pyodbc). Same mapping as
+   --sql-script, but files are fetched one at a time, so a database of any
+   size works, and a run that stops can be started again: files already on
+   disk with the right length are not downloaded twice.
+
+     python3 scripts/legacy-export-sql-blobs.py --server "HOST\\SQLEXPRESS" \\
+       --database ArchiveSaman --out-dir D:\\dms-staging\\archive-saman --source archive-saman
+
+   Windows login by default; --sql-user sa asks for the password (or reads
+   LEGACY_SQL_PASSWORD). --dsn "<full ODBC connection string>" also works.
+
+4) Optional SQL mode (--sql + --dsn) when pyodbc / psycopg are installed. The
    query may return the generic names above, or the customer columns
    ID, IDTypeFile, IDSanad, FileSize, Files, Sharh. The binary column may also
    be named content / FileData / file_bytes.
@@ -70,6 +81,8 @@ from __future__ import annotations
 
 import argparse
 import base64
+import getpass
+import os
 import binascii
 import hashlib
 import json
@@ -102,6 +115,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--rows", type=Path, help="JSONL or JSON array of legacy rows")
     parser.add_argument("--sql-script", type=Path, help="SSMS 'Generate Scripts' file with schema AND data")
+    parser.add_argument("--server", help="Old SQL Server, e.g. . or HOST\\SQLEXPRESS (reads the whole archive directly)")
+    parser.add_argument("--database", default="ArchiveSaman", help="Old database name (default ArchiveSaman)")
+    parser.add_argument("--sql-user", help="SQL login; password from LEGACY_SQL_PASSWORD or a prompt. Omit for Windows login")
+    parser.add_argument("--odbc-driver", help="ODBC driver name (default: newest 'ODBC Driver NN for SQL Server')")
+    parser.add_argument("--schema", default="dbo", help="Schema of the old tables (default dbo)")
     parser.add_argument("--sql", help="SQL query returning legacy columns (optional)")
     parser.add_argument("--dsn", help="ODBC/Postgres DSN or connection URI for --sql")
     parser.add_argument("--driver", choices=("auto", "pyodbc", "psycopg"), default="auto")
@@ -391,20 +409,104 @@ def export(rows: list[dict], out_dir: Path, source: str, relative_prefix: str) -
     return manifest_path
 
 
-def export_sql_script(script: Path, out_dir: Path, source: str, relative_prefix: str) -> int:
+def _archive_module():
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from legacy_sqlscript import SqlScriptError, build_entries, read_script
+    import legacy_sqlscript
 
-    raw_dir = out_dir / ".raw"
+    return legacy_sqlscript
+
+
+def _progress(text: str) -> None:
+    print(f"  {text}", file=sys.stderr, flush=True)
+
+
+def export_sql_script(script: Path, out_dir: Path, source: str, relative_prefix: str) -> int:
+    archive = _archive_module()
     try:
-        contents = read_script(script, raw_dir, progress=lambda text: print(f"  {text}", file=sys.stderr))
-        entries = build_entries(contents)
-    except SqlScriptError as exc:
+        contents = archive.read_script(script, out_dir / ".raw", progress=_progress)
+    except archive.SqlScriptError as exc:
         raise SystemExit(f"{script}: {exc}") from exc
+    return write_archive(contents, str(script), out_dir, source, relative_prefix)
+
+
+def _find_exported(files_dir: Path):
+    def find(source_id: str) -> Path | None:
+        matches = sorted(files_dir.glob(f"{glob_escape(source_id)}_*")) if files_dir.is_dir() else []
+        return matches[0] if matches else None
+
+    return find
+
+
+def glob_escape(text: str) -> str:
+    return re.sub(r"([\[\]*?])", r"[\1]", text)
+
+
+def sql_server_connection(args: argparse.Namespace):
+    try:
+        import pyodbc  # type: ignore
+    except ImportError as exc:
+        raise SystemExit(
+            "Direct SQL Server access needs pyodbc:  pip install pyodbc\n"
+            "and Microsoft's \"ODBC Driver 18 for SQL Server\" (or 17). On Windows, the old \"SQL Server\" driver also works."
+        ) from exc
+    if args.dsn:
+        dsn = args.dsn
+    else:
+        driver = args.odbc_driver
+        if not driver:
+            installed = pyodbc.drivers()
+            modern = sorted(
+                (name for name in installed if re.fullmatch(r"ODBC Driver \d+ for SQL Server", name)),
+                key=lambda name: int(re.search(r"\d+", name).group()),
+            )
+            driver = modern[-1] if modern else ("SQL Server" if "SQL Server" in installed else None)
+            if not driver:
+                raise SystemExit(
+                    f"No SQL Server ODBC driver found (installed: {installed or 'none'}). "
+                    "Install \"ODBC Driver 18 for SQL Server\" or pass --odbc-driver."
+                )
+        parts = [f"DRIVER={{{driver}}}", f"SERVER={args.server}", f"DATABASE={args.database}"]
+        if args.sql_user:
+            password = os.environ.get("LEGACY_SQL_PASSWORD")
+            if password is None:
+                password = getpass.getpass(f"Password for SQL user {args.sql_user}: ")
+            parts += [f"UID={args.sql_user}", "PWD={" + password.replace("}", "}}") + "}"]
+        else:
+            parts.append("Trusted_Connection=yes")
+        # Old in-house servers rarely have a trusted certificate; Driver 18 refuses them by default.
+        parts.append("TrustServerCertificate=yes")
+        dsn = ";".join(parts) + ";"
+    try:
+        return pyodbc.connect(dsn, timeout=30)
+    except pyodbc.Error as exc:
+        raise SystemExit(f"Could not connect to SQL Server: {exc}") from exc
+
+
+def export_database(conn, label: str, out_dir: Path, source: str, relative_prefix: str, schema: str) -> int:
+    archive = _archive_module()
+    contents = archive.read_database(
+        conn,
+        out_dir / ".raw",
+        schema=schema,
+        progress=_progress,
+        find_existing=_find_exported(out_dir / relative_prefix),
+    )
+    for warning in contents.warnings:
+        print(f"  warning: {warning}", file=sys.stderr)
+    if contents.reused:
+        print(f"  {contents.reused} files were already on disk from an earlier run and were not downloaded again")
+    return write_archive(contents, label, out_dir, source, relative_prefix)
+
+
+def write_archive(contents, label: str, out_dir: Path, source: str, relative_prefix: str) -> int:
+    archive = _archive_module()
+    script = label
+    raw_dir = out_dir / ".raw"
+    entries = archive.build_entries(contents)
 
     if not entries:
         shutil.rmtree(raw_dir, ignore_errors=True)
-        if not contents.rows_seen:
+        if not contents.rows_seen and Path(label).is_file():
             raise SystemExit(
                 f"{script} has table definitions but no data (no INSERT statements), so it holds no files.\n"
                 "This is a schema-only script. In SSMS: right-click the database → Tasks → Generate Scripts →\n"
@@ -429,7 +531,9 @@ def export_sql_script(script: Path, out_dir: Path, source: str, relative_prefix:
             mime = mimetypes.guess_type(f"x{ext}")[0] or "application/octet-stream"
         file_name = f"{entry.source_id}{ext}"
         relative = f"{relative_prefix}/{safe_file_name(file_name, entry.source_id)}"
-        shutil.move(str(staged.raw_path), str(out_dir / relative))
+        target = out_dir / relative
+        if staged.raw_path.resolve() != target.resolve():
+            shutil.move(str(staged.raw_path), str(target))
 
         declared = staged.row.get("filesize", staged.row.get("sizefile"))
         try:
@@ -486,8 +590,16 @@ def main() -> int:
             raise SystemExit(f"Not found: {args.sql_script}")
         args.out_dir.mkdir(parents=True, exist_ok=True)
         return export_sql_script(args.sql_script, args.out_dir, args.source, args.relative_prefix)
+    if args.server or (args.dsn and not args.sql):
+        args.out_dir.mkdir(parents=True, exist_ok=True)
+        conn = sql_server_connection(args)
+        label = f"{args.server or 'dsn'}/{args.database}"
+        try:
+            return export_database(conn, label, args.out_dir, args.source, args.relative_prefix, args.schema)
+        finally:
+            conn.close()
     if not args.rows and not args.sql:
-        raise SystemExit("Provide --sql-script FILE, --rows FILE or --sql QUERY (with --dsn)")
+        raise SystemExit("Provide --server, --sql-script FILE, --rows FILE or --sql QUERY (with --dsn)")
     if args.sql and not args.dsn:
         raise SystemExit("--sql requires --dsn")
 

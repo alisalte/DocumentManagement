@@ -1,6 +1,10 @@
 """Run: python3 -m unittest discover -s scripts/tests"""
 
+import contextlib
+import importlib.util
+import io
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -100,6 +104,89 @@ class LegacySqlScriptTests(unittest.TestCase):
         self.assertEqual(legacy_date(14020512)[0], "1402/05/12")
         self.assertIsNone(legacy_date(0))
         self.assertIsNone(legacy_date(14021340))
+
+
+
+def load_exporter():
+    spec = importlib.util.spec_from_file_location("exporter", SCRIPTS / "legacy-export-sql-blobs.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class CountingConnection:
+    """Wraps sqlite so the test can see how many blobs were fetched."""
+
+    def __init__(self, conn):
+        self.conn = conn
+        self.blob_fetches = 0
+
+    def cursor(self):
+        outer = self
+        inner = self.conn.cursor()
+
+        class Cursor:
+            def execute(self, sql, *params):
+                if "WHERE [ID] = ?" in sql:
+                    outer.blob_fetches += 1
+                return inner.execute(sql, params)
+
+            def __getattr__(self, name):
+                return getattr(inner, name)
+
+        return Cursor()
+
+
+def old_database():
+    conn = sqlite3.connect(":memory:")
+    conn.execute("ATTACH DATABASE ':memory:' AS dbo")
+    conn.create_function("DATALENGTH", 1, lambda value: None if value is None else len(value))
+    conn.executescript(
+        """
+        CREATE TABLE dbo.tbl_Parvandeh (id, ShomareParvandeh, MozoeParvandeh, KholaseParvandeh);
+        CREATE TABLE dbo.tbl_ParvandehSanadPeyvaste3 (id, idSanad, Mozoe, DateSanad, TarikhSabt, ShomareName,
+            SanadNumber, IDErsalKonnadeh, IDDaryaftKonnadeh, SharhPeyvast);
+        CREATE TABLE dbo.tbl_AnvaeFile (ID, Title, PasvandFile);
+        CREATE TABLE dbo.tbl_FileSanad (ID, IDTypeFile, IDSanad, FileSize, Files, Sharh);
+        CREATE TABLE dbo.tbl_FilePeyvast (ID, IDTypeFile, IDPeyvast, FileSize, Files, Sharh);
+        """
+    )
+    conn.execute("INSERT INTO dbo.tbl_Parvandeh VALUES (10, 345, 'قرارداد', NULL)")
+    conn.execute(
+        "INSERT INTO dbo.tbl_ParvandehSanadPeyvaste3 VALUES (100, 10, 'نامه', 14021201, NULL, NULL, NULL, NULL, NULL, NULL)"
+    )
+    conn.execute("INSERT INTO dbo.tbl_AnvaeFile VALUES (2, 'ورد', 'docx')")
+    conn.execute("INSERT INTO dbo.tbl_FileSanad VALUES (1, NULL, 100, ?, ?, NULL)", (len(PNG), PNG))
+    conn.execute("INSERT INTO dbo.tbl_FileSanad VALUES (2, 2, 100, NULL, ?, 'متن')", (b"\x00\x01plain",))
+    conn.execute("INSERT INTO dbo.tbl_FileSanad VALUES (3, NULL, 100, NULL, NULL, NULL)")
+    return conn
+
+
+class DirectDatabaseTests(unittest.TestCase):
+    def test_reads_old_tables_and_resumes_without_downloading_again(self):
+        exporter = load_exporter()
+        out = Path(tempfile.mkdtemp()) / "out"
+        conn = CountingConnection(old_database())
+
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(exporter.export_database(conn, "test/ArchiveSaman", out, "archive-saman", "files", "dbo"), 0)
+        self.assertEqual(conn.blob_fetches, 2)
+        # Tables that do not exist (tbl_FilesSampleAsnad, …) are reported, not fatal.
+        self.assertIn("tbl_FilesSampleAsnad not read", err.getvalue())
+
+        entries = {e["sourceId"]: e for e in json.loads((out / "manifest.json").read_text(encoding="utf-8"))["entries"]}
+        self.assertEqual(set(entries), {"sanad-100-file-1", "sanad-100-file-2"})
+        self.assertEqual(entries["sanad-100-file-1"]["categoryPath"], "واردات/پرونده 10 (شماره 345) - قرارداد")
+        self.assertEqual(entries["sanad-100-file-1"]["createdAt"], "2024-02-20T00:00:00Z")
+        self.assertEqual((out / entries["sanad-100-file-1"]["file"]).read_bytes(), PNG)
+        self.assertEqual(entries["sanad-100-file-2"]["fileName"], "sanad-100-file-2.docx")
+
+        with contextlib.redirect_stdout(io.StringIO()) as again, contextlib.redirect_stderr(io.StringIO()):
+            exporter.export_database(conn, "test/ArchiveSaman", out, "archive-saman", "files", "dbo")
+        self.assertEqual(conn.blob_fetches, 2, "second run must reuse the files already on disk")
+        self.assertIn("2 files were already on disk", again.getvalue())
+        again_entries = json.loads((out / "manifest.json").read_text(encoding="utf-8"))["entries"]
+        self.assertEqual([e["sha256"] for e in again_entries], [entries[k]["sha256"] for k in sorted(entries)])
 
 
 if __name__ == "__main__":
