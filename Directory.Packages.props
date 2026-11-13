@@ -10,6 +10,10 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
+    <!-- Read-only connection to the old archive's SQL Server for the legacy import. -->
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <!-- Pinned above SqlClient's 9.0.18, which has known vulnerabilities (GHSA-846f-f764-76mx). -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup Label="Storage">

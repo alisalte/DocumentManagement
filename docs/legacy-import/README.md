@@ -59,10 +59,67 @@ Or pass `--sql` + `--dsn` when `pyodbc` / `psycopg` can reach the old server.
 
 ## The whole old archive (ArchiveSaman)
 
-The old program keeps every file inside SQL Server. There are two ways to convert **all** of
-them at once; both give the same folders, titles and manifest.
+The old program keeps every file inside SQL Server. There are three ways to convert **all** of
+them at once; all give the same folders, titles, source ids and manifest, so a file imported one
+way is skipped by the others.
 
-### Straight from SQL Server (recommended for a large database)
+### From the admin page (recommended)
+
+`/admin/imports` → **ورود مستقیم از SQL Server برنامهٔ قدیمی** → **اتصال به SQL Server قدیمی**:
+
+1. Server (`192.168.1.10`, `HOST\SQLEXPRESS` or `192.168.1.10,1433`), database (`ArchiveSaman`),
+   a SQL login and its password. **Test connection** (تست اتصال) shows how many files and how
+   many bytes are there, per table, without reading any file.
+2. **Start** (شروع انتقال همهٔ فایل‌ها). The API streams every file, one at a time, into
+   `Dms:Import:FilesRoot/legacy-sql/<id>/files`, with live progress (files, MB) on the page.
+3. When it finishes it writes `manifest.json` there and creates an ordinary import job
+   (create missing folders on). **رفتن به کار ورود** → validate → start, as for any import.
+
+Behaviour:
+
+- **Read only.** Only `SELECT`s over fixed tables and columns; the connection asks for
+  `ApplicationIntent=ReadOnly`. The old `tbl_User` (with its passwords) is never read. Give it a
+  login that can only read, for example:
+  `CREATE LOGIN dms_reader WITH PASSWORD = '…'; USE ArchiveSaman; CREATE USER dms_reader FOR LOGIN dms_reader; ALTER ROLE db_datareader ADD MEMBER dms_reader;`
+- **The password is never stored**: not in the database, the audit log, the job queue or the
+  logs. It stays in the memory of the API process for the length of the copy. If that process
+  restarts, the copy shows as interrupted (قطع‌شده) and **ادامه** asks for the password again.
+- **Resumable.** Stop (توقف) or a failure keeps every file already copied; **ادامه** only reads
+  the files still missing (a file on disk with the right length is reused).
+- **Any size.** Each file is streamed from SQL Server to disk (`SequentialAccess`), so memory
+  stays flat; a single command may run `CommandTimeoutSeconds` (default 1800).
+- **Who:** `IMPORT_MANAGE` to test, start, stop and resume; `IMPORT_VIEW` to watch. Every test,
+  start, stop, resume, finish and failure is in the audit log (without the password).
+- **Windows login does not work from the Linux container**; use a SQL login. Old SQL Servers
+  (2008/2012) often need **Encrypt** switched off.
+- **Network:** the API container must reach the old server on TCP 1433 (or UDP 1434 for a named
+  instance through SQL Browser), and the old server must allow TCP/IP and SQL logins.
+- **Disk:** the staging volume needs about as much free space as the files in the old database;
+  after a successful import the `legacy-sql/<id>` folder can be deleted.
+
+Configuration (`appsettings.json` / environment):
+
+```json
+"Dms": {
+  "Import": {
+    "FilesRoot": "/var/lib/dms/import-staging",
+    "LegacySql": {
+      "Enabled": true,
+      "AllowedServers": [],
+      "CommandTimeoutSeconds": 1800
+    }
+  }
+}
+```
+
+`AllowedServers`, when not empty, limits which server names may be entered (case-insensitive,
+exactly as typed). `deploy/docker-compose.yml` mounts the `import-staging` volume on both the API
+(which copies) and the worker (which imports).
+
+API (all under `/api/v1/imports/legacy-sql`): `POST /test`, `POST /` (start), `GET /`, `GET /{id}`,
+`POST /{id}/resume`, `POST /{id}/cancel`.
+
+### Straight from SQL Server with the script (no running DMS needed)
 
 Run on a machine that can reach the old server (often the server itself):
 

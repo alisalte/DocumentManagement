@@ -103,8 +103,12 @@ services:
       Dms__Storage__Renditions__GotenbergUrl: ${DMS_GOTENBERG_URL:-}
       Dms__Search__OpenSearchUrl: ${DMS_OPENSEARCH_URL:-}
       Dms__Search__TikaUrl: ${DMS_TIKA_URL:-}
+      # Legacy import: the API copies the old archive's files here (admin → ورود از سامانهٔ قدیمی)
+      # and the worker imports them from here, so both services mount the same volume.
+      Dms__Import__FilesRoot: /var/lib/dms/import-staging
     volumes:
       - object-data:/var/lib/dms/objects
+      - import-staging:/var/lib/dms/import-staging
     ports:
       - "${API_PORT:-5080}:8080"
     extra_hosts:
@@ -140,6 +144,7 @@ services:
       Dms__Role: worker
     volumes:
       - object-data:/var/lib/dms/objects
+      - import-staging:/var/lib/dms/import-staging
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -256,6 +261,7 @@ services:
 volumes:
   postgres-data:
   object-data:
+  import-staging:
   search-data:
   clamav-data:
   scanner-apk:

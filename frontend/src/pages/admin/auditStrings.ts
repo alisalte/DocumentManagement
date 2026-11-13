@@ -138,6 +138,12 @@ export const actionLabels: Record<string, string> = {
   IMPORT_FAILED: 'شکست واردات',
   IMPORT_RESUMED: 'ازسرگیری واردات',
   IMPORT_REPORT_ACCESSED: 'مشاهدهٔ گزارش واردات',
+  LEGACY_SQL_CONNECTION_TESTED: 'تست اتصال به SQL Server برنامهٔ قدیمی',
+  LEGACY_SQL_COPY_STARTED: 'شروع انتقال فایل‌ها از SQL Server قدیمی',
+  LEGACY_SQL_COPY_RESUMED: 'ادامهٔ انتقال از SQL Server قدیمی',
+  LEGACY_SQL_COPY_CANCELLED: 'توقف انتقال از SQL Server قدیمی',
+  LEGACY_SQL_COPY_COMPLETED: 'پایان انتقال از SQL Server قدیمی',
+  LEGACY_SQL_COPY_FAILED: 'شکست انتقال از SQL Server قدیمی',
 
   DOCUMENT_TYPE_CREATED: 'ایجاد نوع سند',
   DOCUMENT_TYPE_UPDATED: 'به‌روزرسانی نوع سند',

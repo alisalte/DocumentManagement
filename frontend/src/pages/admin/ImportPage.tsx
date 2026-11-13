@@ -23,6 +23,7 @@ import { formatDateTime } from '../../lib/dates';
 import { describeError } from '../../strings';
 import { useSession } from '../../session';
 import { i, itemStatusLabel, jobStatusLabel } from './importStrings';
+import { LegacySqlPanel } from './LegacySqlPanel';
 
 /** Admin surface for legacy manifest import (phase 10.6). */
 export function ImportPage() {
@@ -124,6 +125,15 @@ export function ImportPage() {
 
       {error && <Alert severity="error">{error}</Alert>}
       <Toast open={!!notice} message={notice ?? ''} onClose={() => setNotice(null)} />
+
+      <LegacySqlPanel
+        canManage={canManage}
+        onNotice={setNotice}
+        onOpenJob={(jobId) => {
+          setSelectedId(jobId);
+          void refresh();
+        }}
+      />
 
       <Card flush className="overflow-hidden">
         {jobs.isFetching && <ProgressBar />}

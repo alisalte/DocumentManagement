@@ -122,6 +122,13 @@ public static class AuditActions
     public const string ImportResumed = "IMPORT_RESUMED";
     public const string ImportReportAccessed = "IMPORT_REPORT_ACCESSED";
 
+    public const string LegacySqlConnectionTested = "LEGACY_SQL_CONNECTION_TESTED";
+    public const string LegacySqlCopyStarted = "LEGACY_SQL_COPY_STARTED";
+    public const string LegacySqlCopyResumed = "LEGACY_SQL_COPY_RESUMED";
+    public const string LegacySqlCopyCancelled = "LEGACY_SQL_COPY_CANCELLED";
+    public const string LegacySqlCopyCompleted = "LEGACY_SQL_COPY_COMPLETED";
+    public const string LegacySqlCopyFailed = "LEGACY_SQL_COPY_FAILED";
+
     /// <summary>A new file version, V(n+1).1 (ADR 0001).</summary>
     public const string VersionCreated = "VERSION_CREATED";
 

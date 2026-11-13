@@ -1003,6 +1003,132 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                     b.ToTable("import_source_index", "documents");
                 });
 
+            modelBuilder.Entity("Dms.Documents.Domain.LegacyExtraction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("BytesDone")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bytes_done");
+
+                    b.Property<long>("BytesTotal")
+                        .HasColumnType("bigint")
+                        .HasColumnName("bytes_total");
+
+                    b.Property<bool>("CancelRequested")
+                        .HasColumnType("boolean")
+                        .HasColumnName("cancel_requested");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Database")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("database_name");
+
+                    b.Property<int>("FilesDone")
+                        .HasColumnType("integer")
+                        .HasColumnName("files_done");
+
+                    b.Property<int>("FilesEmpty")
+                        .HasColumnType("integer")
+                        .HasColumnName("files_empty");
+
+                    b.Property<int>("FilesReused")
+                        .HasColumnType("integer")
+                        .HasColumnName("files_reused");
+
+                    b.Property<int>("FilesTotal")
+                        .HasColumnType("integer")
+                        .HasColumnName("files_total");
+
+                    b.Property<DateTimeOffset?>("HeartbeatAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("heartbeat_at");
+
+                    b.Property<Guid?>("ImportJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_job_id");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Server")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("server");
+
+                    b.Property<string>("SqlUser")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("sql_user");
+
+                    b.Property<string>("StagingFolder")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("staging_folder");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Warnings")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("warnings");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_legacy_extractions_created_at");
+
+                    b.HasIndex("ImportJobId");
+
+                    b.ToTable("legacy_extractions", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_legacy_extractions_status", "status IN ('Queued','Running','Completed','Failed','Cancelled')");
+                        });
+                });
+
             modelBuilder.Entity("Dms.Documents.Domain.LegalHold", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1485,6 +1611,14 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ImportJobId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .HasConstraintName("fk_import_mappings_job");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Domain.LegacyExtraction", b =>
+                {
+                    b.HasOne("Dms.Documents.Domain.ImportJob", null)
+                        .WithMany()
+                        .HasForeignKey("ImportJobId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Dms.Documents.Domain.LegalHold", b =>

@@ -911,6 +911,49 @@ export interface ImportReport {
   errors: ImportItem[];
 }
 
+export interface LegacySqlConnection {
+  server: string;
+  database: string;
+  user: string | null;
+  password: string | null;
+  encrypt: boolean;
+  trustServerCertificate: boolean;
+  name?: string | null;
+}
+
+export interface LegacyArchiveProbe {
+  serverVersion: string;
+  files: number;
+  bytes: number;
+  tables: { table: string; exists: boolean; rows: number; files: number; bytes: number }[];
+}
+
+export interface LegacyExtraction {
+  id: string;
+  name: string;
+  server: string;
+  database: string;
+  sqlUser: string | null;
+  status: 'Queued' | 'Running' | 'Completed' | 'Failed' | 'Cancelled';
+  interrupted: boolean;
+  canResume: boolean;
+  cancelRequested: boolean;
+  filesTotal: number;
+  filesDone: number;
+  filesReused: number;
+  filesEmpty: number;
+  bytesTotal: number;
+  bytesDone: number;
+  warnings: string | null;
+  lastError: string | null;
+  importJobId: string | null;
+  stagingFolder: string;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
 export interface SealStatus {
   sealCount: number;
   firstSealedFrom: string | null;
@@ -1545,6 +1588,22 @@ export const api = {
     items: (id: string, status?: string | null, skip = 0, take = 100) =>
       request<ImportItem[]>(`/api/v1/imports/${id}/items${query({ status, skip, take })}`),
     report: (id: string) => request<ImportReport>(`/api/v1/imports/${id}/report`),
+    legacySql: {
+      list: () => request<LegacyExtraction[]>('/api/v1/imports/legacy-sql'),
+      test: (body: LegacySqlConnection) =>
+        request<LegacyArchiveProbe>('/api/v1/imports/legacy-sql/test', { method: 'POST', body: JSON.stringify(body) }),
+      start: (body: LegacySqlConnection) =>
+        request<{ id: string }>('/api/v1/imports/legacy-sql', { method: 'POST', body: JSON.stringify(body) }),
+      resume: (
+        id: string,
+        body: { user: string | null; password: string | null; encrypt: boolean; trustServerCertificate: boolean },
+      ) =>
+        request<LegacyExtraction>(`/api/v1/imports/legacy-sql/${id}/resume`, {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+      cancel: (id: string) => request<void>(`/api/v1/imports/legacy-sql/${id}/cancel`, { method: 'POST' }),
+    },
   },
 
   isSignedIn: () => accessToken !== null,
