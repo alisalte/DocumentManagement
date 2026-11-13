@@ -4,6 +4,7 @@ using Dms.Authorization.Contracts;
 using Dms.Documents.Application;
 using Dms.Documents.Contracts;
 using Dms.Documents.Domain;
+using Dms.Documents.Infrastructure.LegacySql;
 using Dms.Documents.Infrastructure.Persistence;
 using Dms.Infrastructure;
 using Dms.Infrastructure.Persistence;
@@ -46,6 +47,14 @@ public static class DocumentsModule
         services.AddScoped<IClassificationCatalog, ClassificationCatalogService>();
         services.AddScoped<ImportValidator>();
         services.AddScoped<ImportItemImporter>();
+        services.AddScoped<ImportJobFactory>();
+        services.AddScoped<ILegacyExtractionRepository, LegacyExtractionRepository>();
+        services.AddScoped<LegacySqlGate>();
+        services.AddOptions<LegacySqlOptions>().BindConfiguration(LegacySqlOptions.SectionName);
+        services.AddSingleton<ILegacySqlArchive, SqlServerLegacyArchive>();
+        services.AddSingleton<LegacyExtractionRunner>();
+        services.AddSingleton<ILegacyExtractionQueue>(provider => provider.GetRequiredService<LegacyExtractionRunner>());
+        services.AddHostedService(provider => provider.GetRequiredService<LegacyExtractionRunner>());
         services.AddOptions<ImportOptions>().BindConfiguration(ImportOptions.SectionName);
         services.AddScoped<IDocumentLocator, DocumentLocator>();
         services.AddScoped<IDocumentVersionReader, DocumentVersionReader>();
@@ -126,6 +135,12 @@ public static class DocumentsModule
         services.AddScoped<IQueryHandler<GetImportJobQuery, Result<ImportJobDto>>, GetImportJobHandler>();
         services.AddScoped<IQueryHandler<ListImportItemsQuery, Result<IReadOnlyList<ImportItemDto>>>, ListImportItemsHandler>();
         services.AddScoped<ICommandHandler<GetImportReportCommand, Result<ImportReportDto>>, GetImportReportHandler>();
+        services.AddScoped<ICommandHandler<TestLegacySqlConnectionCommand, Result<LegacyArchiveProbeDto>>, TestLegacySqlConnectionHandler>();
+        services.AddScoped<ICommandHandler<StartLegacyExtractionCommand, Result<Guid>>, StartLegacyExtractionHandler>();
+        services.AddScoped<ICommandHandler<ResumeLegacyExtractionCommand, Result>, ResumeLegacyExtractionHandler>();
+        services.AddScoped<ICommandHandler<CancelLegacyExtractionCommand, Result>, CancelLegacyExtractionHandler>();
+        services.AddScoped<IQueryHandler<ListLegacyExtractionsQuery, Result<IReadOnlyList<LegacyExtractionDto>>>, ListLegacyExtractionsHandler>();
+        services.AddScoped<IQueryHandler<GetLegacyExtractionQuery, Result<LegacyExtractionDto>>, GetLegacyExtractionHandler>();
         services.AddScoped<ICommandHandler<CreateClassificationLevelCommand, Result<Guid>>, CreateClassificationLevelHandler>();
         services.AddScoped<IQueryHandler<ListClassificationLevelsQuery, Result<IReadOnlyList<ClassificationLevelInfo>>>, ListClassificationLevelsHandler>();
 

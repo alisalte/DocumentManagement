@@ -70,7 +70,8 @@ RUN set -eu; \
 # Never run as root. The object directory is created here, owned by dms, so a fresh named volume
 # mounted on it inherits that ownership.
 RUN useradd --uid 64198 --create-home --shell /usr/sbin/nologin dms \
- && mkdir -p /var/lib/dms/objects && chown dms:dms /var/lib/dms/objects
+ && mkdir -p /var/lib/dms/objects /var/lib/dms/import-staging \
+ && chown dms:dms /var/lib/dms/objects /var/lib/dms/import-staging
 COPY --from=build --chown=dms:dms /app/ /app/
 USER dms
 

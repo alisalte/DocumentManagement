@@ -10,3 +10,4 @@ frontend/dist/
 .env
 *.received.*
 .data/
+__pycache__/

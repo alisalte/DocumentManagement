@@ -105,6 +105,26 @@ public static class DocumentEndpoints
 
     public sealed record ImportMappingRequest(string Kind, string SourceKey, string TargetKey);
 
+    /// <summary>The password is used for this request (and the copy it starts) only; it is never stored.</summary>
+    public sealed record LegacySqlRequest(
+        string Server,
+        string Database,
+        string? User,
+        string? Password,
+        bool Encrypt = true,
+        bool TrustServerCertificate = true,
+        string? Name = null)
+    {
+        public LegacySqlConnectionSettings ToSettings() =>
+            new(Server ?? string.Empty, Database ?? string.Empty, User, Password, Encrypt, TrustServerCertificate);
+    }
+
+    public sealed record LegacySqlResumeRequest(
+        string? User,
+        string? Password,
+        bool Encrypt = true,
+        bool TrustServerCertificate = true);
+
     public sealed record CreateClassificationLevelRequest(string Code, string Name, int Rank);
 
     public static IEndpointRouteBuilder MapDocumentEndpoints(this IEndpointRouteBuilder endpoints)
@@ -799,6 +819,8 @@ public static class DocumentEndpoints
             })
             .WithSummary("Create an import job from a legacy manifest (does not modify documents until start).");
 
+        MapLegacySql(imports.MapGroup("/legacy-sql"));
+
         imports.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.QueryAsync(new GetImportJobQuery(id), ct)).ToHttpResult());
 
@@ -857,4 +879,86 @@ public static class DocumentEndpoints
 
     private static string? NormalizeKey(string? key) =>
         string.IsNullOrWhiteSpace(key) ? null : key.Trim()[..Math.Min(key.Trim().Length, 200)];
+
+    /// <summary>Copying the old archive straight from its SQL Server (see docs/legacy-import).</summary>
+    private static void MapLegacySql(RouteGroupBuilder legacy)
+    {
+        legacy.WithTags("Legacy Import: SQL Server");
+
+        legacy.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new ListLegacyExtractionsQuery(), ct)).ToHttpResult())
+            .WithSummary("Recent copies from an old SQL Server.");
+
+        legacy.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+            (await dispatcher.QueryAsync(new GetLegacyExtractionQuery(id), ct)).ToHttpResult());
+
+        legacy.MapPost("/test", async (LegacySqlRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new TestLegacySqlConnectionCommand(request.ToSettings()), ct)).ToHttpResult())
+            .WithSummary("Connect to the old SQL Server and count its files (reads no file contents).");
+
+        legacy.MapPost("", async (
+                LegacySqlRequest request,
+                IDispatcher dispatcher,
+                ILegacyExtractionQueue queue,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(
+                    new StartLegacyExtractionCommand(request.Name, request.Server, request.Database, request.User),
+                    ct);
+                if (result.IsSuccess)
+                {
+                    // After the commit, so the background copy finds its row.
+                    queue.Submit(new LegacyExtractionId(result.Value), request.ToSettings());
+                }
+
+                return result.ToHttpResult(id => Results.Created($"/api/v1/imports/legacy-sql/{id}", new { id }));
+            })
+            .WithSummary("Copy every file of the old archive into the staging folder, then create an import job.");
+
+        legacy.MapPost("/{id:guid}/resume", async (
+                Guid id,
+                LegacySqlResumeRequest request,
+                IDispatcher dispatcher,
+                ILegacyExtractionQueue queue,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new ResumeLegacyExtractionCommand(id, request.User), ct);
+                if (result.IsFailure)
+                {
+                    return result.ToHttpResult();
+                }
+
+                var extraction = await dispatcher.QueryAsync(new GetLegacyExtractionQuery(id), ct);
+                if (extraction.IsSuccess)
+                {
+                    queue.Submit(
+                        new LegacyExtractionId(id),
+                        new LegacySqlConnectionSettings(
+                            extraction.Value.Server,
+                            extraction.Value.Database,
+                            request.User,
+                            request.Password,
+                            request.Encrypt,
+                            request.TrustServerCertificate));
+                }
+
+                return extraction.ToHttpResult();
+            })
+            .WithSummary("Continue a stopped copy; files already copied are not read again.");
+
+        legacy.MapPost("/{id:guid}/cancel", async (
+                Guid id,
+                IDispatcher dispatcher,
+                ILegacyExtractionQueue queue,
+                CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new CancelLegacyExtractionCommand(id), ct);
+                if (result.IsSuccess)
+                {
+                    queue.CancelLocal(new LegacyExtractionId(id));
+                }
+
+                return result.ToHttpResult();
+            });
+    }
 }

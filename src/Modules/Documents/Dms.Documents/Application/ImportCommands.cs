@@ -47,13 +47,9 @@ public sealed record ListClassificationLevelsQuery : IQuery<Result<IReadOnlyList
 
 public sealed class CreateImportJobHandler(
     IDmsAuthorizer authorizer,
-    IImportJobRepository jobs,
-    IImportItemRepository items,
-    IImportMappingRepository mappings,
+    ImportJobFactory factory,
     IOptions<ImportOptions> options,
-    IAuditWriter audit,
-    ICurrentUser currentUser,
-    TimeProvider timeProvider) : ICommandHandler<CreateImportJobCommand, Result<Guid>>
+    ICurrentUser currentUser) : ICommandHandler<CreateImportJobCommand, Result<Guid>>
 {
     public async Task<Result<Guid>> HandleAsync(CreateImportJobCommand command, CancellationToken cancellationToken)
     {
@@ -65,17 +61,6 @@ public sealed class CreateImportJobHandler(
         if (!(await authorizer.AuthorizeSystemAsync(PermissionCodes.ImportManage, cancellationToken)).Allowed)
         {
             return Result.Failure<Guid>(DocumentErrors.Forbidden("Creating imports requires IMPORT_MANAGE."));
-        }
-
-        var parsed = ManifestSerializer.Parse(command.ManifestJson);
-        if (parsed.IsFailure)
-        {
-            return Result.Failure<Guid>(parsed.Error);
-        }
-
-        if (!Enum.TryParse<ImportFailurePolicy>(command.FailurePolicy, true, out var policy))
-        {
-            policy = ImportFailurePolicy.ContinueOnError;
         }
 
         // Files root is server-configured only. A client may supply a relative subfolder under it.
@@ -98,35 +83,111 @@ public sealed class CreateImportJobHandler(
                 "Import files root is not configured on the server (Dms:Import:FilesRoot)."));
         }
 
-        var source = string.IsNullOrWhiteSpace(command.SourceSystem)
-            ? parsed.Value.Source ?? "legacy"
-            : command.SourceSystem;
+        if (!Enum.TryParse<ImportFailurePolicy>(command.FailurePolicy, true, out var policy))
+        {
+            policy = ImportFailurePolicy.ContinueOnError;
+        }
 
-        var created = ImportJob.Create(
-            source,
+        var created = await factory.CreateAsync(
             command.Name,
+            command.SourceSystem,
+            command.ManifestJson,
             filesRoot,
-            ManifestSerializer.Hash(command.ManifestJson),
             policy,
             command.CreateMissingCategories,
             command.DryRunOnly,
+            command.Mappings,
+            actor,
+            cancellationToken);
+        return created.IsFailure ? Result.Failure<Guid>(created.Error) : Result.Success(created.Value.Id.Value);
+    }
+}
+
+/// <summary>
+/// Every item of a job in one status. Pages are read before any item changes status, so the
+/// pages stay stable; a single 10,000-row read used to leave the rest of a large archive behind.
+/// </summary>
+public static class ImportItemPaging
+{
+    public static async Task<IReadOnlyList<ImportItem>> ListAllAsync(
+        IImportItemRepository items,
+        ImportJobId jobId,
+        ImportItemStatus status,
+        CancellationToken cancellationToken)
+    {
+        const int pageSize = 5_000;
+        var all = new List<ImportItem>();
+        for (var skip = 0; ; skip += pageSize)
+        {
+            var page = await items.ListByJobAsync(jobId, status, skip, pageSize, cancellationToken);
+            all.AddRange(page);
+            if (page.Count < pageSize)
+            {
+                return all;
+            }
+        }
+    }
+}
+
+/// <summary>
+/// Creates an import job and one item per manifest entry. Used by the API and by the legacy SQL
+/// copy, which creates its job from a background process with no signed-in caller.
+/// </summary>
+public sealed class ImportJobFactory(
+    IImportJobRepository jobs,
+    IImportItemRepository items,
+    IImportMappingRepository mappings,
+    IAuditWriter audit,
+    TimeProvider timeProvider)
+{
+    /// <param name="filesRoot">Absolute, already checked against Dms:Import:FilesRoot.</param>
+    public async Task<Result<ImportJob>> CreateAsync(
+        string name,
+        string? sourceSystem,
+        string manifestJson,
+        string? filesRoot,
+        ImportFailurePolicy policy,
+        bool createMissingCategories,
+        bool dryRunOnly,
+        IReadOnlyList<ImportMappingInput>? mappingInputs,
+        UserId actor,
+        CancellationToken cancellationToken)
+    {
+        var parsed = ManifestSerializer.Parse(manifestJson);
+        if (parsed.IsFailure)
+        {
+            return Result.Failure<ImportJob>(parsed.Error);
+        }
+
+        var source = string.IsNullOrWhiteSpace(sourceSystem)
+            ? parsed.Value.Source ?? "legacy"
+            : sourceSystem;
+
+        var created = ImportJob.Create(
+            source,
+            name,
+            filesRoot,
+            ManifestSerializer.Hash(manifestJson),
+            policy,
+            createMissingCategories,
+            dryRunOnly,
             actor,
             timeProvider.GetUtcNow());
         if (created.IsFailure)
         {
-            return Result.Failure<Guid>(created.Error);
+            return created;
         }
 
         var job = created.Value;
         jobs.Add(job);
 
-        if (command.Mappings is { Count: > 0 })
+        if (mappingInputs is { Count: > 0 })
         {
-            foreach (var mapping in command.Mappings)
+            foreach (var mapping in mappingInputs)
             {
                 if (!Enum.TryParse<ImportMappingKind>(mapping.Kind, true, out var kind))
                 {
-                    return Result.Failure<Guid>(Error.Validation("import.mapping_kind", $"Unknown mapping kind '{mapping.Kind}'."));
+                    return Result.Failure<ImportJob>(Error.Validation("import.mapping_kind", $"Unknown mapping kind '{mapping.Kind}'."));
                 }
 
                 mappings.Add(ImportMapping.Create(
@@ -163,6 +224,7 @@ public sealed class CreateImportJobHandler(
             new AuditRecord
             {
                 Action = AuditActions.ImportCreated,
+                UserId = actor,
                 EntityType = "ImportJob",
                 EntityId = job.Id.Value,
                 Metadata = new Dictionary<string, object?>
@@ -174,7 +236,7 @@ public sealed class CreateImportJobHandler(
             },
             cancellationToken);
 
-        return Result.Success(job.Id.Value);
+        return Result.Success(job);
     }
 }
 
@@ -286,7 +348,7 @@ public sealed class StartImportJobHandler(
                      ImportItemStatus.Running,
                  })
         {
-            foreach (var item in await items.ListByJobAsync(job.Id, status, 0, 10_000, cancellationToken))
+            foreach (var item in await ImportItemPaging.ListAllAsync(items, job.Id, status, cancellationToken))
             {
                 if (status is ImportItemStatus.Failed or ImportItemStatus.Retryable)
                 {
@@ -425,7 +487,7 @@ public sealed class RetryFailedImportHandler(
         var now = timeProvider.GetUtcNow();
         foreach (var status in new[] { ImportItemStatus.Failed, ImportItemStatus.Retryable })
         {
-            foreach (var item in await items.ListByJobAsync(job.Id, status, 0, 10_000, cancellationToken))
+            foreach (var item in await ImportItemPaging.ListAllAsync(items, job.Id, status, cancellationToken))
             {
                 job.UncountFailure(item.ActualSize ?? 0, now);
                 item.MarkReady(now);

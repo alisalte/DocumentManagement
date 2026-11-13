@@ -41,6 +41,8 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<ImportJob> ImportJobs => Set<ImportJob>();
 
+    public DbSet<LegacyExtraction> LegacyExtractions => Set<LegacyExtraction>();
+
     public DbSet<ImportItem> ImportItems => Set<ImportItem>();
 
     public DbSet<ImportMapping> ImportMappings => Set<ImportMapping>();
@@ -531,6 +533,47 @@ public sealed class DocumentsDbContext : DbContext
                 .HasDatabaseName("ux_destruction_certificates_record");
             entity.HasIndex(item => item.CertificateNumber).IsUnique()
                 .HasDatabaseName("ux_destruction_certificates_number");
+        });
+
+        modelBuilder.Entity<LegacyExtraction>(entity =>
+        {
+            entity.ToTable("legacy_extractions", table => table.HasCheckConstraint(
+                "ck_legacy_extractions_status",
+                "status IN ('Queued','Running','Completed','Failed','Cancelled')"));
+            entity.HasKey(extraction => extraction.Id);
+            entity.Property(extraction => extraction.Id).HasColumnName("id")
+                .HasConversion(id => id.Value, value => new LegacyExtractionId(value));
+            entity.Property(extraction => extraction.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            entity.Property(extraction => extraction.Server).HasColumnName("server").HasMaxLength(256).IsRequired();
+            entity.Property(extraction => extraction.Database).HasColumnName("database_name").HasMaxLength(128).IsRequired();
+            entity.Property(extraction => extraction.SqlUser).HasColumnName("sql_user").HasMaxLength(128);
+            entity.Property(extraction => extraction.StagingFolder).HasColumnName("staging_folder").HasMaxLength(200).IsRequired();
+            entity.Property(extraction => extraction.Status).HasColumnName("status")
+                .HasConversion<string>().HasMaxLength(32).IsRequired();
+            entity.Property(extraction => extraction.CancelRequested).HasColumnName("cancel_requested");
+            entity.Property(extraction => extraction.FilesTotal).HasColumnName("files_total");
+            entity.Property(extraction => extraction.FilesDone).HasColumnName("files_done");
+            entity.Property(extraction => extraction.FilesReused).HasColumnName("files_reused");
+            entity.Property(extraction => extraction.FilesEmpty).HasColumnName("files_empty");
+            entity.Property(extraction => extraction.BytesTotal).HasColumnName("bytes_total");
+            entity.Property(extraction => extraction.BytesDone).HasColumnName("bytes_done");
+            entity.Property(extraction => extraction.Warnings).HasColumnName("warnings").HasMaxLength(4000);
+            entity.Property(extraction => extraction.LastError).HasColumnName("last_error").HasMaxLength(2000);
+            entity.Property(extraction => extraction.ImportJobId).HasColumnName("import_job_id")
+                .HasConversion(id => id!.Value.Value, value => new ImportJobId(value));
+            entity.Property(extraction => extraction.CreatedBy).HasColumnName("created_by")
+                .HasConversion(id => id.Value, value => new UserId(value));
+            entity.Property(extraction => extraction.CreatedAt).HasColumnName("created_at");
+            entity.Property(extraction => extraction.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(extraction => extraction.StartedAt).HasColumnName("started_at");
+            entity.Property(extraction => extraction.CompletedAt).HasColumnName("completed_at");
+            entity.Property(extraction => extraction.HeartbeatAt).HasColumnName("heartbeat_at");
+            entity.Property(extraction => extraction.RowVersion).HasColumnName("xmin").IsRowVersion();
+
+            entity.HasOne<ImportJob>().WithMany()
+                .HasForeignKey(extraction => extraction.ImportJobId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(extraction => extraction.CreatedAt).HasDatabaseName("ix_legacy_extractions_created_at");
         });
 
         modelBuilder.Entity<ImportJob>(entity =>

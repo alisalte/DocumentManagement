@@ -83,3 +83,20 @@ public interface IClassificationCatalog
 }
 
 public sealed record ClassificationLevelInfo(Guid Id, string Code, string Name, bool IsActive);
+
+/// <summary>One run that copies the files of an old SQL Server archive into the import staging folder.</summary>
+public readonly record struct LegacyExtractionId(Guid Value)
+{
+    public static LegacyExtractionId New() => new(Guid.CreateVersion7());
+
+    public override string ToString() => Value.ToString();
+}
+
+public enum LegacyExtractionStatus
+{
+    Queued,
+    Running,
+    Completed,
+    Failed,
+    Cancelled,
+}
