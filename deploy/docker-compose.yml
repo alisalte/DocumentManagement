@@ -221,6 +221,10 @@ services:
     build:
       context: ../frontend
       dockerfile: ../deploy/frontend.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
       additional_contexts:
         nginxconf: ./nginx
     image: dms-web:latest
@@ -243,6 +247,10 @@ services:
     build:
       context: ../mobile
       dockerfile: ../deploy/scanner.Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:alpine}
+        NPM_REGISTRY: ${NPM_REGISTRY:-}
       additional_contexts:
         nginxconf: ./nginx
         deployfiles: .

@@ -1,16 +1,22 @@
 # Scanner web app: Expo export, then nginx with HTTPS so phones can use the camera.
-FROM node:22-alpine AS build
+# NODE_IMAGE / NGINX_IMAGE: point these at a registry mirror when Docker Hub is unreachable.
+ARG NODE_IMAGE=node:22-alpine
+ARG NGINX_IMAGE=nginx:alpine
+FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 
+# NPM_REGISTRY: an npm mirror when registry.npmjs.org is unreachable (empty keeps the default).
+ARG NPM_REGISTRY=
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi \
+ && npm ci --no-audit --no-fund
 
 COPY . .
 ENV EXPO_NO_TELEMETRY=1
 ENV EXPO_PUBLIC_API_URL=/api/v1
 RUN npx expo export --platform web --output-dir dist
 
-FROM nginx:alpine AS runtime
+FROM ${NGINX_IMAGE} AS runtime
 # Non-root nginx cannot open the image's /var/log/nginx/*.log symlinks to /dev/stderr
 # (open uses O_CREAT and fails with EACCES). Use real files, and send errors to stderr.
 RUN apk add --no-cache openssl su-exec \
