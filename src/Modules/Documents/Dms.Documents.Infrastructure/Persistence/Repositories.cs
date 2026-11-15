@@ -1,6 +1,7 @@
 using Dms.Documents.Application;
 using Dms.Documents.Contracts;
 using Dms.Documents.Domain;
+using Dms.DocumentTypes.Contracts;
 using Dms.SharedKernel;
 using Microsoft.EntityFrameworkCore;
 
@@ -143,6 +144,13 @@ public sealed class DocumentRepository(DocumentsDbContext context) : IDocumentRe
     public Task AllowInPlaceMetadataEditAsync(CancellationToken cancellationToken) =>
         context.Database.ExecuteSqlRawAsync("SELECT set_config('dms.metadata_in_place', 'on', true)", cancellationToken);
 
+    public Task<bool> IndicatorNumberExistsAsync(string number, CancellationToken cancellationToken)
+    {
+        var wanted = number.ToUpperInvariant();
+        return context.Documents.IgnoreQueryFilters()
+            .AnyAsync(document => document.IndicatorNumber != null && document.IndicatorNumber.ToUpper() == wanted, cancellationToken);
+    }
+
     public async Task PurgeAsync(Document document, CancellationToken cancellationToken)
     {
         // Transaction-local switch read by the immutability trigger. Outside a purge, no code path
@@ -180,4 +188,24 @@ public sealed class TagRepository(DocumentsDbContext context) : ITagRepository
     }
 
     public void Add(Tag tag) => context.Tags.Add(tag);
+}
+
+public sealed class IndicatorCounterStore(DocumentsDbContext context) : IIndicatorCounter
+{
+    public async Task<long> NextAsync(DocumentTypeId documentTypeId, int fiscalYear, CancellationToken cancellationToken)
+    {
+        // One statement: creates the counter at 1 or increments it, and holds the row lock until
+        // the transaction ends. Not composable (INSERT … RETURNING), hence ToListAsync.
+        var values = await context.Database
+            .SqlQuery<long>($"""
+                INSERT INTO documents.indicator_counters (document_type_id, fiscal_year, last_value)
+                VALUES ({documentTypeId.Value}, {fiscalYear}, 1)
+                ON CONFLICT (document_type_id, fiscal_year)
+                DO UPDATE SET last_value = documents.indicator_counters.last_value + 1
+                RETURNING last_value AS "Value"
+                """)
+            .ToListAsync(cancellationToken);
+
+        return values.Single();
+    }
 }

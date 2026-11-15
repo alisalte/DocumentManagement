@@ -3,6 +3,7 @@ using Dms.Application;
 using Dms.Authorization.Contracts;
 using Dms.Documents.Contracts;
 using Dms.Documents.Domain;
+using Dms.DocumentTypes.Contracts;
 using Dms.SharedKernel;
 
 namespace Dms.Documents.Application;
@@ -76,6 +77,20 @@ public interface IDocumentRepository
     /// unless the transaction declared itself a purge first, which this method does.
     /// </summary>
     Task PurgeAsync(Document document, CancellationToken cancellationToken);
+
+    /// <summary>Whether any document, deleted or not, already has this number (case-insensitive).</summary>
+    Task<bool> IndicatorNumberExistsAsync(string number, CancellationToken cancellationToken);
+}
+
+/// <summary>One counter per document type and fiscal year (BR-7).</summary>
+public interface IIndicatorCounter
+{
+    /// <summary>
+    /// Takes the next value, starting at 1. The counter row stays locked until the transaction ends,
+    /// so concurrent registrations of the same type and year get consecutive, distinct values; a
+    /// rolled-back transaction gives its value back.
+    /// </summary>
+    Task<long> NextAsync(DocumentTypeId documentTypeId, int fiscalYear, CancellationToken cancellationToken);
 }
 
 public interface ITagRepository
@@ -175,7 +190,10 @@ public sealed record DocumentListItemDto(
     DateTimeOffset UpdatedAt,
     DateTimeOffset? DeletedAt,
     string? DeleteReason,
-    int FiscalYear);
+    int FiscalYear)
+{
+    public string? IndicatorNumber { get; init; }
+}
 
 public sealed record DocumentDetailsDto(
     Guid Id,
@@ -216,6 +234,14 @@ public sealed record DocumentDetailsDto(
 
     /// <summary>Text stamped across preview and print pages, or null for none.</summary>
     public string? WatermarkText { get; init; }
+
+    /// <summary>The indicator number, or null while the document is not registered.</summary>
+    public string? IndicatorNumber { get; init; }
+
+    public DateTimeOffset? IndicatorRegisteredAt { get; init; }
+
+    /// <summary>Null when the system numbered the document (import or backfill).</summary>
+    public Guid? IndicatorRegisteredBy { get; init; }
 
     /// <summary>False when the year is before the current Tehran year: the document is report-only.</summary>
     public bool FiscalYearOpen { get; init; }

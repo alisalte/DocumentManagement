@@ -91,6 +91,19 @@ public sealed class Document : AggregateRoot<DocumentId>
     /// <summary>Text stamped across preview and print pages, or null for none.</summary>
     public string? WatermarkText { get; private set; }
 
+    /// <summary>The indicator (registry) number, e.g. CTR-1405-00045. Never changes once set (BR-4).</summary>
+    public string? IndicatorNumber { get; private set; }
+
+    /// <summary>The counter value the number was built from, within its type and fiscal year.</summary>
+    public long? IndicatorSequence { get; private set; }
+
+    public DateTimeOffset? IndicatorRegisteredAt { get; private set; }
+
+    /// <summary>Who registered it; null when the system numbered it (import or backfill).</summary>
+    public UserId? IndicatorRegisteredBy { get; private set; }
+
+    public bool HasIndicatorNumber => IndicatorNumber is not null;
+
     public bool IsDeleted => DeletedAt is not null;
 
     public IReadOnlyList<DocumentVersion> Versions => _versions;
@@ -315,6 +328,29 @@ public sealed class Document : AggregateRoot<DocumentId>
         CategoryId = categoryId;
         UpdatedAt = now;
         UpdatedBy = actor;
+        return Result.Success();
+    }
+
+    /// <summary>
+    /// Gives the document its indicator number. There is deliberately no way to change or clear it:
+    /// once issued a number is part of the record, and a deleted document keeps it so it is never
+    /// reused (BR-4, BR-5). Allowed in closed fiscal years and on declared records (BR-17): it does
+    /// not change the document's content.
+    /// </summary>
+    public Result RegisterIndicator(string number, long sequence, UserId? by, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(number);
+        if (HasIndicatorNumber)
+        {
+            return Result.Failure(Error.Conflict(
+                "document.indicator_already_registered",
+                "This document already has an indicator number."));
+        }
+
+        IndicatorNumber = number;
+        IndicatorSequence = sequence;
+        IndicatorRegisteredAt = now;
+        IndicatorRegisteredBy = by;
         return Result.Success();
     }
 

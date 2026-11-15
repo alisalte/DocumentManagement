@@ -210,6 +210,13 @@ public sealed class GetDocumentHandler(
                 or PermissionCodes.DocumentPrint));
         }
 
+        // Registering does not change the document, so closed years and records allow it (BR-17).
+        if (details.IndicatorNumber is null
+            && await access.IsAllowedAsync(query.Id, PermissionCodes.DocumentRegisterIndicator, cancellationToken))
+        {
+            actions.Add(PermissionCodes.DocumentRegisterIndicator);
+        }
+
         var schema = details.CurrentSchemaVersionId is { } schemaId
             ? await documentTypes.GetSchemaAsync(new DocumentTypeVersionId(schemaId), cancellationToken)
             : null;

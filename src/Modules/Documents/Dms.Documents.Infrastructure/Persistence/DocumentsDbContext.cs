@@ -19,6 +19,8 @@ public sealed class DocumentsDbContext : DbContext
 
     public DbSet<Document> Documents => Set<Document>();
 
+    public DbSet<IndicatorCounter> IndicatorCounters => Set<IndicatorCounter>();
+
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
 
     public DbSet<Tag> Tags => Set<Tag>();
@@ -96,6 +98,16 @@ public sealed class DocumentsDbContext : DbContext
             entity.HasIndex(category => category.Path).HasMethod("gist").HasDatabaseName("ix_categories_path");
         });
 
+        modelBuilder.Entity<IndicatorCounter>(entity =>
+        {
+            entity.ToTable("indicator_counters", table =>
+                table.HasCheckConstraint("ck_indicator_counters_positive", "last_value > 0"));
+            entity.HasKey(counter => new { counter.DocumentTypeId, counter.FiscalYear });
+            entity.Property(counter => counter.DocumentTypeId).HasColumnName("document_type_id");
+            entity.Property(counter => counter.FiscalYear).HasColumnName("fiscal_year");
+            entity.Property(counter => counter.LastValue).HasColumnName("last_value");
+        });
+
         modelBuilder.Entity<Document>(entity =>
         {
             entity.ToTable("documents", table =>
@@ -136,6 +148,14 @@ public sealed class DocumentsDbContext : DbContext
                 .HasConversion(id => id.Value, value => new UserId(value));
             entity.Property(document => document.UpdatedAt).HasColumnName("updated_at");
             entity.Property(document => document.FiscalYear).HasColumnName("fiscal_year").HasDefaultValue(0);
+            entity.Property(document => document.IndicatorNumber).HasColumnName("indicator_number").HasMaxLength(100);
+            entity.Property(document => document.IndicatorSequence).HasColumnName("indicator_sequence");
+            entity.Property(document => document.IndicatorRegisteredAt).HasColumnName("indicator_registered_at");
+            entity.Property(document => document.IndicatorRegisteredBy).HasColumnName("indicator_registered_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+
+            // The unique index ux_documents_indicator_number is on upper(indicator_number) and covers
+            // deleted documents too, so a number is never issued twice (migration AddIndicatorNumbers).
             entity.Property<uint>("Version").HasColumnName("xmin").IsRowVersion();
 
             entity.HasOne<Category>().WithMany()
@@ -716,4 +736,14 @@ public sealed class DocumentsDbContext : DbContext
             entity.HasIndex(row => row.LevelId).HasDatabaseName("ix_document_classifications_level");
         });
     }
+}
+
+/// <summary>Row of documents.indicator_counters; only written through <see cref="IndicatorCounterStore"/>.</summary>
+public sealed class IndicatorCounter
+{
+    public Guid DocumentTypeId { get; set; }
+
+    public int FiscalYear { get; set; }
+
+    public long LastValue { get; set; }
 }

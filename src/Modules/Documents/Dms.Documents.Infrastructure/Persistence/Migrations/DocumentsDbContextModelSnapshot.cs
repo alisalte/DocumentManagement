@@ -417,6 +417,23 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("fiscal_year");
 
+                    b.Property<string>("IndicatorNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("indicator_number");
+
+                    b.Property<DateTimeOffset?>("IndicatorRegisteredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("indicator_registered_at");
+
+                    b.Property<Guid?>("IndicatorRegisteredBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("indicator_registered_by");
+
+                    b.Property<long?>("IndicatorSequence")
+                        .HasColumnType("bigint")
+                        .HasColumnName("indicator_sequence");
+
                     b.Property<int>("LatestVersionNumber")
                         .HasColumnType("integer")
                         .HasColumnName("latest_version_number");
@@ -1369,6 +1386,28 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ux_tags_normalized_name");
 
                     b.ToTable("tags", "documents");
+                });
+
+            modelBuilder.Entity("Dms.Documents.Infrastructure.Persistence.IndicatorCounter", b =>
+                {
+                    b.Property<Guid>("DocumentTypeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("document_type_id");
+
+                    b.Property<int>("FiscalYear")
+                        .HasColumnType("integer")
+                        .HasColumnName("fiscal_year");
+
+                    b.Property<long>("LastValue")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_value");
+
+                    b.HasKey("DocumentTypeId", "FiscalYear");
+
+                    b.ToTable("indicator_counters", "documents", t =>
+                        {
+                            t.HasCheckConstraint("ck_indicator_counters_positive", "last_value > 0");
+                        });
                 });
 
             modelBuilder.Entity("Dms.Documents.Domain.Category", b =>

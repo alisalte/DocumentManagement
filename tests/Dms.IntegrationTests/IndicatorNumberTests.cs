@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Npgsql;
 using Shouldly;
 
 namespace Dms.IntegrationTests;
@@ -47,6 +48,166 @@ public sealed class IndicatorNumberTests(DmsApiFactory factory)
         var type = await admin.GetFromJsonAsync<JsonElement>($"{Admin}/{id}");
         var settings = type.GetProperty("type").GetProperty("settings");
         return settings.TryGetProperty("indicatorPattern", out var pattern) ? pattern.GetString() : null;
+    }
+
+    private static async Task<Guid> CreateDocumentOfTypeAsync(HttpClient client, Guid categoryId, Guid typeId, string title = "نامه")
+    {
+        var upload = await client.UploadAsync(DocumentTestKit.Pdf($"{title} {Guid.NewGuid()}"));
+        var response = await client.PostAsJsonAsync("/api/v1/documents", new
+        {
+            title,
+            description = (string?)null,
+            categoryId,
+            documentTypeId = typeId,
+            uploadId = upload.GetProperty("uploadId").GetGuid(),
+            tags = Array.Empty<string>(),
+            changeDescription = "نسخه‌ی اول",
+        });
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("documentId").GetGuid();
+    }
+
+    private sealed record Desk(HttpClient Admin, HttpClient Clerk, Guid ClerkId, Guid CategoryId, Guid TypeId, string Code);
+
+    /// <summary>A type, a category and a clerk who may file and register in it. Administrators get no ACL bypass.</summary>
+    private async Task<Desk> ArrangeAsync(string? pattern = null)
+    {
+        var admin = await factory.AdminAsync();
+        var (typeId, code) = await CreateTypeAsync(admin, pattern);
+        var categoryId = await admin.CreateCategoryAsync();
+        var (clerk, clerkId) = await factory.CreateUserAsync("indicator-clerk");
+        await admin.GrantManyAsync("Category", categoryId, clerkId, "DOCUMENT_VIEW", "DOCUMENT_CREATE", "DOCUMENT_DELETE", "DOCUMENT_REGISTER_INDICATOR");
+        return new Desk(admin, clerk, clerkId, categoryId, typeId, code);
+    }
+
+    private static Task<HttpResponseMessage> RegisterRawAsync(HttpClient client, Guid documentId) =>
+        client.PostAsync($"/api/v1/documents/{documentId}/indicator", null);
+
+    private static async Task<string> RegisterAsync(HttpClient client, Guid documentId)
+    {
+        var response = await RegisterRawAsync(client, documentId);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("number").GetString()!;
+    }
+
+    private static IEnumerable<string?> AllowedActions(JsonElement details) =>
+        details.GetProperty("allowedActions").EnumerateArray().Select(action => action.GetString());
+
+    private async Task<int> FiscalYearOfAsync(Guid documentId)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand("SELECT fiscal_year FROM documents.documents WHERE id = @id", connection);
+        command.Parameters.AddWithValue("id", documentId);
+        return (int)(await command.ExecuteScalarAsync())!;
+    }
+
+    private async Task MoveToFiscalYearAsync(Guid documentId, int year)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand("UPDATE documents.documents SET fiscal_year = @year WHERE id = @id", connection);
+        command.Parameters.AddWithValue("year", year);
+        command.Parameters.AddWithValue("id", documentId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<long> CountAuditAsync(string action, Guid documentId)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand(
+            "SELECT count(*) FROM audit.audit_logs WHERE action = @action AND document_id = @id",
+            connection);
+        command.Parameters.AddWithValue("action", action);
+        command.Parameters.AddWithValue("id", documentId);
+        return (long)(await command.ExecuteScalarAsync())!;
+    }
+
+    [Fact]
+    public async Task Registering_gives_consecutive_numbers_per_type_and_never_twice()
+    {
+        var desk = await ArrangeAsync();
+        var first = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var second = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var year = await FiscalYearOfAsync(first);
+
+        (await RegisterAsync(desk.Clerk, first)).ShouldBe($"{desk.Code}-{year}-00001");
+        (await RegisterAsync(desk.Clerk, second)).ShouldBe($"{desk.Code}-{year}-00002");
+
+        var again = await RegisterRawAsync(desk.Clerk, first);
+        again.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await again.Content.ReadAsStringAsync()).ShouldContain("document.indicator_already_registered");
+
+        var details = await desk.Clerk.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{first}");
+        details.GetProperty("indicatorNumber").GetString().ShouldBe($"{desk.Code}-{year}-00001");
+        details.GetProperty("indicatorRegisteredBy").GetGuid().ShouldBe(desk.ClerkId);
+        AllowedActions(details).ShouldNotContain("DOCUMENT_REGISTER_INDICATOR");
+        (await CountAuditAsync("DOCUMENT_INDICATOR_REGISTERED", first)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Concurrent_registrations_get_distinct_consecutive_numbers()
+    {
+        var desk = await ArrangeAsync("{TYPE}/{YEAR}/{SEQ:3}");
+        var ids = new List<Guid>();
+        for (var i = 0; i < 12; i++)
+        {
+            ids.Add(await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId));
+        }
+
+        var numbers = await Task.WhenAll(ids.Select(id => RegisterAsync(desk.Clerk, id)));
+
+        numbers.Select(number => int.Parse(number[^3..])).Order().ShouldBe(Enumerable.Range(1, 12));
+    }
+
+    [Fact]
+    public async Task Each_fiscal_year_starts_at_one_and_closed_years_can_still_register()
+    {
+        var desk = await ArrangeAsync();
+        var current = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var old = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        await MoveToFiscalYearAsync(old, 1400);
+
+        await RegisterAsync(desk.Clerk, current);
+        var details = await desk.Clerk.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{old}");
+        AllowedActions(details).ShouldContain("DOCUMENT_REGISTER_INDICATOR", "registering does not change a closed year document");
+
+        (await RegisterAsync(desk.Clerk, old)).ShouldBe($"{desk.Code}-1400-00001");
+    }
+
+    [Fact]
+    public async Task A_deleted_documents_number_is_kept_and_never_reused()
+    {
+        var desk = await ArrangeAsync();
+        var deleted = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var next = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var year = await FiscalYearOfAsync(deleted);
+
+        await RegisterAsync(desk.Clerk, deleted);
+        var removed = await desk.Clerk.DeleteAsync($"/api/v1/documents/{deleted}?reason=test");
+        removed.IsSuccessStatusCode.ShouldBeTrue(await removed.Content.ReadAsStringAsync());
+
+        (await RegisterAsync(desk.Clerk, next)).ShouldBe($"{desk.Code}-{year}-00002");
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand("SELECT indicator_number FROM documents.documents WHERE id = @id", connection);
+        command.Parameters.AddWithValue("id", deleted);
+        ((string?)await command.ExecuteScalarAsync()).ShouldBe($"{desk.Code}-{year}-00001");
+    }
+
+    [Fact]
+    public async Task Registering_needs_its_own_permission()
+    {
+        var desk = await ArrangeAsync();
+        var documentId = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var (user, userId) = await factory.CreateUserAsync("indicator-reader");
+        await desk.Admin.GrantManyAsync("Category", desk.CategoryId, userId, "DOCUMENT_VIEW", "DOCUMENT_EDIT");
+
+        (await RegisterRawAsync(user, documentId)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        AllowedActions(await user.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{documentId}"))
+            .ShouldNotContain("DOCUMENT_REGISTER_INDICATOR");
+
+        await desk.Admin.GrantAsync("Category", desk.CategoryId, userId, "DOCUMENT_REGISTER_INDICATOR");
+        AllowedActions(await user.GetFromJsonAsync<JsonElement>($"/api/v1/documents/{documentId}"))
+            .ShouldContain("DOCUMENT_REGISTER_INDICATOR");
+        await RegisterAsync(user, documentId);
     }
 
     [Fact]

@@ -27,6 +27,9 @@ public static class DocumentsModule
 
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IIndicatorCounter, IndicatorCounterStore>();
+        services.AddScoped<IndicatorNumberAllocator>();
+        services.AddScoped<ICommandHandler<RegisterIndicatorCommand, Result<string>>, RegisterIndicatorHandler>();
         services.AddScoped<ITagRepository, TagRepository>();
         services.AddScoped<IDocumentReadModel, DocumentReadModel>();
         services.AddScoped<IRecordRepository, RecordRepository>();

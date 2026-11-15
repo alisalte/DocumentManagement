@@ -142,6 +142,9 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
             CurrentSchemaVersionId = row.Current?.DocumentTypeVersionId.Value,
             FiscalYear = document.FiscalYear,
             WatermarkText = document.WatermarkText,
+            IndicatorNumber = document.IndicatorNumber,
+            IndicatorRegisteredAt = document.IndicatorRegisteredAt,
+            IndicatorRegisteredBy = document.IndicatorRegisteredBy == null ? null : document.IndicatorRegisteredBy.Value.Value,
         };
     }
 
@@ -316,7 +319,10 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
                 item.Document.UpdatedAt,
                 item.Document.DeletedAt,
                 item.Document.DeleteReason,
-                item.Document.FiscalYear)).ToList(),
+                item.Document.FiscalYear)
+            {
+                IndicatorNumber = item.Document.IndicatorNumber,
+            }).ToList(),
             total,
             page,
             pageSize);

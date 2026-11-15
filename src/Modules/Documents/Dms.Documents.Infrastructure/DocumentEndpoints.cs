@@ -295,6 +295,10 @@ public static class DocumentEndpoints
                 (await dispatcher.SendAsync(new SetDocumentTagsCommand(id, request.Tags), ct)).ToHttpResult())
             .WithSummary("Replace the document's tags.");
 
+        documents.MapPost("/{id:guid}/indicator", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new RegisterIndicatorCommand(id), ct)).ToHttpResult(number => Results.Ok(new { number })))
+            .WithSummary("Register the document in the indicator (DOCUMENT_REGISTER_INDICATOR). The number never changes afterwards.");
+
         documents.MapPut("/{id:guid}/watermark", async (
                 Guid id,
                 SetWatermarkRequest request,
