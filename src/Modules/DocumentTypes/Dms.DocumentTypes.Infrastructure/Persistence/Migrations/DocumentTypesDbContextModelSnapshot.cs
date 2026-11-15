@@ -135,7 +135,6 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldDefinition", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -216,7 +215,6 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldOption", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -255,7 +253,6 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Dms.DocumentTypes.Domain.FieldRule", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
@@ -296,6 +293,34 @@ namespace Dms.DocumentTypes.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_field_rules_version");
 
                     b.ToTable("field_rules", "doctypes");
+                });
+
+            modelBuilder.Entity("Dms.DocumentTypes.Domain.IndicatorSettings", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DefaultPattern")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("default_pattern");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("indicator_settings", "doctypes", t =>
+                        {
+                            t.HasCheckConstraint("ck_indicator_settings_single_row", "id = 1");
+                        });
                 });
 
             modelBuilder.Entity("Dms.DocumentTypes.Domain.DocumentTypeVersion", b =>

@@ -41,6 +41,7 @@ public static class PermissionCodes
     public const string DocumentShareExternal = "DOCUMENT_SHARE_EXTERNAL";
     public const string DocumentManagePermission = "DOCUMENT_MANAGE_PERMISSION";
     public const string DocumentExport = "DOCUMENT_EXPORT";
+    public const string DocumentRegisterIndicator = "DOCUMENT_REGISTER_INDICATOR";
 
     public const string WorkflowView = "WORKFLOW_VIEW";
     public const string WorkflowApprove = "WORKFLOW_APPROVE";
@@ -94,6 +95,7 @@ public static class PermissionCatalog
             new(PermissionCodes.DocumentShareExternal, PermissionScope.Resource, true, "Create an external share link."),
             new(PermissionCodes.DocumentManagePermission, PermissionScope.Resource, false, "Manage the ACL of a resource."),
             new(PermissionCodes.DocumentExport, PermissionScope.Resource, true, "Export documents in bulk."),
+            new(PermissionCodes.DocumentRegisterIndicator, PermissionScope.Both, true, "Register a document in the indicator and give it its number."),
 
             new(PermissionCodes.WorkflowView, PermissionScope.Resource, false, "See workflow state and history."),
             new(PermissionCodes.WorkflowApprove, PermissionScope.Resource, true, "Approve a workflow task."),

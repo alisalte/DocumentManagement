@@ -25,9 +25,24 @@ public sealed class DocumentTypesDbContext : DbContext
 
     public DbSet<FieldRule> FieldRules => Set<FieldRule>();
 
+    public DbSet<IndicatorSettings> IndicatorSettings => Set<IndicatorSettings>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
+
+        modelBuilder.Entity<IndicatorSettings>(entity =>
+        {
+            entity.ToTable("indicator_settings", table =>
+                table.HasCheckConstraint("ck_indicator_settings_single_row", "id = 1"));
+            entity.HasKey(settings => settings.Id);
+            entity.Property(settings => settings.Id).HasColumnName("id").ValueGeneratedNever();
+            entity.Property(settings => settings.DefaultPattern).HasColumnName("default_pattern")
+                .HasMaxLength(Contracts.IndicatorPattern.MaxLength).IsRequired();
+            entity.Property(settings => settings.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(settings => settings.UpdatedBy).HasColumnName("updated_by")
+                .HasConversion(id => id!.Value.Value, value => new UserId(value));
+        });
 
         modelBuilder.Entity<DocumentType>(entity =>
         {
@@ -234,6 +249,11 @@ public sealed class DocumentTypeRepository(DocumentTypesDbContext context) : IDo
             .FirstOrDefaultAsync(version => version.Id == versionId, cancellationToken);
 
     public void Add(DocumentType documentType) => context.DocumentTypes.Add(documentType);
+
+    public Task<IndicatorSettings?> FindIndicatorSettingsAsync(CancellationToken cancellationToken) =>
+        context.IndicatorSettings.FirstOrDefaultAsync(settings => settings.Id == Domain.IndicatorSettings.SingletonId, cancellationToken);
+
+    public void AddIndicatorSettings(IndicatorSettings settings) => context.IndicatorSettings.Add(settings);
 
     private IQueryable<DocumentType> WithSchema() =>
         context.DocumentTypes

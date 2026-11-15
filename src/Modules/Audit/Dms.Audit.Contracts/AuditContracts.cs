@@ -84,6 +84,12 @@ public static class AuditActions
     public const string DocumentTagsChanged = "DOCUMENT_TAGS_CHANGED";
     public const string DocumentWatermarkChanged = "DOCUMENT_WATERMARK_CHANGED";
 
+    /// <summary>A document got its indicator number; metadata says whether by hand, by import or by backfill.</summary>
+    public const string DocumentIndicatorRegistered = "DOCUMENT_INDICATOR_REGISTERED";
+
+    /// <summary>An administrator started numbering the documents that have no indicator number yet.</summary>
+    public const string IndicatorBackfillStarted = "INDICATOR_BACKFILL_STARTED";
+
     public const string RecordDeclared = "RECORD_DECLARED";
     public const string RecordStatusChanged = "RECORD_STATUS_CHANGED";
     public const string RecordClassCreated = "RECORD_CLASS_CREATED";
@@ -132,6 +138,9 @@ public static class AuditActions
     public const string DocumentTypeUpdated = "DOCUMENT_TYPE_UPDATED";
     public const string DocumentTypeDraftSaved = "DOCUMENT_TYPE_DRAFT_SAVED";
     public const string DocumentTypePublished = "DOCUMENT_TYPE_PUBLISHED";
+
+    /// <summary>The global default indicator pattern changed (a type's own pattern is part of DOCUMENT_TYPE_UPDATED).</summary>
+    public const string IndicatorDefaultPatternChanged = "INDICATOR_DEFAULT_PATTERN_CHANGED";
 
     /// <summary>A metadata edit applied to the latest revision in place (MetadataEditPolicy.InPlace), with a diff.</summary>
     public const string MetadataUpdatedInPlace = "METADATA_UPDATED_IN_PLACE";

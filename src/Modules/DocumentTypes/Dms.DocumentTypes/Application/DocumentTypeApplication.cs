@@ -23,6 +23,11 @@ public interface IDocumentTypeRepository
     Task<DocumentTypeVersion?> FindVersionAsync(DocumentTypeVersionId versionId, CancellationToken cancellationToken);
 
     void Add(DocumentType documentType);
+
+    /// <summary>The global indicator settings row, tracked; null until it is first saved.</summary>
+    Task<IndicatorSettings?> FindIndicatorSettingsAsync(CancellationToken cancellationToken);
+
+    void AddIndicatorSettings(IndicatorSettings settings);
 }
 
 public sealed record CreateDocumentTypeCommand(string Code, string Name, string? Description)
@@ -133,6 +138,7 @@ public sealed class CreateDocumentTypeHandler(
 public sealed class UpdateDocumentTypeHandler(
     IDmsAuthorizer authorizer,
     IDocumentTypeRepository repository,
+    IndicatorPatternPolicy indicatorPatterns,
     IAuditWriter audit,
     TimeProvider timeProvider) : ICommandHandler<UpdateDocumentTypeCommand, Result>
 {
@@ -155,8 +161,27 @@ public sealed class UpdateDocumentTypeHandler(
             return Result.Failure(Error.Validation("document_type.invalid", "A name is required."));
         }
 
+        var pattern = IndicatorPatternPolicy.Normalize(command.Settings.IndicatorPattern);
+        if (pattern.IsFailure)
+        {
+            return Result.Failure(pattern.Error);
+        }
+
+        var settings = command.Settings with { IndicatorPattern = pattern.Value };
+        if (settings.IndicatorPattern != documentType.Settings.IndicatorPattern)
+        {
+            var collision = await indicatorPatterns.CheckAsync(
+                await indicatorPatterns.CurrentDefaultAsync(cancellationToken),
+                (documentType.Id, settings.IndicatorPattern),
+                cancellationToken);
+            if (collision.IsFailure)
+            {
+                return collision;
+            }
+        }
+
         var now = timeProvider.GetUtcNow();
-        documentType.Update(command.Name, command.Description, command.Settings, now);
+        documentType.Update(command.Name, command.Description, settings, now);
         documentType.SetActive(command.IsActive, now);
 
         await audit.WriteAsync(
@@ -167,7 +192,7 @@ public sealed class UpdateDocumentTypeHandler(
                 EntityId = command.Id,
                 Metadata = new Dictionary<string, object?>
                 {
-                    ["settings"] = command.Settings,
+                    ["settings"] = settings,
                     ["isActive"] = command.IsActive,
                 },
             },
@@ -402,6 +427,20 @@ public sealed class DocumentTypeCatalog(
 
     public async Task<DocumentTypeSummary?> FindByCodeAsync(string code, CancellationToken cancellationToken) =>
         (await repository.FindByCodeAsync(code.Trim().ToUpperInvariant(), cancellationToken))?.ToSummary();
+
+    public async Task<IndicatorPatternInfo?> GetIndicatorPatternAsync(DocumentTypeId id, CancellationToken cancellationToken)
+    {
+        var documentType = await repository.FindAsync(id, cancellationToken);
+        if (documentType is null)
+        {
+            return null;
+        }
+
+        var pattern = documentType.Settings.IndicatorPattern
+            ?? (await repository.FindIndicatorSettingsAsync(cancellationToken))?.DefaultPattern
+            ?? IndicatorPattern.Default;
+        return new IndicatorPatternInfo(documentType.Code, pattern);
+    }
 
     public async Task<Result<DocumentTypeVersionId>> ResolveVersionForNewDocumentAsync(
         DocumentTypeId id,

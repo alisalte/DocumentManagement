@@ -72,7 +72,17 @@ public sealed record DocumentTypeSettings
     /// Phase 10 (D12): type may use legal hold. Per-document hold storage and APIs follow.
     /// </summary>
     public bool SupportsLegalHold { get; init; }
+
+    /// <summary>
+    /// The pattern for this type's indicator numbers (<see cref="Contracts.IndicatorPattern"/>), or
+    /// null to use the global default pattern.
+    /// </summary>
+    public string? IndicatorPattern { get; init; }
 }
+
+/// <summary>What the Documents module needs to number a document of this type.</summary>
+/// <param name="Pattern">The type's own pattern, or the global default; already validated.</param>
+public sealed record IndicatorPatternInfo(string TypeCode, string Pattern);
 
 public sealed record DocumentTypeSummary(
     DocumentTypeId Id,
@@ -230,6 +240,9 @@ public interface IDocumentTypeCatalog
     Task<DocumentTypeSummary?> FindAsync(DocumentTypeId id, CancellationToken cancellationToken);
 
     Task<DocumentTypeSummary?> FindByCodeAsync(string code, CancellationToken cancellationToken);
+
+    /// <summary>The pattern indicator numbers of this type are built with; null when the type does not exist.</summary>
+    Task<IndicatorPatternInfo?> GetIndicatorPatternAsync(DocumentTypeId id, CancellationToken cancellationToken);
 
     /// <summary>The schema version a new document or version binds to.</summary>
     Task<Result<DocumentTypeVersionId>> ResolveVersionForNewDocumentAsync(

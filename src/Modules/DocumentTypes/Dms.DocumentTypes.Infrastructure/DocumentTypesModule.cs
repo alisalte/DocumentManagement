@@ -28,6 +28,11 @@ public static class DocumentTypesModule
         services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
         services.AddScoped<IDocumentTypeCatalog, DocumentTypeCatalog>();
         services.AddSingleton<PublishedSchemaCache>();
+        services.AddScoped<IndicatorPatternPolicy>();
+        services.AddScoped<IQueryHandler<GetIndicatorSettingsQuery, Result<IndicatorSettingsDto>>, GetIndicatorSettingsHandler>();
+        services.AddScoped<ICommandHandler<UpdateIndicatorSettingsCommand, Result>, UpdateIndicatorSettingsHandler>();
+        services.AddScoped<IQueryHandler<PreviewIndicatorPatternQuery, Result<IndicatorPatternPreviewDto>>,
+            PreviewIndicatorPatternHandler>();
 
         services.AddScoped<ICommandHandler<CreateDocumentTypeCommand, Result<Guid>>, CreateDocumentTypeHandler>();
         services.AddScoped<ICommandHandler<UpdateDocumentTypeCommand, Result>, UpdateDocumentTypeHandler>();
@@ -75,6 +80,18 @@ public static class DocumentTypesModule
             return result.ToHttpResult(id => Results.Created($"/api/v1/admin/document-types/{id}", new { id }));
         });
 
+        admin.MapGet("/indicator-settings", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetIndicatorSettingsQuery(), ct)).ToHttpResult())
+            .WithSummary("The default indicator number pattern, used by types without their own.");
+
+        admin.MapPut("/indicator-settings", async (IndicatorSettingsRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new UpdateIndicatorSettingsCommand(request.DefaultPattern), ct)).ToHttpResult())
+            .WithSummary("Change the default pattern. It must contain {TYPE}; numbers already issued keep their text.");
+
+        admin.MapPost("/indicator-pattern/preview", async (IndicatorPreviewRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new PreviewIndicatorPatternQuery(request.Pattern, request.DocumentTypeId), ct)).ToHttpResult())
+            .WithSummary("Check a pattern and show a sample number.");
+
         admin.MapGet("/{id:guid}", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.QueryAsync(new GetDocumentTypeAdminQuery(id), ct)).ToHttpResult())
             .WithSummary("Type, version history and the editable draft schema.");
@@ -121,6 +138,10 @@ public static class DocumentTypesModule
         string? Description,
         DocumentTypeSettings? Settings,
         bool? IsActive);
+
+    public sealed record IndicatorSettingsRequest(string DefaultPattern);
+
+    public sealed record IndicatorPreviewRequest(string Pattern, Guid? DocumentTypeId);
 
     public sealed record SaveDraftRequest(IReadOnlyList<FieldSchema>? Fields, IReadOnlyList<FieldRuleSchema>? Rules);
 }
