@@ -23,6 +23,7 @@ Mark each item for every production-bound build.
 - [ ] Forward-only migrations reviewed (`dotnet ef migrations script --idempotent` per module)
 - [ ] Backup taken immediately before migrate
 - [ ] Retention settings on document types reviewed (phase 10)
+- [ ] Indicator numbers (first release with them): review the default and per-type patterns under Settings → document types, then run "number existing documents" once. The numbers can never change afterwards. Roles that register documents need DOCUMENT_REGISTER_INDICATOR.
 
 ## Sign-off
 
