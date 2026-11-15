@@ -38,11 +38,15 @@ public sealed class OpenSearchEngine : ISearchEngine
 
     private string Alias => _options.IndexAlias;
 
+    // Static: the typed HttpClient makes this class transient, and the mapping is per cluster, not per instance.
+    private static bool newFieldsAdded;
+
     public async Task EnsureReadyAsync(CancellationToken cancellationToken)
     {
         using var head = await _http.SendAsync(new HttpRequestMessage(HttpMethod.Head, $"_alias/{Alias}"), cancellationToken);
         if (head.StatusCode == HttpStatusCode.OK)
         {
+            await AddNewFieldsAsync(cancellationToken);
             return;
         }
 
@@ -142,6 +146,30 @@ public sealed class OpenSearchEngine : ISearchEngine
 
         var total = body["hits"]?["total"]?["value"]?.GetValue<long>() ?? hits.Count;
         return new EngineResult(total, hits, body["aggregations"] as JsonObject);
+    }
+
+    /// <summary>
+    /// Fields added to the mapping after an index generation was created. The mapping is strict, so
+    /// without this, indexing a document with the new field would fail until a full rebuild. Adding
+    /// a field to an existing mapping is allowed and idempotent; once per process is enough.
+    /// </summary>
+    private async Task AddNewFieldsAsync(CancellationToken cancellationToken)
+    {
+        if (newFieldsAdded)
+        {
+            return;
+        }
+
+        var body = new JsonObject
+        {
+            ["properties"] = new JsonObject
+            {
+                ["indicator_number"] = new JsonObject { ["type"] = "keyword", ["normalizer"] = "kw_lower" },
+            },
+        };
+        using var response = await _http.PutAsJsonAsync($"{Alias}/_mapping", body, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        newFieldsAdded = true;
     }
 
     public async Task<string> CreateGenerationAsync(CancellationToken cancellationToken)
@@ -292,6 +320,7 @@ internal static class IndexDefinition
           "created_by": { "type": "keyword" },
           "created_at": { "type": "date" },
           "updated_at": { "type": "date" },
+          "indicator_number": { "type": "keyword", "normalizer": "kw_lower" },
           "title": { "type": "text", "analyzer": "fa", "fields": { "joined": { "type": "text", "analyzer": "fa_joined" }, "en": { "type": "text", "analyzer": "fa_en" }, "raw": { "type": "keyword", "ignore_above": 512 } } },
           "description": { "type": "text", "analyzer": "fa" },
           "tags": { "type": "keyword", "fields": { "text": { "type": "text", "analyzer": "fa" } } },

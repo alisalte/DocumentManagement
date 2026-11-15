@@ -118,7 +118,8 @@ public sealed record DocumentListFilter(
     Guid? TagId,
     int Page,
     int PageSize,
-    int? FiscalYear = null);
+    int? FiscalYear = null,
+    string? IndicatorNumber = null);
 
 /// <summary>
 /// Read side of the module: AsNoTracking projections straight to DTOs (CQRS without a library).

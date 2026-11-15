@@ -24,6 +24,7 @@ public static class SearchText
         "description",
         "file_name",
         "tags.text",
+        "indicator_number",
     ];
 
     public static IReadOnlyList<string> Fields => IndexedTextFields;

@@ -223,6 +223,7 @@ public static class DocumentEndpoints
                 int? page,
                 int? pageSize,
                 int? fiscalYear,
+                string? indicatorNumber,
                 IDispatcher dispatcher,
                 CancellationToken ct) =>
             {
@@ -233,7 +234,8 @@ public static class DocumentEndpoints
                     tagId,
                     page,
                     pageSize,
-                    fiscalYear);
+                    fiscalYear,
+                    indicatorNumber);
 
                 return (await dispatcher.QueryAsync(query, ct)).ToHttpResult();
             })

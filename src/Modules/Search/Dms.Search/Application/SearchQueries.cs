@@ -44,7 +44,10 @@ public sealed record SearchHitDto(
     string? ApprovalStatus,
     DateTimeOffset? UpdatedAt,
     IReadOnlyList<string> Highlights,
-    int? MatchCount = null);
+    int? MatchCount = null)
+{
+    public string? IndicatorNumber { get; init; }
+}
 
 public sealed record FacetBucket(string Key, long Count);
 
@@ -478,7 +481,10 @@ public sealed class SearchDocumentsHandler(
             source["approval_status"]?.GetValue<string>(),
             DateTimeOffset.TryParse(source["updated_at"]?.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var updated) ? updated : null,
             highlights,
-            matchCount);
+            matchCount)
+        {
+            IndicatorNumber = source["indicator_number"]?.GetValue<string>(),
+        };
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyList<FacetBucket>> Facets(JsonObject? aggregations)

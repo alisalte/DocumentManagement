@@ -260,6 +260,27 @@ public sealed class IndicatorNumberTests(DmsApiFactory factory)
     }
 
     [Fact]
+    public async Task Documents_can_be_found_by_their_number()
+    {
+        var desk = await ArrangeAsync();
+        var documentId = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var number = await RegisterAsync(desk.Clerk, documentId);
+
+        foreach (var url in new[]
+        {
+            $"/api/v1/documents?categoryId={desk.CategoryId}&indicatorNumber={Uri.EscapeDataString(number.ToLowerInvariant())}",
+            $"/api/v1/documents?categoryId={desk.CategoryId}&search={Uri.EscapeDataString(number)}",
+        })
+        {
+            var page = await desk.Clerk.GetFromJsonAsync<JsonElement>(url);
+            var item = page.GetProperty("items").EnumerateArray().ShouldHaveSingleItem();
+            item.GetProperty("id").GetGuid().ShouldBe(documentId);
+            item.GetProperty("indicatorNumber").GetString().ShouldBe(number);
+        }
+    }
+
+    [Fact]
     public async Task Only_administrators_start_the_backfill()
     {
         var (user, _) = await factory.CreateUserAsync("indicator-backfill");

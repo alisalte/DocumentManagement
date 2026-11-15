@@ -66,6 +66,7 @@ public static class SearchDocumentBuilder
             ["created_at"] = version.CreatedAt.ToString("O", CultureInfo.InvariantCulture),
             ["updated_at"] = document.UpdatedAt.ToString("O", CultureInfo.InvariantCulture),
             ["title"] = document.Title,
+            ["indicator_number"] = document.IndicatorNumber,
             ["description"] = document.Description,
             ["tags"] = new JsonArray(document.Tags.Select(tag => (JsonNode?)JsonValue.Create(tag)).ToArray()),
             ["file_name"] = version.FileName,

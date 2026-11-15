@@ -242,12 +242,13 @@ public sealed class GetPublicLinkPageHandler(
             return Result.Failure<StoredContent>(SharingErrors.PrintNotStarted);
         }
 
-        // The same watermark the document shows inside the archive, or none.
+        // The same watermark and indicator number the document shows inside the archive (AQ6).
         return await renditions.OpenPageAsync(
             new StorageObjectId(version.StorageObjectId),
             query.Page,
             version.WatermarkText,
-            cancellationToken);
+            cancellationToken,
+            version.IndicatorNumber);
     }
 }
 

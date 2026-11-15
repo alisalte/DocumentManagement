@@ -174,11 +174,13 @@ public interface IRenditionService
 
     /// <param name="page">1-based.</param>
     /// <param name="watermark">Text drawn across the page, or null for none.</param>
+    /// <param name="cornerText">Text in a label at the top left, e.g. the indicator number; null for none.</param>
     Task<Result<StoredContent>> OpenPageAsync(
         StorageObjectId sourceId,
         int page,
         string? watermark,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? cornerText = null);
 
     Task<Result<StoredContent>> OpenThumbnailAsync(StorageObjectId sourceId, CancellationToken cancellationToken);
 

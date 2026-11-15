@@ -18,7 +18,8 @@ public sealed record ListDocumentsQuery(
     Guid? TagId,
     int? Page,
     int? PageSize,
-    int? FiscalYear = null) : IQuery<Result<PagedResult<DocumentListItemDto>>>;
+    int? FiscalYear = null,
+    string? IndicatorNumber = null) : IQuery<Result<PagedResult<DocumentListItemDto>>>;
 
 /// <summary>One Jalali year the caller can switch to. Open is the current Tehran year; earlier years are report-only.</summary>
 public sealed record FiscalYearOptionDto(int Year, string Status, int DocumentCount);
@@ -92,7 +93,8 @@ public sealed class ListDocumentsHandler(
                 query.TagId,
                 page,
                 pageSize,
-                query.FiscalYear),
+                query.FiscalYear,
+                string.IsNullOrWhiteSpace(query.IndicatorNumber) ? null : query.IndicatorNumber.Trim()),
             scope,
             viewer,
             cancellationToken);

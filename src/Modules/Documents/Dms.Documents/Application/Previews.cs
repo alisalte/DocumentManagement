@@ -112,7 +112,7 @@ public sealed class PreviewService(
         }
 
         var watermark = options.Value.Watermark ? version.Watermark : null;
-        return await renditions.OpenPageAsync(version.StorageObjectId, query.Page, watermark, cancellationToken);
+        return await renditions.OpenPageAsync(version.StorageObjectId, query.Page, watermark, cancellationToken, version.IndicatorNumber);
     }
 
     public async Task<Result<StoredContent>> OpenThumbnailAsync(Guid documentId, CancellationToken cancellationToken)
@@ -162,12 +162,13 @@ public sealed class PreviewService(
         var version = await documents.FindVersionAsync(new DocumentVersionId(id), cancellationToken);
         return version is null || version.DocumentId != document.Id
             ? null
-            : new DocumentVersionView(version.Id.Value, version.Label, version.StorageObjectId, document.WatermarkText);
+            : new DocumentVersionView(version.Id.Value, version.Label, version.StorageObjectId, document.WatermarkText, document.IndicatorNumber);
     }
 }
 
 /// <param name="Watermark">The document's watermark text, or null for none.</param>
-public sealed record DocumentVersionView(Guid Id, string Label, StorageObjectId StorageObjectId, string? Watermark);
+/// <param name="IndicatorNumber">Stamped in the page corner when the document has one (FR-11).</param>
+public sealed record DocumentVersionView(Guid Id, string Label, StorageObjectId StorageObjectId, string? Watermark, string? IndicatorNumber = null);
 
 public sealed class OpenPreviewHandler(PreviewService previews) : ICommandHandler<OpenPreviewCommand, Result<PreviewDto>>
 {

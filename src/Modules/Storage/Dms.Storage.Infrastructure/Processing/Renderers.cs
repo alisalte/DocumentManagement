@@ -202,4 +202,33 @@ public sealed class SkiaWatermarker : IWatermarker
         canvas.Flush();
         return PageImages.Encode(bitmap);
     }
+
+    public byte[] StampCorner(byte[] image, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return image;
+        }
+
+        using var bitmap = SKBitmap.Decode(image) ?? throw new InvalidOperationException("Not an image.");
+        using var font = new SKFont(Typeface, Math.Max(bitmap.Width / 48f, 12f));
+        using var line = ShapedLine.Build(text, Typeface, font, out var width);
+        if (line is null)
+        {
+            return image;
+        }
+
+        var padding = font.Size * 0.5f;
+        var margin = font.Size;
+        var box = new SKRect(margin, margin, margin + width + (padding * 2), margin + (font.Size * 1.5f));
+        using var canvas = new SKCanvas(bitmap);
+        using var background = new SKPaint { Color = SKColors.White, IsAntialias = true };
+        using var border = new SKPaint { Color = new SKColor(60, 60, 60), IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = 1 };
+        using var ink = new SKPaint { Color = SKColors.Black, IsAntialias = true };
+        canvas.DrawRect(box, background);
+        canvas.DrawRect(box, border);
+        canvas.DrawText(line, box.Left + padding, box.Top + (font.Size * 1.1f), ink);
+        canvas.Flush();
+        return PageImages.Encode(bitmap);
+    }
 }

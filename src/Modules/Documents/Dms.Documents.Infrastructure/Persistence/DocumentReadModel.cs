@@ -53,8 +53,10 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
         {
             // Degraded path (no OpenSearch): match title, description, and any version file name.
             var pattern = $"%{EscapeLike(search)}%";
+            var number = search.ToUpperInvariant();
             query = query.Where(document =>
-                EF.Functions.ILike(document.Title, pattern, "\\")
+                (document.IndicatorNumber != null && document.IndicatorNumber.ToUpper() == number)
+                || EF.Functions.ILike(document.Title, pattern, "\\")
                 || (document.Description != null && EF.Functions.ILike(document.Description, pattern, "\\"))
                 || document.Versions.Any(version => EF.Functions.ILike(version.FileName, pattern, "\\")));
         }
@@ -67,6 +69,13 @@ public sealed class DocumentReadModel(DocumentsDbContext context) : IDocumentRea
         if (filter.FiscalYear is { } fiscalYear)
         {
             query = query.Where(document => document.FiscalYear == fiscalYear);
+        }
+
+        if (filter.IndicatorNumber is { } indicatorNumber)
+        {
+            // Matches ux_documents_indicator_number (upper(indicator_number)).
+            var wanted = indicatorNumber.ToUpperInvariant();
+            query = query.Where(document => document.IndicatorNumber != null && document.IndicatorNumber.ToUpper() == wanted);
         }
 
         return await PageAsync(query.OrderByDescending(document => document.UpdatedAt), filter.Page, filter.PageSize, cancellationToken);

@@ -71,7 +71,10 @@ public sealed class DocumentIndexSource(DocumentsDbContext context) : IDocumentI
                     version.ApprovalStatus,
                     version.CreatedBy.Value,
                     version.CreatedAt))
-                .ToList());
+                .ToList())
+        {
+            IndicatorNumber = document.IndicatorNumber,
+        };
     }
 
     public async Task<IReadOnlyList<Guid>> DocumentsUsingObjectAsync(Guid storageObjectId, CancellationToken cancellationToken)

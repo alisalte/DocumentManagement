@@ -203,7 +203,7 @@ public sealed class DocumentVersionReader(DocumentsDbContext context) : IDocumen
         var documentIds = versions.Select(version => version.DocumentId).Distinct().ToList();
         var documents = await context.Documents.IgnoreQueryFilters().AsNoTracking()
             .Where(document => documentIds.Contains(document.Id))
-            .Select(document => new { document.Id, document.Title, document.DocumentTypeId, document.DeletedAt, document.WatermarkText })
+            .Select(document => new { document.Id, document.Title, document.DocumentTypeId, document.DeletedAt, document.WatermarkText, document.IndicatorNumber })
             .ToDictionaryAsync(document => document.Id, cancellationToken);
 
         return versions
@@ -227,6 +227,7 @@ public sealed class DocumentVersionReader(DocumentsDbContext context) : IDocumen
                         version.IsPublished)
                     {
                         WatermarkText = document.WatermarkText,
+                        IndicatorNumber = document.IndicatorNumber,
                     };
                 });
     }

@@ -219,8 +219,13 @@ public sealed class RenditionService(
             : new RenditionInfo(sourceId, rendition.Status, rendition.Pages.Count, rendition.Error);
     }
 
-    public Task<Result<StoredContent>> OpenPageAsync(StorageObjectId sourceId, int page, string? watermark, CancellationToken cancellationToken) =>
-        OpenAsync(sourceId, RenditionKind.Pages, page, watermark, cancellationToken);
+    public Task<Result<StoredContent>> OpenPageAsync(
+        StorageObjectId sourceId,
+        int page,
+        string? watermark,
+        CancellationToken cancellationToken,
+        string? cornerText = null) =>
+        OpenAsync(sourceId, RenditionKind.Pages, page, watermark, cancellationToken, cornerText);
 
     public Task<Result<StoredContent>> OpenThumbnailAsync(StorageObjectId sourceId, CancellationToken cancellationToken) =>
         OpenAsync(sourceId, RenditionKind.Thumbnail, 1, null, cancellationToken);
@@ -243,7 +248,8 @@ public sealed class RenditionService(
         RenditionKind kind,
         int page,
         string? watermark,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? cornerText = null)
     {
         var rendition = await renditions.FindAsync(sourceId, kind, cancellationToken);
         var entry = rendition is { Status: RenditionStatus.Ready }
@@ -261,6 +267,11 @@ public sealed class RenditionService(
         await source.CopyToAsync(buffer, cancellationToken);
 
         var image = watermark is null ? buffer.ToArray() : watermarker.Apply(buffer.ToArray(), watermark);
+        if (!string.IsNullOrWhiteSpace(cornerText))
+        {
+            image = watermarker.StampCorner(image, cornerText);
+        }
+
         return Result.Success(new StoredContent(new MemoryStream(image, writable: false), "image/webp", $"page-{page}.webp", image.LongLength));
     }
 }

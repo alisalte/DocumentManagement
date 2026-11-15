@@ -93,6 +93,9 @@ public sealed record RenderRequest(int Width, int MaxPages, string? FileName = n
 public interface IWatermarker
 {
     byte[] Apply(byte[] image, string text);
+
+    /// <summary>Writes the text in an opaque label at the top left corner, readable on any page.</summary>
+    byte[] StampCorner(byte[] image, string text);
 }
 
 public sealed class StorageOptions

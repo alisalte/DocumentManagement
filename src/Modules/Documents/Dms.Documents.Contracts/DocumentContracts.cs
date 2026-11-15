@@ -157,7 +157,10 @@ public sealed record DocumentIndexData(
     Guid? CurrentVersionId,
     Guid? EffectiveVersionId,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<VersionIndexData> Versions);
+    IReadOnlyList<VersionIndexData> Versions)
+{
+    public string? IndicatorNumber { get; init; }
+}
 
 /// <summary>The document a stored file belongs to, for showing OCR results to an administrator.</summary>
 public sealed record IndexedFileRef(Guid StorageObjectId, Guid DocumentId, string Title, string FileName);
@@ -205,6 +208,9 @@ public sealed record VersionSummary(
 {
     /// <summary>The document's watermark for page images, or null for none.</summary>
     public string? WatermarkText { get; init; }
+
+    /// <summary>The document's indicator number for the page corner, or null while unregistered.</summary>
+    public string? IndicatorNumber { get; init; }
 }
 
 /// <summary>
