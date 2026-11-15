@@ -892,6 +892,10 @@ namespace Dms.Documents.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
+                    b.Property<int>("ValidatedItems")
+                        .HasColumnType("integer")
+                        .HasColumnName("validated_items");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt")

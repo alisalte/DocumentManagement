@@ -75,7 +75,7 @@ export function ImportPage() {
     queryKey: ['import-items', selectedId, itemStatus],
     queryFn: () => api.imports.items(selectedId!, itemStatus || null, 0, 200),
     enabled: !!selectedId && canView,
-    refetchInterval: selected?.status === 'Running' ? 3_000 : false,
+    refetchInterval: selected?.status === 'Running' || selected?.status === 'Validating' ? 3_000 : false,
   });
 
   const refresh = async () => {
@@ -83,12 +83,12 @@ export function ImportPage() {
     await queryClient.invalidateQueries({ queryKey: ['import-items'] });
   };
 
-  const run = async (action: () => Promise<void>, success: string) => {
+  const run = async (action: () => Promise<void>, success: string | null) => {
     setBusy(true);
     setError(null);
     try {
       await action();
-      setNotice(success);
+      if (success) setNotice(success);
       await refresh();
     } catch (caught) {
       setError(describeError(caught));
@@ -97,8 +97,12 @@ export function ImportPage() {
     }
   };
 
+  // While validating, progress counts checked items; otherwise imported ones.
+  const done = (job: ImportJob) => (job.status === 'Validating' ? job.validatedItems : job.processedItems);
   const progress = (job: ImportJob) =>
-    job.totalItems > 0 ? Math.min(100, Math.round((job.processedItems / job.totalItems) * 100)) : 0;
+    job.totalItems > 0 ? Math.min(100, Math.round((done(job) / job.totalItems) * 100)) : 0;
+  const canStart = (job: ImportJob) =>
+    ['Ready', 'Paused', 'Failed', 'CompletedWithErrors'].includes(job.status);
 
   if (!canView) {
     return <Alert severity="error">دسترسی واردات ندارید.</Alert>;
@@ -163,7 +167,8 @@ export function ImportPage() {
                     <TD className="cursor-pointer">{job.sourceSystem}</TD>
                     <TD className="cursor-pointer">{jobStatusLabel(job.status)}</TD>
                     <TD className="cursor-pointer">
-                      {progress(job)}% ({job.processedItems}/{job.totalItems})
+                      {job.status === 'Validating' && `${i.validating}: `}
+                      {progress(job)}% ({done(job).toLocaleString('fa-IR')}/{job.totalItems.toLocaleString('fa-IR')})
                     </TD>
                     <TD className="cursor-pointer">{job.succeededItems}</TD>
                     <TD className="cursor-pointer">{job.failedItems}</TD>
@@ -186,6 +191,25 @@ export function ImportPage() {
               {selected.failedItems} · {i.skipped}: {selected.skippedItems} · {i.invalid}: {selected.invalidItems} ·{' '}
               {i.bytes}: {selected.bytesProcessed}/{selected.bytesTotal}
             </p>
+            {selected.status === 'Validating' && (
+              <div className="mt-3 space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-paper-200">
+                  <div className="h-full bg-copper-600 transition-all" style={{ width: `${progress(selected)}%` }} />
+                </div>
+                <p className="text-sm text-paper-700">
+                  {i.validating}: {selected.validatedItems.toLocaleString('fa-IR')} {i.of}{' '}
+                  {selected.totalItems.toLocaleString('fa-IR')} · {i.invalid}:{' '}
+                  {selected.invalidItems.toLocaleString('fa-IR')}
+                </p>
+              </div>
+            )}
+            {selected.status === 'ValidationFailed' && (
+              <Alert severity="error" className="mt-3">
+                {i.invalid}: {selected.invalidItems.toLocaleString('fa-IR')} {i.of}{' '}
+                {selected.totalItems.toLocaleString('fa-IR')} — {i.validationFailedHint}
+              </Alert>
+            )}
+            {selected.status === 'Created' && <p className="mt-2 text-sm text-paper-600">{i.validateFirst}</p>}
             {selected.startedAt && (
               <p className="text-xs text-paper-500">
                 {formatDateTime(selected.startedAt)}
@@ -197,11 +221,19 @@ export function ImportPage() {
           <div className="flex flex-wrap gap-2">
             {canRun && (
               <Button
-                disabled={busy}
+                disabled={busy || selected.status === 'Validating'}
                 onClick={() =>
                   void run(async () => {
-                    setValidation(await api.imports.validate(selected.id));
-                  }, 'اعتبارسنجی انجام شد')
+                    const report = await api.imports.validate(selected.id);
+                    // Large jobs come back still Validating; the job row shows the progress.
+                    if (report.status === 'Validating') {
+                      setValidation(null);
+                      setNotice(i.validationQueued);
+                      return;
+                    }
+                    setValidation(report);
+                    setNotice(i.validationDone);
+                  }, null)
                 }
               >
                 {i.validate}
@@ -209,7 +241,8 @@ export function ImportPage() {
             )}
             {canRun && !selected.dryRunOnly && (
               <Button
-                disabled={busy}
+                disabled={busy || !canStart(selected)}
+                title={canStart(selected) ? undefined : i.validateFirst}
                 onClick={() => {
                   if (!window.confirm(i.confirmStart)) return;
                   void run(() => api.imports.start(selected.id), 'واردات شروع شد');

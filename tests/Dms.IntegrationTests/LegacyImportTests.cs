@@ -253,4 +253,81 @@ public sealed class LegacyImportTests(DmsApiFactory factory)
         done.GetProperty("succeededItems").GetInt32().ShouldBe(3);
         done.GetProperty("status").GetString().ShouldBe("Completed");
     }
+
+    [Fact]
+    public async Task Large_job_is_validated_in_the_background_and_can_then_start()
+    {
+        // More items than are validated inside the request, as with a whole legacy archive.
+        var admin = await factory.AdminAsync();
+        var folder = $"large/{Guid.NewGuid():N}";
+        var present = $"{folder}/present.txt";
+        var missing = $"{folder}/missing.txt";
+        Directory.CreateDirectory(Path.Combine(factory.ImportFilesRoot, folder));
+        await File.WriteAllTextAsync(Path.Combine(factory.ImportFilesRoot, present), "large-import");
+
+        var count = Dms.Documents.Application.ImportValidator.InlineLimit + 1;
+        var category = $"Large/{Guid.NewGuid():N}"[..20];
+        var entries = Enumerable.Range(0, count)
+            .Select(index => new
+            {
+                sourceId = $"LRG-{index}-{Guid.NewGuid():N}"[..24],
+                title = $"سند {index}",
+                categoryPath = category,
+                documentTypeCode = "GENERAL",
+                file = index == count - 1 ? missing : present,
+                ownerUsername = "admin",
+            })
+            .ToList();
+        var created = await admin.PostAsJsonAsync("/api/v1/imports", new
+        {
+            name = "آرشیو بزرگ",
+            sourceSystem = "large-src",
+            manifestJson = JsonSerializer.Serialize(new { schemaVersion = 2, source = "large-src", entries }),
+            createMissingCategories = true,
+            failurePolicy = "ContinueOnError",
+        });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        var jobId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        await using var host = factory.WithSearchFakes(new FakeSearchEngine(), new FakeTextExtractor());
+
+        // The request only starts the validation; the job worker checks the files.
+        var validated = await admin.PostAsync($"/api/v1/imports/{jobId}/validate", null);
+        validated.StatusCode.ShouldBe(HttpStatusCode.OK, await validated.Content.ReadAsStringAsync());
+        var queued = await validated.Content.ReadFromJsonAsync<JsonElement>();
+        queued.GetProperty("status").GetString().ShouldBe("Validating");
+        queued.GetProperty("total").GetInt32().ShouldBe(count);
+
+        var validating = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/imports/{jobId}");
+        validating.GetProperty("status").GetString().ShouldBe("Validating");
+        validating.GetProperty("totalItems").GetInt32().ShouldBe(count);
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/start", null)).StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        await host.Services.RunJobsAsync();
+        var failed = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/imports/{jobId}");
+        failed.GetProperty("status").GetString().ShouldBe("ValidationFailed");
+        failed.GetProperty("validatedItems").GetInt32().ShouldBe(count);
+        failed.GetProperty("invalidItems").GetInt32().ShouldBe(1);
+        var invalid = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/imports/{jobId}/items?status=Invalid");
+        invalid.EnumerateArray().Single().GetProperty("errorCode").GetString().ShouldBe("IMPORT_FILE_MISSING");
+
+        // Fix the missing file and validate again: every item is checked afresh.
+        await File.WriteAllTextAsync(Path.Combine(factory.ImportFilesRoot, missing), "now-present");
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/validate", null)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        await host.Services.RunJobsAsync();
+        var ready = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/imports/{jobId}");
+        ready.GetProperty("status").GetString().ShouldBe("Ready");
+        ready.GetProperty("validatedItems").GetInt32().ShouldBe(count);
+        ready.GetProperty("invalidItems").GetInt32().ShouldBe(0);
+
+        // Start moves every item to Ready in one go, not only the first page of them.
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/start", null)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/pause", null)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT count(*) FROM documents.import_items WHERE import_job_id = @id AND status = 'Ready'";
+        command.Parameters.AddWithValue("id", jobId);
+        ((long)(await command.ExecuteScalarAsync())!).ShouldBe(count);
+        await factory.ShouldHaveAuditAsync("IMPORT_VALIDATION_COMPLETED");
+    }
 }

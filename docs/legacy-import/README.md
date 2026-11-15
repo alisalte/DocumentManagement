@@ -74,6 +74,9 @@ way is skipped by the others.
    `Dms:Import:FilesRoot/legacy-sql/<id>/files`, with live progress (files, MB) on the page.
 3. When it finishes it writes `manifest.json` there and creates an ordinary import job
    (create missing folders on). **رفتن به کار ورود** → validate → start, as for any import.
+4. Validation of a whole archive runs in the background (see *Validation* below): the job shows
+   **در حال اعتبارسنجی** with a progress bar, then **آماده** (start is enabled) or
+   **اعتبارسنجی ناموفق** (filter the items by **نامعتبر** to see why).
 
 Behaviour:
 
@@ -207,6 +210,16 @@ targets are rejected.
 | `GET` | `/api/v1/imports/{id}` | `IMPORT_VIEW` |
 | `GET` | `/api/v1/imports/{id}/items` | `IMPORT_VIEW` |
 | `GET` | `/api/v1/imports/{id}/report` | `IMPORT_VIEW` (audited) |
+
+## Validation
+
+Jobs with up to 1,000 items are validated inside the `/validate` request, which answers with the
+full report. Larger jobs (a legacy archive easily has hundreds of thousands of files) answer at
+once with `status: "Validating"`; the job worker then checks 200 items per run, each run in its
+own transaction, and the job's `validatedItems` / `totalItems` / `invalidItems` show progress.
+The last run sets the job to `Ready` or `ValidationFailed`. Validating again resets every item to
+`Pending` and checks them all afresh; it is allowed while `Validating` too, so a validation whose
+worker was lost can be restarted. **Start** moves all items to `Ready` with one `UPDATE`.
 
 ## Lifecycle
 

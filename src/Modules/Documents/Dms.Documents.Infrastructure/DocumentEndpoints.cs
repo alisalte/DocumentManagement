@@ -826,7 +826,7 @@ public static class DocumentEndpoints
 
         imports.MapPost("/{id:guid}/validate", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.SendAsync(new ValidateImportJobCommand(id), ct)).ToHttpResult())
-            .WithSummary("Dry-run validation: files, mappings, hashes. No document/storage mutations.");
+            .WithSummary("Dry-run validation: files, mappings, hashes. Jobs over 1,000 items are validated in the background (status Validating). No document/storage mutations.");
 
         imports.MapPost("/{id:guid}/start", async (Guid id, IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.SendAsync(new StartImportJobCommand(id), ct)).ToHttpResult())
