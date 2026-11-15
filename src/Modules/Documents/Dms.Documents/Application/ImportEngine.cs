@@ -33,79 +33,93 @@ public sealed class ImportValidator(
     IGroupDirectory groups,
     TimeProvider timeProvider)
 {
-    public async Task<ImportValidationReportDto> ValidateAsync(ImportJob job, CancellationToken cancellationToken)
-    {
-        var now = timeProvider.GetUtcNow();
-        job.BeginValidation(now).ThrowIfFailed();
+    /// <summary>
+    /// Jobs up to this size are validated inside the request and answer with the full report.
+    /// Larger ones (a whole legacy archive) are validated page by page by the job worker: checking
+    /// hundreds of thousands of files takes far longer than any HTTP request may stay open.
+    /// </summary>
+    public const int InlineLimit = 1_000;
 
+    /// <summary>Items checked per background job run; each run is its own transaction.</summary>
+    public const int PageSize = 200;
+
+    /// <summary>Validates every item of a small job in one go. The job must be in Validating.</summary>
+    public async Task<ImportValidationReportDto> ValidateAllAsync(ImportJob job, CancellationToken cancellationToken)
+    {
         var issues = new List<ImportValidationIssueDto>();
-        var seenSourceIds = new HashSet<string>(StringComparer.Ordinal);
-        var valid = 0;
-        var total = 0;
-        long bytesTotal = 0;
-        const int pageSize = 200;
-        for (var skip = 0; ; skip += pageSize)
+        var warnings = 0;
+        for (var skip = 0; ; skip += PageSize)
         {
-            var page = await items.ListByJobAsync(job.Id, status: null, skip, pageSize, cancellationToken);
+            var page = await items.ListByJobAsync(job.Id, status: null, skip, PageSize, cancellationToken);
             if (page.Count == 0)
             {
                 break;
             }
 
-            foreach (var item in page)
-            {
-                total++;
-                var entry = JsonSerializer.Deserialize<LegacyManifestEntry>(item.EntryJson, ManifestSerializer.Options)
-                    ?? new LegacyManifestEntry();
-                var itemIssues = await ValidateItemAsync(job, item, entry, seenSourceIds, cancellationToken);
-                issues.AddRange(itemIssues);
+            var result = await ValidatePageAsync(job, page, cancellationToken);
+            issues.AddRange(result.Issues);
+            warnings += result.Warnings;
 
-                var errors = itemIssues.Where(issue => issue.Severity == "Error").ToList();
-                if (errors.Count == 0)
-                {
-                    item.MarkValid(now);
-                    valid++;
-                    bytesTotal += entry.Size ?? 0;
-                }
-                else
-                {
-                    var first = errors[0];
-                    item.MarkInvalid(first.Code, first.Message, now);
-                }
-            }
-
-            if (page.Count < pageSize)
+            if (page.Count < PageSize)
             {
                 break;
             }
         }
 
-        var ok = issues.All(issue => issue.Severity != "Error");
-        job.CompleteValidation(
-            ok,
-            total,
-            total - valid,
-            bytesTotal,
-            ok ? null : "Validation failed. See item errors.",
-            now);
+        job.CompleteValidation(timeProvider.GetUtcNow());
 
         // Cap report payload; full item statuses remain queryable via /items.
         var reportIssues = issues.Count > 500 ? issues.Take(500).ToList() : issues;
         return new ImportValidationReportDto(
             job.Id.Value,
             job.Status.ToString(),
-            total,
-            valid,
-            total - valid,
-            issues.Count(issue => issue.Severity == "Warning"),
+            job.ValidatedItems,
+            job.ValidatedItems - job.InvalidItems,
+            job.InvalidItems,
+            warnings,
             reportIssues);
+    }
+
+    /// <summary>Checks one page of items, marks each Valid or Invalid and adds the page to the job totals.</summary>
+    public async Task<ImportValidationPageResult> ValidatePageAsync(
+        ImportJob job,
+        IReadOnlyList<ImportItem> page,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var issues = new List<ImportValidationIssueDto>();
+        var valid = 0;
+        long bytes = 0;
+        foreach (var item in page)
+        {
+            var entry = JsonSerializer.Deserialize<LegacyManifestEntry>(item.EntryJson, ManifestSerializer.Options)
+                ?? new LegacyManifestEntry();
+            var itemIssues = await ValidateItemAsync(job, item, entry, cancellationToken);
+            issues.AddRange(itemIssues);
+
+            var errors = itemIssues.Where(issue => issue.Severity == "Error").ToList();
+            if (errors.Count == 0)
+            {
+                item.MarkValid(now);
+                valid++;
+                bytes += entry.Size ?? 0;
+            }
+            else
+            {
+                item.MarkInvalid(errors[0].Code, errors[0].Message, now);
+            }
+        }
+
+        job.RecordValidatedItems(page.Count, page.Count - valid, bytes, now);
+        return new ImportValidationPageResult(
+            issues,
+            issues.Count(issue => issue.Severity == "Warning"));
     }
 
     private async Task<List<ImportValidationIssueDto>> ValidateItemAsync(
         ImportJob job,
         ImportItem item,
         LegacyManifestEntry entry,
-        HashSet<string> seenSourceIds,
         CancellationToken cancellationToken)
     {
         var issues = new List<ImportValidationIssueDto>();
@@ -113,11 +127,6 @@ public sealed class ImportValidator(
             issues.Add(new ImportValidationIssueDto("Error", code, message, item.SourceId, item.SourcePath));
         void Warn(string code, string message) =>
             issues.Add(new ImportValidationIssueDto("Warning", code, message, item.SourceId, item.SourcePath));
-
-        if (!seenSourceIds.Add(item.SourceId))
-        {
-            Error("IMPORT_DUPLICATE_SOURCE_ID", $"Duplicate sourceId '{item.SourceId}' in manifest.");
-        }
 
         if (string.IsNullOrWhiteSpace(entry.Title))
         {
@@ -365,6 +374,8 @@ public sealed class ImportValidator(
         return parent;
     }
 }
+
+public sealed record ImportValidationPageResult(IReadOnlyList<ImportValidationIssueDto> Issues, int Warnings);
 
 internal static class ResultExtensions
 {

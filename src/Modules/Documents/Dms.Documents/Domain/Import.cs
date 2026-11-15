@@ -65,6 +65,9 @@ public sealed class ImportJob : AggregateRoot<ImportJobId>
 
     public int InvalidItems { get; private set; }
 
+    /// <summary>Items checked so far by the current or last validation (progress while Validating).</summary>
+    public int ValidatedItems { get; private set; }
+
     public long BytesProcessed { get; private set; }
 
     public long BytesTotal { get; private set; }
@@ -122,26 +125,45 @@ public sealed class ImportJob : AggregateRoot<ImportJobId>
             now));
     }
 
-    public Result BeginValidation(DateTimeOffset now)
+    /// <param name="total">Items in the job; shown as the denominator while validation runs.</param>
+    public Result BeginValidation(int total, DateTimeOffset now)
     {
-        if (Status is not (ImportJobStatus.Created or ImportJobStatus.ValidationFailed or ImportJobStatus.Ready))
+        // Validating is allowed too, so a validation whose worker was lost can be started again;
+        // the job row version keeps an older chain of pages from counting twice.
+        if (Status is not (
+            ImportJobStatus.Created
+            or ImportJobStatus.ValidationFailed
+            or ImportJobStatus.Ready
+            or ImportJobStatus.Validating))
         {
             return Result.Failure(Error.Conflict("import.invalid_state", $"Cannot validate from status {Status}."));
         }
 
         Status = ImportJobStatus.Validating;
+        TotalItems = total;
+        ValidatedItems = 0;
+        InvalidItems = 0;
+        BytesTotal = 0;
         UpdatedAt = now;
         LastError = null;
         return Result.Success();
     }
 
-    public void CompleteValidation(bool ok, int total, int invalid, long bytesTotal, string? error, DateTimeOffset now)
+    /// <summary>Adds one checked page of items to the running validation totals.</summary>
+    public void RecordValidatedItems(int validated, int invalid, long bytes, DateTimeOffset now)
     {
-        TotalItems = total;
-        InvalidItems = invalid;
-        BytesTotal = bytesTotal;
+        ValidatedItems += validated;
+        InvalidItems += invalid;
+        BytesTotal += Math.Max(0, bytes);
+        UpdatedAt = now;
+    }
+
+    /// <summary>Ends validation: Ready when every item passed, otherwise ValidationFailed.</summary>
+    public void CompleteValidation(DateTimeOffset now)
+    {
+        var ok = InvalidItems == 0;
         Status = ok ? ImportJobStatus.Ready : ImportJobStatus.ValidationFailed;
-        LastError = error;
+        LastError = ok ? null : "Validation failed. See item errors.";
         UpdatedAt = now;
     }
 
@@ -169,11 +191,11 @@ public sealed class ImportJob : AggregateRoot<ImportJobId>
         return Result.Success();
     }
 
-    /// <summary>Adjust counters when a previously failed/retryable item is re-queued.</summary>
-    public void UncountFailure(long bytes, DateTimeOffset now)
+    /// <summary>Adjust counters when previously failed/retryable items are re-queued.</summary>
+    public void UncountFailures(int count, long bytes, DateTimeOffset now)
     {
-        FailedItems = Math.Max(0, FailedItems - 1);
-        ProcessedItems = Math.Max(0, ProcessedItems - 1);
+        FailedItems = Math.Max(0, FailedItems - count);
+        ProcessedItems = Math.Max(0, ProcessedItems - count);
         BytesProcessed = Math.Max(0, BytesProcessed - Math.Max(0, bytes));
         UpdatedAt = now;
     }

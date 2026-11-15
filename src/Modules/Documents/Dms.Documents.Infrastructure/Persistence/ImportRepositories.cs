@@ -89,6 +89,57 @@ public sealed class ImportItemRepository(DocumentsDbContext context) : IImportIt
             item => item.ImportJobId == jobId && item.Status == status,
             cancellationToken);
 
+    public Task<int> CountByJobAsync(ImportJobId jobId, CancellationToken cancellationToken) =>
+        context.ImportItems.CountAsync(item => item.ImportJobId == jobId, cancellationToken);
+
+    public Task ResetForValidationAsync(ImportJobId jobId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        context.ImportItems
+            .Where(item => item.ImportJobId == jobId
+                && (item.Status == ImportItemStatus.Valid || item.Status == ImportItemStatus.Invalid))
+            .ExecuteUpdateAsync(
+                set => set
+                    .SetProperty(item => item.Status, ImportItemStatus.Pending)
+                    .SetProperty(item => item.ErrorCode, (string?)null)
+                    .SetProperty(item => item.ErrorMessage, (string?)null)
+                    .SetProperty(item => item.CompletedAt, (DateTimeOffset?)null)
+                    .SetProperty(item => item.UpdatedAt, now),
+                cancellationToken);
+
+    public async Task<(int FailedCount, long FailedBytes)> MarkReadyAsync(
+        ImportJobId jobId,
+        IReadOnlyCollection<ImportItemStatus> statuses,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var selected = statuses.ToList();
+        var failedStatuses = selected
+            .Where(status => status is ImportItemStatus.Failed or ImportItemStatus.Retryable)
+            .ToList();
+
+        var failedCount = 0;
+        long failedBytes = 0;
+        if (failedStatuses.Count > 0)
+        {
+            var failed = context.ImportItems
+                .Where(item => item.ImportJobId == jobId && failedStatuses.Contains(item.Status));
+            failedCount = await failed.CountAsync(cancellationToken);
+            failedBytes = await failed.SumAsync(item => item.ActualSize ?? 0, cancellationToken);
+        }
+
+        await context.ImportItems
+            .Where(item => item.ImportJobId == jobId && selected.Contains(item.Status))
+            .ExecuteUpdateAsync(
+                set => set
+                    .SetProperty(item => item.Status, ImportItemStatus.Ready)
+                    .SetProperty(item => item.ErrorCode, (string?)null)
+                    .SetProperty(item => item.ErrorMessage, (string?)null)
+                    .SetProperty(item => item.CompletedAt, (DateTimeOffset?)null)
+                    .SetProperty(item => item.UpdatedAt, now),
+                cancellationToken);
+
+        return (failedCount, failedBytes);
+    }
+
     public void AddRange(IEnumerable<ImportItem> items) => context.ImportItems.AddRange(items);
 }
 

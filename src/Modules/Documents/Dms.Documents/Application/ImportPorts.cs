@@ -28,6 +28,22 @@ public interface IImportItemRepository
 
     Task<int> CountByStatusAsync(ImportJobId jobId, ImportItemStatus status, CancellationToken cancellationToken);
 
+    Task<int> CountByJobAsync(ImportJobId jobId, CancellationToken cancellationToken);
+
+    /// <summary>Sets every Valid/Invalid item back to Pending in one statement, before a fresh validation.</summary>
+    Task ResetForValidationAsync(ImportJobId jobId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Moves every item in <paramref name="statuses"/> to Ready in one statement (a job can hold
+    /// hundreds of thousands of items). Returns how many of them had failed, and their bytes, so the
+    /// job counters can be taken back.
+    /// </summary>
+    Task<(int FailedCount, long FailedBytes)> MarkReadyAsync(
+        ImportJobId jobId,
+        IReadOnlyCollection<ImportItemStatus> statuses,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
     void AddRange(IEnumerable<ImportItem> items);
 }
 
@@ -89,7 +105,8 @@ public sealed record ImportJobDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     DateTimeOffset? StartedAt,
-    DateTimeOffset? CompletedAt);
+    DateTimeOffset? CompletedAt,
+    int ValidatedItems);
 
 public sealed record ImportItemDto(
     Guid Id,

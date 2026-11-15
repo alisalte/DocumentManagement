@@ -104,32 +104,6 @@ public sealed class CreateImportJobHandler(
 }
 
 /// <summary>
-/// Every item of a job in one status. Pages are read before any item changes status, so the
-/// pages stay stable; a single 10,000-row read used to leave the rest of a large archive behind.
-/// </summary>
-public static class ImportItemPaging
-{
-    public static async Task<IReadOnlyList<ImportItem>> ListAllAsync(
-        IImportItemRepository items,
-        ImportJobId jobId,
-        ImportItemStatus status,
-        CancellationToken cancellationToken)
-    {
-        const int pageSize = 5_000;
-        var all = new List<ImportItem>();
-        for (var skip = 0; ; skip += pageSize)
-        {
-            var page = await items.ListByJobAsync(jobId, status, skip, pageSize, cancellationToken);
-            all.AddRange(page);
-            if (page.Count < pageSize)
-            {
-                return all;
-            }
-        }
-    }
-}
-
-/// <summary>
 /// Creates an import job and one item per manifest entry. Used by the API and by the legacy SQL
 /// copy, which creates its job from a background process with no signed-in caller.
 /// </summary>
@@ -243,9 +217,12 @@ public sealed class ImportJobFactory(
 public sealed class ValidateImportJobHandler(
     IDmsAuthorizer authorizer,
     IImportJobRepository jobs,
+    IImportItemRepository items,
     ImportValidator validator,
+    IJobQueue jobQueue,
     IAuditWriter audit,
-    ICurrentUser currentUser) : ICommandHandler<ValidateImportJobCommand, Result<ImportValidationReportDto>>
+    ICurrentUser currentUser,
+    TimeProvider timeProvider) : ICommandHandler<ValidateImportJobCommand, Result<ImportValidationReportDto>>
 {
     public async Task<Result<ImportValidationReportDto>> HandleAsync(
         ValidateImportJobCommand command,
@@ -269,35 +246,122 @@ public sealed class ValidateImportJobHandler(
             return Result.Failure<ImportValidationReportDto>(Error.NotFound("import.not_found", "Import job not found."));
         }
 
+        var now = timeProvider.GetUtcNow();
+        var total = await items.CountByJobAsync(job.Id, cancellationToken);
+        var begun = job.BeginValidation(total, now);
+        if (begun.IsFailure)
+        {
+            return Result.Failure<ImportValidationReportDto>(begun.Error);
+        }
+
         await audit.WriteAsync(
             new AuditRecord
             {
                 Action = AuditActions.ImportValidationStarted,
                 EntityType = "ImportJob",
                 EntityId = job.Id.Value,
+                Metadata = new Dictionary<string, object?> { ["total"] = total },
             },
             cancellationToken);
 
-        var report = await validator.ValidateAsync(job, cancellationToken);
+        if (total > ImportValidator.InlineLimit)
+        {
+            // Too many files to check within one request: the job worker checks them page by page
+            // and the job's status and validatedItems show the progress.
+            await items.ResetForValidationAsync(job.Id, now, cancellationToken);
+            await jobQueue.EnqueueAsync(ImportValidateJob.Request(job.Id.Value, $"begin:{now.UtcTicks}"), cancellationToken);
+            return Result.Success(new ImportValidationReportDto(
+                job.Id.Value,
+                job.Status.ToString(),
+                total,
+                0,
+                0,
+                0,
+                []));
+        }
 
-        await audit.WriteAsync(
+        var report = await validator.ValidateAllAsync(job, cancellationToken);
+        await ImportValidateJob.AuditCompletedAsync(audit, job, report.Warnings, cancellationToken);
+        return Result.Success(report);
+    }
+}
+
+/// <summary>
+/// Validates a large import job one page per run, then queues the next page; the last run sets
+/// the job to Ready or ValidationFailed. Each run commits on its own, so progress survives restarts.
+/// </summary>
+public sealed class ImportValidateJob(
+    IImportJobRepository jobs,
+    IImportItemRepository items,
+    ImportValidator validator,
+    IJobQueue jobQueue,
+    IAuditWriter audit,
+    TimeProvider timeProvider) : IJobHandler
+{
+    public const string Type = "documents.import-validate";
+
+    public string JobType => Type;
+
+    public static JobRequest Request(Guid jobId, string step) =>
+        new(
+            Type,
+            new { jobId },
+            IdempotencyKey: $"import-validate:{jobId}:{step}",
+            MaxAttempts: 20);
+
+    public async Task HandleAsync(string payload, CancellationToken cancellationToken)
+    {
+        using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(payload) ? "{}" : payload);
+        if (!doc.RootElement.TryGetProperty("jobId", out var jobIdProperty)
+            || !jobIdProperty.TryGetGuid(out var jobIdValue))
+        {
+            return;
+        }
+
+        var job = await jobs.FindAsync(new ImportJobId(jobIdValue), cancellationToken);
+        if (job is null || job.Status is not ImportJobStatus.Validating)
+        {
+            return;
+        }
+
+        var page = await items.ListByJobAsync(
+            job.Id,
+            ImportItemStatus.Pending,
+            0,
+            ImportValidator.PageSize,
+            cancellationToken);
+        if (page.Count == 0)
+        {
+            job.CompleteValidation(timeProvider.GetUtcNow());
+            await AuditCompletedAsync(audit, job, warnings: null, cancellationToken);
+            return;
+        }
+
+        await validator.ValidatePageAsync(job, page, cancellationToken);
+        await jobQueue.EnqueueAsync(Request(job.Id.Value, $"after:{page[^1].Id.Value}"), cancellationToken);
+    }
+
+    public static Task AuditCompletedAsync(
+        IAuditWriter audit,
+        ImportJob job,
+        int? warnings,
+        CancellationToken cancellationToken) =>
+        audit.WriteAsync(
             new AuditRecord
             {
                 Action = AuditActions.ImportValidationCompleted,
+                UserId = job.CreatedBy,
                 EntityType = "ImportJob",
                 EntityId = job.Id.Value,
-                Outcome = report.Invalid == 0 ? AuditOutcome.Success : AuditOutcome.Failed,
+                Outcome = job.InvalidItems == 0 ? AuditOutcome.Success : AuditOutcome.Failed,
                 Metadata = new Dictionary<string, object?>
                 {
-                    ["valid"] = report.Valid,
-                    ["invalid"] = report.Invalid,
-                    ["warnings"] = report.Warnings,
+                    ["valid"] = job.ValidatedItems - job.InvalidItems,
+                    ["invalid"] = job.InvalidItems,
+                    ["warnings"] = warnings,
                 },
             },
             cancellationToken);
-
-        return Result.Success(report);
-    }
 }
 
 public sealed class StartImportJobHandler(
@@ -339,25 +403,14 @@ public sealed class StartImportJobHandler(
             return started;
         }
 
+        // One UPDATE for all items: a legacy archive can hold hundreds of thousands of them.
         var now = timeProvider.GetUtcNow();
-        foreach (var status in new[]
-                 {
-                     ImportItemStatus.Valid,
-                     ImportItemStatus.Retryable,
-                     ImportItemStatus.Failed,
-                     ImportItemStatus.Running,
-                 })
-        {
-            foreach (var item in await ImportItemPaging.ListAllAsync(items, job.Id, status, cancellationToken))
-            {
-                if (status is ImportItemStatus.Failed or ImportItemStatus.Retryable)
-                {
-                    job.UncountFailure(item.ActualSize ?? 0, now);
-                }
-
-                item.MarkReady(now);
-            }
-        }
+        var (failedCount, failedBytes) = await items.MarkReadyAsync(
+            job.Id,
+            [ImportItemStatus.Valid, ImportItemStatus.Retryable, ImportItemStatus.Failed, ImportItemStatus.Running],
+            now,
+            cancellationToken);
+        job.UncountFailures(failedCount, failedBytes, now);
 
         await jobQueue.EnqueueAsync(
             new JobRequest(
@@ -485,14 +538,12 @@ public sealed class RetryFailedImportHandler(
         }
 
         var now = timeProvider.GetUtcNow();
-        foreach (var status in new[] { ImportItemStatus.Failed, ImportItemStatus.Retryable })
-        {
-            foreach (var item in await ImportItemPaging.ListAllAsync(items, job.Id, status, cancellationToken))
-            {
-                job.UncountFailure(item.ActualSize ?? 0, now);
-                item.MarkReady(now);
-            }
-        }
+        var (failedCount, failedBytes) = await items.MarkReadyAsync(
+            job.Id,
+            [ImportItemStatus.Failed, ImportItemStatus.Retryable],
+            now,
+            cancellationToken);
+        job.UncountFailures(failedCount, failedBytes, now);
 
         var started = job.Start(now);
         if (started.IsFailure)
@@ -774,7 +825,8 @@ public static class ImportMaps
         job.CreatedAt,
         job.UpdatedAt,
         job.StartedAt,
-        job.CompletedAt);
+        job.CompletedAt,
+        job.ValidatedItems);
 
     public static ImportItemDto ToDto(ImportItem item) => new(
         item.Id.Value,

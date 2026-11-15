@@ -606,6 +606,7 @@ public sealed class DocumentsDbContext : DbContext
             entity.Property(job => job.FailedItems).HasColumnName("failed_items");
             entity.Property(job => job.SkippedItems).HasColumnName("skipped_items");
             entity.Property(job => job.InvalidItems).HasColumnName("invalid_items");
+            entity.Property(job => job.ValidatedItems).HasColumnName("validated_items");
             entity.Property(job => job.BytesProcessed).HasColumnName("bytes_processed");
             entity.Property(job => job.BytesTotal).HasColumnName("bytes_total");
             entity.Property(job => job.LastError).HasColumnName("last_error").HasMaxLength(2000);

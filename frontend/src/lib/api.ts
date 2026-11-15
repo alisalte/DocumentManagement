@@ -860,6 +860,8 @@ export interface ImportJob {
   updatedAt: string;
   startedAt: string | null;
   completedAt: string | null;
+  /** Items checked so far by the current or last validation. */
+  validatedItems: number;
 }
 
 export interface ImportItem {

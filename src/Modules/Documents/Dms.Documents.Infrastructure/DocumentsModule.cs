@@ -146,6 +146,7 @@ public static class DocumentsModule
 
         services.AddScoped<IJobHandler, RetentionAdvanceJob>();
         services.AddScoped<IJobHandler, ImportRunJob>();
+        services.AddScoped<IJobHandler, ImportValidateJob>();
         services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);
