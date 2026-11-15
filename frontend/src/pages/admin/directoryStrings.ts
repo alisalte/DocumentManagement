@@ -120,6 +120,7 @@ export const permissionLabels: Record<string, string> = {
   DOCUMENT_SHARE_EXTERNAL: 'پیوند بیرونی',
   DOCUMENT_MANAGE_PERMISSION: 'مدیریت دسترسی‌ها',
   DOCUMENT_EXPORT: 'خروجی گروهی',
+  DOCUMENT_REGISTER_INDICATOR: 'ثبت در اندیکاتور',
   WORKFLOW_VIEW: 'دیدن گردش کار',
   WORKFLOW_APPROVE: 'تأیید در گردش کار',
   WORKFLOW_REJECT: 'رد در گردش کار',

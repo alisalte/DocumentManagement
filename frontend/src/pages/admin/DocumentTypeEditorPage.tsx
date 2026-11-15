@@ -35,6 +35,7 @@ import { formatDateTime } from '../../lib/dates';
 import { parseRule } from '../../lib/rules';
 import { describeError } from '../../strings';
 import { a, fieldTypeLabels, ruleKindLabels } from './adminStrings';
+import { IndicatorPatternField } from './IndicatorPatternField';
 
 const fieldTypes = Object.keys(fieldTypeLabels) as FieldType[];
 const choiceTypes: FieldType[] = ['Select', 'MultiSelect'];
@@ -385,6 +386,7 @@ function SettingsPanel({
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ name, description: description ?? '', settings, isActive });
   const workflows = useQuery({ queryKey: ['workflow-definitions'], queryFn: api.workflow.definitions });
+  const indicatorSettings = useQuery({ queryKey: ['indicator-settings'], queryFn: api.admin.indicatorSettings });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -395,7 +397,7 @@ function SettingsPanel({
       await api.admin.updateDocumentType(typeId, {
         name: form.name.trim(),
         description: form.description.trim() || null,
-        settings: form.settings,
+        settings: { ...form.settings, indicatorPattern: form.settings.indicatorPattern?.trim() || null },
         isActive: form.isActive,
       });
       setMessage({ ok: true, text: a.saved });
@@ -503,6 +505,15 @@ function SettingsPanel({
             })
           }
         />
+        <IndicatorPatternField
+          label={a.indicatorPattern}
+          value={form.settings.indicatorPattern ?? ''}
+          onChange={(next) => setForm({ ...form, settings: { ...form.settings, indicatorPattern: next } })}
+          documentTypeId={typeId}
+          placeholder={indicatorSettings.data?.defaultPattern}
+          className="sm:col-span-2"
+        />
+        <p className="-mt-2 text-xs text-paper-500 sm:col-span-2">{a.indicatorTypeHelp}</p>
         <div className="flex items-end">
           <Switch
             label={a.supportsLegalHold}

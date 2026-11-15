@@ -80,6 +80,14 @@ describe('audit rows in plain words', () => {
     expect(fields).toEqual([{ key: 'value', label: 'مقدار', change: ['—', 'محرمانه'] }]);
   });
 
+  it('says how a document got its indicator number', () => {
+    const fields = readableFields(
+      entry({ action: 'DOCUMENT_INDICATOR_REGISTERED', metadata: JSON.stringify({ number: 'CTR-1405-00045', source: 'backfill' }) }),
+    );
+    expect(fields).toContainEqual({ key: 'number', label: 'شماره اندیکاتور', value: 'CTR-1405-00045' });
+    expect(fields).toContainEqual({ key: 'source', label: 'روش ثبت', value: 'شماره‌دهی اسناد موجود' });
+  });
+
   it('describes the device briefly', () => {
     expect(describeUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0 Safari/537.36')).toBe(
       'Chrome روی Windows',

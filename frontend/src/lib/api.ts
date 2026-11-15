@@ -77,6 +77,8 @@ export interface DocumentListItem {
   deletedAt: string | null;
   deleteReason: string | null;
   fiscalYear: number;
+  /** Indicator (registry) number; null while the document is not registered. */
+  indicatorNumber?: string | null;
 }
 
 export interface FiscalYearOption {
@@ -121,6 +123,11 @@ export interface DocumentDetails {
   fiscalYearOpen: boolean;
   /** Text stamped across preview and print pages; null for none. */
   watermarkText: string | null;
+  /** Indicator (registry) number; null while the document is not registered. Never changes once set. */
+  indicatorNumber?: string | null;
+  indicatorRegisteredAt?: string | null;
+  /** Null when the system numbered it (import or backfill). */
+  indicatorRegisteredBy?: string | null;
 }
 
 export interface DocumentVersion {
@@ -237,6 +244,18 @@ export interface DocumentTypeSettings {
   retentionDaysAfterDelete?: number | null;
   /** Type may use legal hold once per-document APIs land. */
   supportsLegalHold?: boolean;
+  /** This type's indicator number pattern, e.g. {TYPE}-{YEAR}-{SEQ:5}; null uses the default pattern. */
+  indicatorPattern?: string | null;
+}
+
+export interface IndicatorSettings {
+  defaultPattern: string;
+  updatedAt: string | null;
+}
+
+export interface IndicatorPatternPreview {
+  pattern: string;
+  sample: string;
 }
 
 export interface DocumentTypeAdmin {
@@ -458,6 +477,7 @@ export interface SearchHit {
   highlights: string[];
   /** How many times the query occurs in this file's text. Null when there was no query. */
   matchCount: number | null;
+  indicatorNumber?: string | null;
 }
 
 export interface FacetBucket {
@@ -1084,6 +1104,7 @@ export const api = {
     page?: number;
     pageSize?: number;
     fiscalYear?: number;
+    indicatorNumber?: string;
   }) => request<Paged<DocumentListItem>>(`/api/v1/documents${query(params)}`),
 
   /** Documents filed directly in each category. Folder cards add descendant folders themselves. */
@@ -1309,6 +1330,26 @@ export const api = {
 
     publish: (id: string) =>
       request<{ versionId: string }>(`/api/v1/admin/document-types/${id}/publish`, { method: 'POST' }),
+
+    indicatorSettings: () => request<IndicatorSettings>('/api/v1/admin/document-types/indicator-settings'),
+
+    updateIndicatorSettings: (defaultPattern: string) =>
+      request<void>('/api/v1/admin/document-types/indicator-settings', {
+        method: 'PUT',
+        body: JSON.stringify({ defaultPattern }),
+      }),
+
+    previewIndicatorPattern: (pattern: string, documentTypeId?: string) =>
+      request<IndicatorPatternPreview>('/api/v1/admin/document-types/indicator-pattern/preview', {
+        method: 'POST',
+        body: JSON.stringify({ pattern, documentTypeId: documentTypeId ?? null }),
+      }),
+
+    /** Documents (deleted ones included) that have no indicator number yet. */
+    indicatorBackfill: () => request<{ unnumbered: number }>('/api/v1/admin/indicator-numbers'),
+
+    startIndicatorBackfill: () =>
+      request<{ unnumbered: number }>('/api/v1/admin/indicator-numbers/backfill', { method: 'POST' }),
   },
 
   updateDocument: (id: string, body: { title: string; description: string | null; categoryId: string }) =>
@@ -1316,6 +1357,10 @@ export const api = {
 
   setTags: (id: string, tags: string[]) =>
     request<void>(`/api/v1/documents/${id}/tags`, { method: 'PUT', body: JSON.stringify({ tags }) }),
+
+  /** Registers the document in the indicator; the number can never change afterwards. */
+  registerIndicator: (id: string) =>
+    request<{ number: string }>(`/api/v1/documents/${id}/indicator`, { method: 'POST' }),
 
   setWatermark: (id: string, text: string | null) =>
     request<void>(`/api/v1/documents/${id}/watermark`, { method: 'PUT', body: JSON.stringify({ text }) }),

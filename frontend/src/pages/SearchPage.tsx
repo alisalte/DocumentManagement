@@ -215,6 +215,11 @@ function HitRow({ hit, categoryName }: { hit: SearchHit; categoryName: string | 
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="break-words font-semibold text-ink-800">{hit.title}</span>
+          {hit.indicatorNumber && (
+            <span title={t.indicatorNumber} dir="ltr" className="font-mono text-sm text-ink-700">
+              {hit.indicatorNumber}
+            </span>
+          )}
           {hit.label && (
             <span dir="ltr" className="text-sm text-paper-500">
               {hit.label}

@@ -39,6 +39,12 @@ export const t = {
   tags: 'برچسب‌ها',
   tagsHelp: 'برای افزودن برچسب Enter بزنید.',
   watermark: 'واترمارک',
+  indicatorNumber: 'شماره اندیکاتور',
+  registerIndicator: 'ثبت در اندیکاتور',
+  registerIndicatorConfirm:
+    'شماره بعدی اندیکاتور به این سند داده می‌شود. این شماره بعداً قابل تغییر یا حذف نیست و روی صفحه‌های پیش‌نمایش و چاپ هم می‌آید.',
+  indicatorRegistered: 'سند در اندیکاتور ثبت شد.',
+  indicatorRegisteredBySystem: 'به‌صورت خودکار',
   watermarkHelp: 'روی صفحه‌های پیش‌نمایش و چاپ نوشته می‌شود. خالی بگذارید تا این سند واترمارک نداشته باشد.',
   file: 'فایل',
   chooseFile: 'انتخاب فایل',

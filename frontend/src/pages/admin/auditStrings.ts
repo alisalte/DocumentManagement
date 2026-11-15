@@ -94,6 +94,8 @@ export const actionLabels: Record<string, string> = {
   DOCUMENT_PURGED: 'حذف همیشگی سند',
   DOCUMENT_TAGS_CHANGED: 'تغییر برچسب‌های سند',
   DOCUMENT_WATERMARK_CHANGED: 'تغییر واترمارک سند',
+  DOCUMENT_INDICATOR_REGISTERED: 'ثبت سند در اندیکاتور',
+  INDICATOR_BACKFILL_STARTED: 'شروع شماره‌دهی اندیکاتور اسناد موجود',
   DOCUMENT_PRINTED: 'چاپ سند',
   DOCUMENT_SHARED: 'اشتراک‌گذاری سند',
 
@@ -141,6 +143,7 @@ export const actionLabels: Record<string, string> = {
 
   DOCUMENT_TYPE_CREATED: 'ایجاد نوع سند',
   DOCUMENT_TYPE_UPDATED: 'به‌روزرسانی نوع سند',
+  INDICATOR_DEFAULT_PATTERN_CHANGED: 'تغییر الگوی پیش‌فرض شماره اندیکاتور',
   DOCUMENT_TYPE_DRAFT_SAVED: 'ذخیرهٔ پیش‌نویس نوع سند',
   DOCUMENT_TYPE_PUBLISHED: 'انتشار نوع سند',
 

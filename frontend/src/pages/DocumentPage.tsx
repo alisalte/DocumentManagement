@@ -31,7 +31,7 @@ export function DocumentPage() {
   const queryClient = useQueryClient();
   const [notice, setNotice] = useState<string | null>((location.state as { notice?: string } | null)?.notice ?? null);
   const [error, setError] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | null>(null);
+  const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | 'indicator' | null>(null);
   const [aclOpen, setAclOpen] = useState(false);
   // Null: the viewer shows what a plain reader gets; a version row can point it elsewhere.
   const [previewVersion, setPreviewVersion] = useState<string | null>(null);
@@ -106,9 +106,29 @@ export function DocumentPage() {
                 </RouterLink>
                 {current && <> · <span dir="ltr">{current.label}</span></>}
               </p>
+              {doc.indicatorNumber && (
+                <p className="mt-1 text-sm text-ink-800">
+                  {t.indicatorNumber}:{' '}
+                  <span dir="ltr" className="font-mono font-semibold">
+                    {doc.indicatorNumber}
+                  </span>
+                  {doc.indicatorRegisteredAt && (
+                    <span className="text-xs text-paper-500">
+                      {' '}
+                      · {formatDateTime(doc.indicatorRegisteredAt)}
+                      {!doc.indicatorRegisteredBy && <> · {t.indicatorRegisteredBySystem}</>}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {can(doc, 'DOCUMENT_REGISTER_INDICATOR') && !doc.indicatorNumber && (
+                <Button variant="outline" onClick={() => setDialog('indicator')}>
+                  {t.registerIndicator}
+                </Button>
+              )}
               {can(doc, 'DOCUMENT_DOWNLOAD') && (
                 <Button onClick={() => download(null)}>{t.download}</Button>
               )}
@@ -240,6 +260,13 @@ export function DocumentPage() {
           baseVersionId={doc.currentVersionId}
           onClose={() => setDialog(null)}
           onSaved={() => refresh(t.versionAdded)}
+        />
+      )}
+      {dialog === 'indicator' && (
+        <RegisterIndicatorDialog
+          documentId={doc.id}
+          onClose={() => setDialog(null)}
+          onRegistered={(number) => refresh(`${t.indicatorRegistered} ${number}`)}
         />
       )}
       {dialog === 'delete' && (
@@ -677,6 +704,44 @@ function DeleteDialog({
     >
       <p className="text-sm text-ink-800">{t.deleteConfirm}</p>
       <TextField label={t.deleteReason} value={reason} onChange={(event) => setReason(event.target.value)} />
+    </FormDialog>
+  );
+}
+
+function RegisterIndicatorDialog({
+  documentId,
+  onClose,
+  onRegistered,
+}: {
+  documentId: string;
+  onClose: () => void;
+  onRegistered: (number: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const register = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { number } = await api.registerIndicator(documentId);
+      onRegistered(number);
+    } catch (caught) {
+      setError(describeError(caught));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <FormDialog
+      title={t.registerIndicator}
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={register}
+      submitLabel={t.registerIndicator}
+    >
+      <p className="text-sm text-ink-800">{t.registerIndicatorConfirm}</p>
     </FormDialog>
   );
 }

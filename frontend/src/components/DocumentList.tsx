@@ -83,6 +83,12 @@ export function DocumentList({
                 {details && <p className="mt-0.5 break-words text-xs text-paper-500">{details}</p>}
               </div>
 
+              {item.indicatorNumber && (
+                <span title={t.indicatorNumber} dir="ltr" className="shrink-0 font-mono text-xs text-ink-800">
+                  {item.indicatorNumber}
+                </span>
+              )}
+
               {item.currentVersionLabel && (
                 <Chip label={item.currentVersionLabel} variant="outlined" dir="ltr" className="shrink-0" />
               )}
