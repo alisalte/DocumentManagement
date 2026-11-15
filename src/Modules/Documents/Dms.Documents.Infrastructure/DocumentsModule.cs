@@ -134,6 +134,9 @@ public static class DocumentsModule
 
         services.AddScoped<IJobHandler, RetentionAdvanceJob>();
         services.AddScoped<IJobHandler, ImportRunJob>();
+        services.AddScoped<IJobHandler, IndicatorNumberingJob>();
+        services.AddScoped<IQueryHandler<GetIndicatorBackfillQuery, Result<IndicatorBackfillDto>>, GetIndicatorBackfillHandler>();
+        services.AddScoped<ICommandHandler<StartIndicatorBackfillCommand, Result<IndicatorBackfillDto>>, StartIndicatorBackfillHandler>();
         services.AddRecurringJob(RetentionAdvanceJob.Type, TimeSpan.FromHours(1));
 
         services.AddOptions<PreviewOptions>().BindConfiguration(PreviewOptions.SectionName);

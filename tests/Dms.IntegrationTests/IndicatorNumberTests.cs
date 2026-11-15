@@ -210,6 +210,134 @@ public sealed class IndicatorNumberTests(DmsApiFactory factory)
         await RegisterAsync(user, documentId);
     }
 
+    private async Task<string?> NumberOfAsync(Guid documentId)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand("SELECT indicator_number FROM documents.documents WHERE id = @id", connection);
+        command.Parameters.AddWithValue("id", documentId);
+        return (string?)await command.ExecuteScalarAsync();
+    }
+
+    private async Task SetCreatedAtAsync(Guid documentId, DateTimeOffset createdAt)
+    {
+        await using var connection = await factory.OpenConnectionAsync();
+        await using var command = new NpgsqlCommand("UPDATE documents.documents SET created_at = @at WHERE id = @id", connection);
+        command.Parameters.AddWithValue("at", createdAt);
+        command.Parameters.AddWithValue("id", documentId);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    [Fact]
+    public async Task Backfill_numbers_existing_documents_oldest_first_including_deleted_ones()
+    {
+        var desk = await ArrangeAsync();
+        var newest = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var oldest = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var middle = await CreateDocumentOfTypeAsync(desk.Clerk, desk.CategoryId, desk.TypeId);
+        var year = await FiscalYearOfAsync(newest);
+        var now = DateTimeOffset.UtcNow;
+        await SetCreatedAtAsync(oldest, now.AddHours(-3));
+        await SetCreatedAtAsync(middle, now.AddHours(-2));
+        await SetCreatedAtAsync(newest, now.AddHours(-1));
+        (await desk.Clerk.DeleteAsync($"/api/v1/documents/{middle}?reason=test")).IsSuccessStatusCode.ShouldBeTrue();
+
+        var status = await desk.Admin.GetFromJsonAsync<JsonElement>("/api/v1/admin/indicator-numbers");
+        status.GetProperty("unnumbered").GetInt32().ShouldBeGreaterThanOrEqualTo(3);
+
+        var started = await desk.Admin.PostAsync("/api/v1/admin/indicator-numbers/backfill", null);
+        started.StatusCode.ShouldBe(HttpStatusCode.Accepted, await started.Content.ReadAsStringAsync());
+        await using (var host = factory.WithSearchFakes(new FakeSearchEngine(), new FakeTextExtractor()))
+        {
+            await host.Services.RunJobsAsync();
+        }
+
+        (await NumberOfAsync(oldest)).ShouldBe($"{desk.Code}-{year}-00001");
+        (await NumberOfAsync(middle)).ShouldBe($"{desk.Code}-{year}-00002", "deleted documents are numbered too");
+        (await NumberOfAsync(newest)).ShouldBe($"{desk.Code}-{year}-00003");
+        (await desk.Admin.GetFromJsonAsync<JsonElement>("/api/v1/admin/indicator-numbers"))
+            .GetProperty("unnumbered").GetInt32().ShouldBe(0);
+        (await CountAuditAsync("DOCUMENT_INDICATOR_REGISTERED", oldest)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Only_administrators_start_the_backfill()
+    {
+        var (user, _) = await factory.CreateUserAsync("indicator-backfill");
+
+        (await user.PostAsync("/api/v1/admin/indicator-numbers/backfill", null)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Imported_documents_are_numbered_in_creation_order_when_the_import_finishes()
+    {
+        var admin = await factory.AdminAsync();
+        var (_, code) = await CreateTypeAsync(admin);
+        var folder = $"اندیکاتور/{Guid.NewGuid():N}"[..24];
+        object Entry(string date)
+        {
+            var relative = $"indicator/{Guid.NewGuid():N}.txt";
+            var bytes = System.Text.Encoding.UTF8.GetBytes($"indicator {date} {Guid.NewGuid()}");
+            var fullPath = Path.Combine(factory.ImportFilesRoot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+            File.WriteAllBytes(fullPath, bytes);
+            return new
+            {
+                sourceId = $"IND-{Guid.NewGuid():N}"[..20],
+                title = $"وارداتی {date}",
+                categoryPath = folder,
+                documentTypeCode = code,
+                file = relative,
+                contentType = "text/plain",
+                size = bytes.Length,
+                sha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(bytes)),
+                ownerUsername = "admin",
+                createdAt = date,
+            };
+        }
+
+        // Out of order on purpose: the numbers follow the creation dates, not the manifest.
+        var manifest = new
+        {
+            schemaVersion = 2,
+            source = "indicator-test",
+            entries = new[] { Entry("2024-03-10T10:00:00Z"), Entry("2024-01-10T10:00:00Z"), Entry("2024-02-10T10:00:00Z") },
+        };
+        var created = await admin.PostAsJsonAsync("/api/v1/imports", new
+        {
+            name = "واردات اندیکاتور",
+            sourceSystem = "indicator-test",
+            manifestJson = JsonSerializer.Serialize(manifest),
+            failurePolicy = "ContinueOnError",
+            createMissingCategories = true,
+            dryRunOnly = false,
+            mappings = Array.Empty<object>(),
+        });
+        created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync());
+        var jobId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/validate", null)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await admin.PostAsync($"/api/v1/imports/{jobId}/start", null)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        await using (var host = factory.WithSearchFakes(new FakeSearchEngine(), new FakeTextExtractor()))
+        {
+            await host.Services.RunJobsAsync();
+        }
+
+        var items = await admin.GetFromJsonAsync<JsonElement>($"/api/v1/imports/{jobId}/items");
+        var numbers = new List<(string Title, string? Number)>();
+        foreach (var item in items.EnumerateArray())
+        {
+            item.GetProperty("status").GetString().ShouldBe("Succeeded");
+            var documentId = item.GetProperty("targetDocumentId").GetGuid();
+            numbers.Add((item.GetProperty("title").GetString()!, await NumberOfAsync(documentId)));
+        }
+
+        numbers.OrderBy(pair => pair.Title).Select(pair => pair.Number).ShouldBe(
+        [
+            $"{code}-1402-00001",
+            $"{code}-1402-00002",
+            $"{code}-1402-00003",
+        ]);
+    }
+
     [Fact]
     public async Task The_default_pattern_applies_until_an_administrator_changes_it()
     {

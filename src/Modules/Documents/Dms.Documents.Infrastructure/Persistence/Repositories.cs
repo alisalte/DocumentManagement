@@ -151,6 +151,43 @@ public sealed class DocumentRepository(DocumentsDbContext context) : IDocumentRe
             .AnyAsync(document => document.IndicatorNumber != null && document.IndicatorNumber.ToUpper() == wanted, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Document>> ClaimUnnumberedAsync(Guid? importJobId, int limit, CancellationToken cancellationToken)
+    {
+        var ids = importJobId is { } job
+            ? await context.Database.SqlQuery<Guid>($"""
+                SELECT d.id AS "Value"
+                  FROM documents.documents d
+                 WHERE d.indicator_number IS NULL
+                   AND d.id IN (SELECT i.target_document_id FROM documents.import_items i
+                                 WHERE i.import_job_id = {job} AND i.target_document_id IS NOT NULL)
+                 ORDER BY d.created_at, d.id
+                 LIMIT {limit}
+                   FOR UPDATE OF d SKIP LOCKED
+                """).ToListAsync(cancellationToken)
+            : await context.Database.SqlQuery<Guid>($"""
+                SELECT d.id AS "Value"
+                  FROM documents.documents d
+                 WHERE d.indicator_number IS NULL
+                 ORDER BY d.created_at, d.id
+                 LIMIT {limit}
+                   FOR UPDATE OF d SKIP LOCKED
+                """).ToListAsync(cancellationToken);
+
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var keys = ids.Select(id => new DocumentId(id)).ToList();
+        var loaded = await context.Documents.IgnoreQueryFilters()
+            .Where(document => keys.Contains(document.Id))
+            .ToDictionaryAsync(document => document.Id.Value, cancellationToken);
+        return ids.Where(loaded.ContainsKey).Select(id => loaded[id]).ToList();
+    }
+
+    public Task<int> CountUnnumberedAsync(CancellationToken cancellationToken) =>
+        context.Documents.IgnoreQueryFilters().CountAsync(document => document.IndicatorNumber == null, cancellationToken);
+
     public async Task PurgeAsync(Document document, CancellationToken cancellationToken)
     {
         // Transaction-local switch read by the immutability trigger. Outside a purge, no code path

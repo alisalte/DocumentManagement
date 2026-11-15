@@ -80,6 +80,15 @@ public interface IDocumentRepository
 
     /// <summary>Whether any document, deleted or not, already has this number (case-insensitive).</summary>
     Task<bool> IndicatorNumberExistsAsync(string number, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The oldest documents without an indicator number, deleted ones included, tracked and row
+    /// locked (SKIP LOCKED, so two numbering runs never take the same document).
+    /// </summary>
+    /// <param name="importJobId">Only documents created by this import job; null for all.</param>
+    Task<IReadOnlyList<Document>> ClaimUnnumberedAsync(Guid? importJobId, int limit, CancellationToken cancellationToken);
+
+    Task<int> CountUnnumberedAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>One counter per document type and fiscal year (BR-7).</summary>

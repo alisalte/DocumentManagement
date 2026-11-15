@@ -772,6 +772,7 @@ public sealed class ImportRunJob(
             if (remaining == 0)
             {
                 job.Finish(stopRequested: false, timeProvider.GetUtcNow());
+                await jobQueue.EnqueueAsync(IndicatorNumberingJob.Request(job.Id.Value, "finished"), cancellationToken);
                 await audit.WriteAsync(
                     new AuditRecord
                     {
@@ -800,6 +801,7 @@ public sealed class ImportRunJob(
             && item.Status is ImportItemStatus.Failed or ImportItemStatus.Retryable)
         {
             job.Finish(stopRequested: true, timeProvider.GetUtcNow());
+            await jobQueue.EnqueueAsync(IndicatorNumberingJob.Request(job.Id.Value, $"stopped:{item.Id.Value}"), cancellationToken);
             await audit.WriteAsync(
                 new AuditRecord
                 {

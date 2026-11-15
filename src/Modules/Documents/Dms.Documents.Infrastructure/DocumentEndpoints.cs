@@ -503,6 +503,20 @@ public static class DocumentEndpoints
             .RequireAuthorization()
             .WithSummary("The category tree as the caller may see it, with what they may do in each.");
 
+        var indicator = endpoints.MapGroup("/api/v1/admin/indicator-numbers")
+            .WithTags("Administration: indicator numbers")
+            .RequireAuthorization()
+            .RequireSystemPermission(PermissionCodes.AdminManageDocumentTypes);
+
+        indicator.MapGet("", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new GetIndicatorBackfillQuery(), ct)).ToHttpResult())
+            .WithSummary("How many documents, deleted ones included, have no indicator number yet.");
+
+        indicator.MapPost("/backfill", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new StartIndicatorBackfillCommand(), ct))
+                    .ToHttpResult(status => Results.Accepted(value: status)))
+            .WithSummary("Number every document without one, oldest first, in the background. Numbers never change afterwards.");
+
         var admin = endpoints.MapGroup("/api/v1/admin/categories")
             .WithTags("Administration: categories")
             .RequireAuthorization()
