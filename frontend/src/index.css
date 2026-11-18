@@ -180,18 +180,19 @@
 /* Dark mode remaps paper surfaces. Brand blocks keep --color-ink-* (bg-ink-900 stays navy). */
 html.dark {
   color-scheme: dark;
-  --color-paper-50: #161925;
-  --color-paper-100: #0d0f17;
-  --color-paper-200: #252938;
-  --color-paper-300: #343949;
-  --color-paper-400: #687088;
-  --color-paper-500: #969db2;
-  --color-paper-600: #c0c5d4;
-  --color-paper-700: #dadee8;
-  --color-paper-800: #eceef4;
+  /* A dimmed dark: soft slate rather than near-black, so surfaces and borders stay readable. */
+  --color-paper-50: #272c3d;
+  --color-paper-100: #1e2232;
+  --color-paper-200: #373d52;
+  --color-paper-300: #485067;
+  --color-paper-400: #7c849b;
+  --color-paper-500: #a6adc2;
+  --color-paper-600: #c8cddb;
+  --color-paper-700: #dde0ea;
+  --color-paper-800: #eef0f5;
   --color-paper-900: #f8f9fc;
-  --shadow-surface: 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-elevated: 0 4px 8px -2px rgb(0 0 0 / 0.4), 0 16px 32px -8px rgb(0 0 0 / 0.55);
+  --shadow-surface: 0 1px 2px rgb(0 0 0 / 0.18);
+  --shadow-elevated: 0 4px 8px -2px rgb(0 0 0 / 0.25), 0 16px 32px -8px rgb(0 0 0 / 0.35);
 }
 
 /* Unlayered so these beat Tailwind text utilities. Do not retarget --color-ink-* or --color-white. */
@@ -222,4 +223,17 @@ html.dark .hover\:bg-ink-50\/70:hover,
 html.dark .bg-ink-50\/40,
 html.dark .hover\:bg-ink-50\/40:hover {
   background-color: rgb(99 102 241 / 0.1);
+}
+
+/* Brand accents on dimmed surfaces: lighter text for contrast, quieter rings. */
+html.dark :is(.text-ink-600, .hover\:text-ink-600:hover) {
+  color: #a5b0fc;
+}
+
+html.dark :is(.ring-ink-100, .ring-ink-200, .ring-ink-200\/70) {
+  --tw-ring-color: rgb(129 140 248 / 0.25);
+}
+
+html.dark :is(.border-ink-200, .hover\:border-ink-200:hover, .border-ink-300, .hover\:border-ink-300:hover) {
+  border-color: rgb(129 140 248 / 0.4);
 }
