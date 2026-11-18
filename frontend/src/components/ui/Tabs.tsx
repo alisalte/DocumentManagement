@@ -47,10 +47,10 @@ export function Tab({ value, label, disabled }: TabProps) {
       disabled={disabled}
       onClick={() => context?.onChange(value)}
       className={cx(
-        'relative -mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors duration-150',
+        'relative -mb-px shrink-0 border-b-2 px-3.5 py-2.5 text-sm font-medium whitespace-nowrap transition-colors duration-150',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        active ? 'border-ink-700 text-ink-800' : 'border-transparent text-paper-500 hover:border-paper-300 hover:text-ink-800',
+        active ? 'border-ink-600 text-ink-700' : 'border-transparent text-paper-500 hover:border-paper-300 hover:text-ink-900',
       )}
     >
       {label}

@@ -13,7 +13,7 @@ export function Checkbox({ label, className, ...rest }: CheckboxProps) {
       {...rest}
       type="checkbox"
       className={cx(
-        'size-4 shrink-0 cursor-pointer rounded border-paper-300 accent-ink-700',
+        'size-4 shrink-0 cursor-pointer rounded border-paper-300 accent-ink-600',
         'focus:outline-none focus:ring-2 focus:ring-ink-500/30 focus:ring-offset-1',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -41,8 +41,8 @@ export function Switch({ label, className, ...rest }: SwitchProps) {
       <span
         aria-hidden
         className={cx(
-          'relative h-5 w-9 shrink-0 rounded-full bg-paper-300 transition-colors',
-          'peer-checked:bg-ink-700 peer-focus-visible:ring-2 peer-focus-visible:ring-ink-500/40 peer-focus-visible:ring-offset-2',
+          'relative h-5 w-9 shrink-0 rounded-full bg-paper-300 transition-colors duration-200',
+          'peer-checked:bg-ink-600 peer-focus-visible:ring-2 peer-focus-visible:ring-ink-500/40 peer-focus-visible:ring-offset-2',
           'after:absolute after:top-0.5 after:size-4 after:rounded-full after:bg-white after:shadow after:transition-all after:start-0.5',
           'peer-checked:after:start-[1.125rem]',
           'peer-disabled:cursor-not-allowed peer-disabled:opacity-50',

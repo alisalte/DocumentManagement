@@ -126,7 +126,7 @@ export function WorkflowEditorPage() {
   return (
     <div className="max-w-[1100px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">
           {workflow.name}{' '}
           <span className="text-sm font-medium text-paper-500" dir="ltr">
             ({workflow.code})

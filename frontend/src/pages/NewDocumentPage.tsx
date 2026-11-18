@@ -202,7 +202,7 @@ export function NewDocumentPage() {
     <div className="mx-auto w-full max-w-[720px] space-y-5">
       <form onSubmit={submit}>
         <Card className="space-y-4">
-          <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{t.newDocument}</h1>
           {fiscal.currentYear > 0 && (
             <Alert severity="info">
               این سند در سال مالی {formatFiscalYear(fiscal.currentYear)} ثبت می‌شود.
@@ -394,7 +394,7 @@ function NoCreatableCategory({
   return (
     <div className="mx-auto w-full max-w-[640px] space-y-4 page-enter">
       <Card className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.newDocument}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{t.newDocument}</h1>
         <Alert severity="info">
           <p className="font-medium">{t.noCreatableCategory}</p>
           <p className="mt-1 text-sm opacity-90">{t.noCreatableCategoryHelp}</p>

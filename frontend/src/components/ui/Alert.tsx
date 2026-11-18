@@ -4,10 +4,10 @@ import { cx } from './cx';
 export type AlertSeverity = 'error' | 'success' | 'warning' | 'info';
 
 const toneClasses: Record<AlertSeverity, string> = {
-  error: 'border-rose-200 bg-rose-50 text-rose-800',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  info: 'border-ink-200 bg-ink-50 text-ink-800',
+  error: 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200',
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+  warning: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+  info: 'border-ink-200 bg-ink-50 text-ink-800 dark:border-ink-500/30',
 };
 
 const iconClasses: Record<AlertSeverity, string> = {
@@ -41,7 +41,7 @@ export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'
 /** Inline message block. */
 export function Alert({ severity = 'info', action, className, children, ...rest }: AlertProps) {
   return (
-    <div {...rest} role="alert" className={cx('flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm', toneClasses[severity], className)}>
+    <div {...rest} role="alert" className={cx('flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-6', toneClasses[severity], className)}>
       <Icon severity={severity} />
       <div className="min-w-0 flex-1">{children}</div>
       {action && <div className="flex items-center">{action}</div>}

@@ -190,7 +190,7 @@ function OpenedLinkView({ token, link, onEnded }: { token: string; link: OpenedL
       <div className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{link.title}</h1>
+            <h1 className="text-xl font-bold tracking-tight break-words text-ink-900 sm:text-2xl">{link.title}</h1>
             <p className="mt-1 text-sm break-words text-paper-500">
               <span dir="ltr">{link.versionLabel}</span> · {link.fileName} · {formatBytes(link.fileSize)}
             </p>

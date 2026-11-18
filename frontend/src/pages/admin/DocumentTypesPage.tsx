@@ -14,7 +14,7 @@ export function DocumentTypesPage() {
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{a.documentTypes}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{a.documentTypes}</h1>
         <Button onClick={() => setCreating(true)}>{a.newType}</Button>
       </div>
 

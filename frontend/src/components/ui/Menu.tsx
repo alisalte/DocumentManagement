@@ -94,8 +94,8 @@ export function Menu({ anchor, point = null, onClose, children, className }: Men
         zIndex: 70,
       }}
       className={cx(
-        'z-50 min-w-44 overflow-hidden rounded-xl border border-paper-200 bg-paper-50 py-1',
-        'shadow-[0_4px_12px_rgb(31_22_56/0.08),0_16px_40px_rgb(31_22_56/0.1)]',
+        'z-50 min-w-48 overflow-hidden rounded-xl border border-paper-200 bg-paper-50 p-1',
+        'shadow-[var(--shadow-elevated)] animate-[pop-in_0.16s_cubic-bezier(0.2,0.8,0.2,1)]',
         className,
       )}
     >
@@ -123,10 +123,10 @@ export function MenuItem({ onClick, disabled, danger, children, className }: Men
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'flex w-full items-center gap-2 px-3 py-2 text-start text-sm transition-colors',
+        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start text-sm transition-colors [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:opacity-70',
         'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
         'disabled:cursor-not-allowed disabled:opacity-50',
-        danger ? 'text-rose-600 hover:bg-rose-50' : 'text-ink-800 hover:bg-ink-50',
+        danger ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10' : 'text-paper-700 hover:bg-paper-100 hover:text-ink-900',
         className,
       )}
     >
@@ -138,7 +138,7 @@ export function MenuItem({ onClick, disabled, danger, children, className }: Men
 /** Class list for a row that is really a link (use on `RouterLink`). */
 export function menuItemClasses(className?: string): string {
   return cx(
-    'flex w-full items-center gap-2 px-3 py-2 text-start text-sm text-ink-800 transition-colors hover:bg-ink-50',
+    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-start text-sm text-paper-700 transition-colors hover:bg-paper-100 hover:text-ink-900 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:opacity-70',
     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-600',
     className,
   );

@@ -77,7 +77,7 @@ export function ChipsInput({
   return (
     <div ref={rootRef} className={cx('relative w-full', className)}>
       {label !== undefined && (
-        <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-ink-800">
+        <label htmlFor={inputId} className="mb-1.5 block text-[13px] font-medium text-paper-700">
           {label}
           {required && <span className="text-rose-500"> *</span>}
         </label>
