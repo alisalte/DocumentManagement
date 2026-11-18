@@ -4,16 +4,16 @@ import { cx } from './cx';
 export type ChipColor = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error';
 
 const filledClasses: Record<ChipColor, string> = {
-  default: 'bg-paper-100 text-paper-700',
-  primary: 'bg-ink-100 text-ink-800',
+  default: 'bg-paper-200/70 text-paper-700',
+  primary: 'bg-ink-50 text-ink-700 ring-1 ring-inset ring-ink-200/70',
   secondary: 'bg-copper-100 text-copper-800',
-  success: 'bg-emerald-100 text-emerald-800',
-  warning: 'bg-amber-100 text-amber-800',
-  error: 'bg-rose-100 text-rose-800',
+  success: 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20',
+  warning: 'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20',
+  error: 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-500/20',
 };
 
 const outlinedClasses: Record<ChipColor, string> = {
-  default: 'border border-paper-300 bg-paper-50 text-paper-600',
+  default: 'border border-paper-300 bg-paper-50 text-paper-600 tabular-nums',
   primary: 'border border-ink-200 bg-paper-50 text-ink-700',
   secondary: 'border border-copper-200 bg-paper-50 text-copper-700',
   success: 'border border-emerald-200 bg-paper-50 text-emerald-700',
@@ -38,8 +38,8 @@ export function Chip({ label, color = 'default', variant = 'filled', size = 'sma
     <span
       dir={dir}
       className={cx(
-        'inline-flex max-w-full items-center gap-1 rounded-full font-medium',
-        size === 'small' ? 'h-6 px-2.5 text-xs' : 'h-7 px-3 text-sm',
+        'inline-flex max-w-full items-center gap-1 rounded-md font-medium',
+        size === 'small' ? 'h-6 px-2 text-xs' : 'h-7 px-2.5 text-sm',
         variant === 'outlined' ? outlinedClasses[color] : filledClasses[color],
         className,
       )}

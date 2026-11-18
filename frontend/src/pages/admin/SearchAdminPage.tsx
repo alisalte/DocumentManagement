@@ -96,7 +96,7 @@ export function SearchAdminPage() {
   return (
     <div className="max-w-5xl space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{t.searchAdmin}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{t.searchAdmin}</h1>
         <p className="mt-1 max-w-3xl text-sm text-paper-600">{t.ocrLead}</p>
       </div>
       {status.isLoading && <ProgressBar className="rounded-full" />}

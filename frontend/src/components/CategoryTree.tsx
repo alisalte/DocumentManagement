@@ -80,14 +80,14 @@ export function CategoryTree({ categories, selectedId, onSelect, fileCounts = nu
         onClick={() => onSelect(null)}
         className={rowClasses(selectedId === null, false)}
       >
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-300/50 text-ink-600">
+        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-ink-50 text-ink-600">
           <AllDocsIcon />
         </span>
         <span className="min-w-0 flex-1 truncate">{t.allDocuments}</span>
         {totalFiles !== null && <FileCount count={totalFiles} />}
       </button>
 
-      <ul className="mt-1 space-y-0">
+      <ul className="mt-0.5 space-y-0">
         {roots.map((node, index) => (
           <TreeRow
             key={node.id}
@@ -168,28 +168,28 @@ function TreeRow({
 
   return (
     <li
-      className="relative"
+      className="group/row relative"
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
         onOpenMenu(node, { x: event.clientX, y: event.clientY });
       }}
     >
-      <div className="flex min-h-9 items-stretch">
+      <div className="flex min-h-8 items-stretch">
         {/* Tree guides: vertical stems + elbow into this row (RTL: drawn from the start edge). */}
         <div className="flex shrink-0" aria-hidden>
           {guides.map((continueDown, level) => (
-            <span key={level} className="relative w-4">
+            <span key={level} className="relative w-3.5">
               {continueDown && (
-                <span className="absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-paper-300" />
+                <span className="absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-paper-200" />
               )}
             </span>
           ))}
           {depth > 0 && (
-            <span className="relative w-4">
-              {!isLast && <span className="absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-paper-300" />}
-              {isLast && <span className="absolute top-0 bottom-1/2 start-1/2 w-px -translate-x-1/2 bg-paper-300" />}
-              <span className="absolute top-1/2 start-1/2 end-0 h-px bg-paper-300" />
+            <span className="relative w-3.5">
+              {!isLast && <span className="absolute inset-y-0 start-1/2 w-px -translate-x-1/2 bg-paper-200" />}
+              {isLast && <span className="absolute top-0 bottom-1/2 start-1/2 w-px -translate-x-1/2 bg-paper-200" />}
+              <span className="absolute top-1/2 start-1/2 end-0 h-px bg-paper-200" />
             </span>
           )}
         </div>
@@ -204,12 +204,12 @@ function TreeRow({
                 event.stopPropagation();
                 onToggle(node.id);
               }}
-              className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-paper-500 transition-colors hover:bg-paper-300/50 hover:text-ink-900"
+              className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-paper-400 transition-colors hover:bg-paper-200/70 hover:text-ink-900"
             >
               <ChevronIcon open={open} />
             </button>
           ) : (
-            <span className="size-7 shrink-0" aria-hidden />
+            <span className="size-6 shrink-0" aria-hidden />
           )}
 
           <button
@@ -220,9 +220,8 @@ function TreeRow({
           >
             <span
               className={cx(
-                'grid size-7 shrink-0 place-items-center rounded-lg',
-                selected ? 'bg-ink-100 text-copper-600' : 'bg-paper-100 text-copper-500',
-                open && hasChildren && !selected && 'bg-ink-50 text-copper-500',
+                'grid size-6 shrink-0 place-items-center rounded-md',
+                selected ? 'text-ink-600' : 'text-amber-500',
               )}
             >
               <FolderIcon open={open && hasChildren} />
@@ -239,7 +238,7 @@ function TreeRow({
               const rect = event.currentTarget.getBoundingClientRect();
               onOpenMenu(node, { x: rect.right, y: rect.bottom });
             }}
-            className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-paper-500 hover:bg-paper-300/50 hover:text-ink-900"
+            className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-paper-400 transition-opacity hover:bg-paper-200/70 hover:text-ink-900 focus-visible:opacity-100 lg:opacity-0 lg:group-hover/row:opacity-100"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4">
               <path d="M10 4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10 11.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3ZM10 18.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
@@ -273,11 +272,11 @@ function TreeRow({
 
 const rowClasses = (selected: boolean, muted: boolean) =>
   cx(
-    'flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-start text-sm transition-all duration-150',
+    'flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-start text-sm transition-colors duration-150',
     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ink-500',
     selected
-      ? 'bg-ink-500/15 font-semibold text-ink-800 shadow-[inset_0_0_0_1px_rgb(139_92_246/0.25)]'
-      : 'text-paper-600 hover:bg-paper-300/40 hover:text-ink-900',
+      ? 'bg-ink-50 font-semibold text-ink-700'
+      : 'text-paper-600 hover:bg-paper-100 hover:text-ink-900',
     muted && !selected && 'text-paper-500/70',
   );
 
@@ -319,9 +318,10 @@ function FileCount({ count }: { count: number }) {
   return (
     <span
       title={label}
-      className="shrink-0 rounded-md bg-paper-200/80 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-paper-600"
+      aria-label={label}
+      className="shrink-0 rounded-full bg-paper-200/70 px-1.5 py-0.5 text-[10px] leading-none font-semibold tabular-nums text-paper-500"
     >
-      {label}
+      {formatNumber(count)}
     </span>
   );
 }
@@ -334,8 +334,8 @@ function ChevronIcon({ open }: { open: boolean }) {
       aria-hidden
       className={cx(
         'size-3.5 transition-transform duration-150',
-        // Down when open; when closed, point toward the start edge (RTL-aware).
-        open ? 'rotate-0' : 'ltr:-rotate-90 rtl:rotate-90',
+        // Down when open; when closed, point left, into the right-to-left tree.
+        open ? 'rotate-0' : 'rotate-90',
       )}
     >
       <path
@@ -350,13 +350,13 @@ function ChevronIcon({ open }: { open: boolean }) {
 function FolderIcon({ open }: { open: boolean }) {
   if (open) {
     return (
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-3.5">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-4">
         <path d="M19.906 9c.382 0 .749.057 1.094.162V9a3 3 0 0 0-3-3h-3.879a.75.75 0 0 1-.53-.22L11.47 3.66A2.25 2.25 0 0 0 9.879 3H6a3 3 0 0 0-3 3v3.162A3.735 3.735 0 0 1 4.094 9h15.812ZM4.094 10.5a2.25 2.25 0 0 0-2.227 2.568l.857 6A2.25 2.25 0 0 0 4.951 21h14.098a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-2.227-2.568H4.094Z" />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-3.5">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-4">
       <path d="M19.5 21a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3h-5.379a.75.75 0 0 1-.53-.22L11.47 3.66A2.25 2.25 0 0 0 9.879 3H4.5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h15Z" />
     </svg>
   );

@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Checkbox, Chip, Dialog, ProgressBar, Select, TextArea, TextField, Toast } from '../components/ui';
+import { Alert, Button, Card, Checkbox, Chip, Dialog, IconButton, Menu, MenuItem, ProgressBar, Select, TextArea, TextField, Toast } from '../components/ui';
+import { FileTypeBadge } from '../components/FileTypeBadge';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router';
@@ -33,6 +34,7 @@ export function DocumentPage() {
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<'edit' | 'metadata' | 'version' | 'delete' | null>(null);
   const [aclOpen, setAclOpen] = useState(false);
+  const [moreMenu, setMoreMenu] = useState<HTMLElement | null>(null);
   // Null: the viewer shows what a plain reader gets; a version row can point it elsewhere.
   const [previewVersion, setPreviewVersion] = useState<string | null>(null);
 
@@ -99,28 +101,48 @@ export function DocumentPage() {
   const current = versions.data?.find((version) => version.isCurrent) ?? null;
 
   return (
-    <div className="max-w-[1000px] space-y-5">
+    <div className="mx-auto max-w-[1100px] space-y-5">
       {!doc.fiscalYearOpen && (
         <Alert severity="warning">
           سال {formatFiscalYear(doc.fiscalYear)} بسته است و فقط برای گزارش است.
         </Alert>
       )}
       <Card>
-        <div className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{doc.title}</h1>
-              <p className="text-sm text-paper-500">
-                <RouterLink to={`/?category=${doc.categoryId}`} className="text-ink-700 hover:underline">
-                  {doc.categoryName}
-                </RouterLink>
-                {current && <> · <span dir="ltr">{current.label}</span></>}
-              </p>
+        <div className="space-y-5">
+          <nav aria-label="مسیر" className="-mt-1 flex flex-wrap items-center gap-1 text-xs text-paper-500">
+            <RouterLink to="/" className="rounded-md px-1 py-0.5 transition-colors hover:bg-paper-200/70 hover:text-ink-900">
+              مدیریت خودکار
+            </RouterLink>
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-3.5 text-paper-400">
+              <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+            </svg>
+            <RouterLink to={`/?category=${doc.categoryId}`} className="rounded-md px-1 py-0.5 transition-colors hover:bg-paper-200/70 hover:text-ink-900">
+              {doc.categoryName}
+            </RouterLink>
+          </nav>
+
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <FileTypeBadge fileName={current?.fileName} mimeType={current?.mimeType} className="size-11 rounded-xl text-[11px]" />
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-bold tracking-tight break-words text-ink-900 sm:text-2xl">{doc.title}</h1>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-paper-500">
+                  {current && <Chip label={current.label} variant="outlined" dir="ltr" />}
+                  {current && (
+                    <span className="truncate">
+                      <bdi>{current.fileName}</bdi> · {formatBytes(current.fileSize)}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {can(doc, 'DOCUMENT_DOWNLOAD') && (
-                <Button onClick={() => download(null)}>{t.download}</Button>
+                <Button onClick={() => download(null)}>
+                  <DownloadIcon />
+                  {t.download}
+                </Button>
               )}
               {can(doc, 'DOCUMENT_CREATE_VERSION') && (
                 <Button variant="outline" onClick={() => setDialog('version')}>
@@ -128,36 +150,66 @@ export function DocumentPage() {
                 </Button>
               )}
               {can(doc, 'DOCUMENT_EDIT') && (
-                <Button variant="ghost" onClick={() => setDialog('edit')}>
+                <Button variant="outline" onClick={() => setDialog('edit')}>
                   {t.edit}
                 </Button>
               )}
-              {can(doc, 'DOCUMENT_EDIT') && (
-                <Button variant="ghost" onClick={rereadText}>
-                  {t.rereadText}
-                </Button>
-              )}
-              {can(doc, 'DOCUMENT_MANAGE_PERMISSION') && (
-                <Button variant="ghost" onClick={() => setAclOpen(true)}>
-                  {directory.permissionsTitle}
-                </Button>
-              )}
-              {can(doc, 'DOCUMENT_DELETE') && (
-                <Button variant="danger" onClick={() => setDialog('delete')}>
-                  {t.delete}
-                </Button>
+              {(can(doc, 'DOCUMENT_EDIT') || can(doc, 'DOCUMENT_MANAGE_PERMISSION') || can(doc, 'DOCUMENT_DELETE')) && (
+                <>
+                  <IconButton label="کارهای بیشتر" variant="outline" onClick={(event) => setMoreMenu(event.currentTarget)} aria-haspopup="menu">
+                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                      <path d="M3 10a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm5.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Zm5.5 0a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0Z" />
+                    </svg>
+                  </IconButton>
+                  <Menu anchor={moreMenu} onClose={() => setMoreMenu(null)}>
+                    {can(doc, 'DOCUMENT_MANAGE_PERMISSION') && (
+                      <MenuItem
+                        onClick={() => {
+                          setMoreMenu(null);
+                          setAclOpen(true);
+                        }}
+                      >
+                        {directory.permissionsTitle}
+                      </MenuItem>
+                    )}
+                    {can(doc, 'DOCUMENT_EDIT') && (
+                      <MenuItem
+                        onClick={() => {
+                          setMoreMenu(null);
+                          void rereadText();
+                        }}
+                      >
+                        {t.rereadText}
+                      </MenuItem>
+                    )}
+                    {can(doc, 'DOCUMENT_DELETE') && (
+                      <>
+                        <div className="-mx-1 my-1 border-t border-paper-200" />
+                        <MenuItem
+                          danger
+                          onClick={() => {
+                            setMoreMenu(null);
+                            setDialog('delete');
+                          }}
+                        >
+                          {t.delete}
+                        </MenuItem>
+                      </>
+                    )}
+                  </Menu>
+                </>
               )}
             </div>
           </div>
 
           {doc.description && (
-            <p className="break-words whitespace-pre-wrap text-sm text-ink-800">{doc.description}</p>
+            <p className="break-words whitespace-pre-wrap text-sm leading-7 text-paper-700">{doc.description}</p>
           )}
 
           {schema.data && schema.data.fields.length > 0 && (
-            <div>
+            <div className="rounded-xl border border-paper-200 bg-paper-100/40 p-4">
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="flex-1 text-base font-semibold text-ink-800">{t.metadata}</h2>
+                <h2 className="flex-1 text-sm font-semibold text-ink-900">{t.metadata}</h2>
                 {can(doc, 'DOCUMENT_EDIT') && (
                   <Button size="sm" variant="ghost" onClick={() => setDialog('metadata')}>
                     {t.editMetadata}
@@ -182,7 +234,7 @@ export function DocumentPage() {
             </p>
           )}
 
-          <p className="text-xs text-paper-400">
+          <p className="border-t border-paper-200 pt-4 text-xs text-paper-500">
             {t.createdAt}: {formatDateTime(doc.createdAt)} · {t.updatedAt}: {formatDateTime(doc.updatedAt)}
           </p>
 
@@ -217,10 +269,15 @@ export function DocumentPage() {
 
       <Card flush>
         {versions.isFetching && <ProgressBar />}
-        <div className="px-4 pt-4 sm:px-5">
-          <h2 className="text-base font-semibold text-ink-800">{t.versions}</h2>
+        <div className="flex items-center gap-2 border-b border-paper-200 px-4 py-3.5 sm:px-5">
+          <h2 className="text-base font-bold text-ink-900">{t.versions}</h2>
+          {!!versions.data?.length && (
+            <span className="rounded-full bg-paper-200/70 px-2 py-0.5 text-xs font-semibold text-paper-600 tabular-nums">
+              {versions.data.length.toLocaleString('fa-IR')}
+            </span>
+          )}
         </div>
-        <ul className="mt-3 divide-y divide-paper-100">
+        <ul className="divide-y divide-paper-200/70">
           {(versions.data ?? []).map((version) => (
             <VersionRow
               key={version.id}
@@ -229,7 +286,8 @@ export function DocumentPage() {
               onDownload={() => download(version)}
               onPreview={() => {
                 setPreviewVersion(version.isEffective ? null : version.id);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // The page scrolls inside <main>, not the window.
+                window.document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             />
           ))}
@@ -295,7 +353,7 @@ function VersionRow({
     <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:gap-4 sm:px-5">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span dir="ltr" className="font-semibold text-ink-800">
+          <span dir="ltr" className="font-semibold text-ink-900">
             {version.label}
           </span>
           <Chip size="small" variant="outlined" label={changeKindLabel(version.changeKind)} />
@@ -311,13 +369,13 @@ function VersionRow({
           {blocked && <Chip size="small" color={blocked.color} label={blocked.label} />}
         </div>
 
-        <p className="mt-1 break-words text-sm text-ink-800">
-          {version.fileName} · {formatBytes(version.fileSize)}
+        <p className="mt-1 break-words text-sm text-paper-700">
+          <bdi>{version.fileName}</bdi> · {formatBytes(version.fileSize)}
         </p>
 
         {version.changeDescription && <p className="text-sm text-paper-500">{version.changeDescription}</p>}
 
-        <p className="text-xs text-paper-400">{formatDateTime(version.createdAt)}</p>
+        <p className="text-xs text-paper-500">{formatDateTime(version.createdAt)}</p>
 
         <p dir="ltr" title={t.sha256} className="block break-all font-mono text-xs text-paper-400">
           SHA-256 {version.sha256}
@@ -693,5 +751,13 @@ function DeleteDialog({
       <p className="text-sm text-ink-800">{t.deleteConfirm}</p>
       <TextField label={t.deleteReason} value={reason} onChange={(event) => setReason(event.target.value)} />
     </FormDialog>
+  );
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
   );
 }

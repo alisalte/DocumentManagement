@@ -72,7 +72,7 @@ export function SharedVersionPage() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold tracking-tight break-words text-ink-900">{title}</h1>
+              <h1 className="text-xl font-bold tracking-tight break-words text-ink-900 sm:text-2xl">{title}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Chip label={s.sharedWithMe} />
                 <span className="text-sm text-paper-500" dir="ltr">

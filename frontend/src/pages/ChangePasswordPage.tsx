@@ -40,7 +40,7 @@ export function ChangePasswordPage({ forced = false }: { forced?: boolean }) {
     }
   };
 
-  const heading = <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.changePassword}</h1>;
+  const heading = <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{d.changePassword}</h1>;
 
   const form = (
     <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">

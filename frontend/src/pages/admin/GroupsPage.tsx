@@ -31,7 +31,7 @@ export function GroupsPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.groups}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{d.groups}</h1>
         <Button onClick={() => setCreating(true)}>{d.newGroup}</Button>
       </div>
 

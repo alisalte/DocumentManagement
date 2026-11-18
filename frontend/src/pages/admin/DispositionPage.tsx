@@ -135,7 +135,7 @@ export function DispositionPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{d.title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{d.title}</h1>
         <p className="mt-1 text-sm text-paper-600">{d.subtitle}</p>
       </div>
 

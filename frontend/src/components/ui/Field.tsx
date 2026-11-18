@@ -8,9 +8,9 @@ import type {
 import { cx } from './cx';
 
 const controlBase =
-  'w-full rounded-xl border bg-paper-50 text-sm text-ink-900 shadow-sm transition-colors placeholder:text-paper-400 focus:outline-none focus:ring-2 focus:ring-ink-500/20 disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500';
-const borderDefault = 'border-paper-300 focus:border-ink-500';
-const borderError = 'border-rose-400 focus:border-rose-500 focus:ring-rose-500/20';
+  'w-full rounded-xl border bg-paper-50 text-sm text-ink-900 shadow-[0_1px_2px_rgb(16_24_40/0.05)] transition-[border-color,box-shadow] duration-150 placeholder:text-paper-400 hover:border-paper-400 focus:outline-none focus:ring-4 focus:ring-ink-500/15 disabled:cursor-not-allowed disabled:bg-paper-100 disabled:text-paper-500';
+const borderDefault = 'border-paper-300 focus:border-ink-500 focus:hover:border-ink-500';
+const borderError = 'border-rose-400 hover:border-rose-500 focus:border-rose-500 focus:ring-rose-500/15';
 const sizes = { sm: 'h-9 px-3', md: 'h-10 px-3.5' } as const;
 
 interface FieldChrome {
@@ -31,7 +31,7 @@ function Shell({ id, label, helperText, error, required, control, className }: S
   return (
     <div className={cx('w-full', className)}>
       {label !== undefined && (
-        <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-ink-800">
+        <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-paper-700">
           {label}
           {required && <span className="text-rose-500"> *</span>}
         </label>

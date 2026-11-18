@@ -33,7 +33,7 @@ export function Toast({ open, message, onClose, autoHideDuration = 4000, severit
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 sm:p-6" role="status">
       <div
         className={cx(
-          'pointer-events-auto flex max-w-md items-center gap-4 rounded-xl px-4 py-3 text-sm text-white shadow-lg',
+          'pointer-events-auto flex max-w-md items-center gap-4 rounded-xl px-4 py-3 text-sm text-white shadow-[var(--shadow-elevated)] ring-1 ring-white/10',
           'animate-[fade-in_0.25s_ease-out]',
           severity === 'success' && 'bg-emerald-700',
           severity === 'error' && 'bg-rose-700',

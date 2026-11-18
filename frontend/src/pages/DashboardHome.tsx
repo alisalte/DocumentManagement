@@ -1,9 +1,10 @@
 import { Alert, Button, Card, Chip, ProgressBar, cx } from '../components/ui';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import { FileTypeBadge } from '../components/FileTypeBadge';
 import { FolderIcon } from '../components/FolderIcon';
+import { ArrowBackIcon, CalendarIcon, FolderOutlineIcon, InboxIcon, PlusIcon, SearchIcon, ShareIcon } from '../components/icons';
 import { api, type CategoryNode, type DocumentListItem, type UploadResult, type WorkflowTask } from '../lib/api';
 import { useFiscalYear } from '../lib/fiscalYear';
 import { subtreeFileCounts, topLevelArchiveFolders, visibleChildFolders } from '../lib/categories';
@@ -24,6 +25,22 @@ interface QueueItem {
   upload?: UploadResult;
 }
 
+function DocumentStackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+    </svg>
+  );
+}
+
+function CloudIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" />
+    </svg>
+  );
+}
+
 function greetingForHour(hour: number): string {
   if (hour < 5) return 'شب‌بخیر';
   if (hour < 12) return 'صبح بخیر';
@@ -32,33 +49,46 @@ function greetingForHour(hour: number): string {
   return 'شب‌بخیر';
 }
 
+const metricTones = {
+  ink: 'bg-ink-50 text-ink-600 ring-ink-100',
+  amber: 'bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/20',
+  emerald: 'bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/20',
+  sky: 'bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/20',
+} as const;
+
 function Metric({
   label,
   value,
   hint,
   to,
-  accent,
+  tone,
+  icon,
   delay,
 }: {
   label: string;
   value: string;
   hint?: string;
   to?: string;
-  accent: string;
+  tone: keyof typeof metricTones;
+  icon: ReactNode;
   delay: number;
 }) {
   const body = (
     <>
-      <div className={cx('mb-3 h-1 w-10 rounded-full', accent)} />
-      <p className="text-xs font-medium text-paper-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight text-ink-900 tabular-nums">{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-paper-500">{hint}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[13px] font-medium text-paper-500">{label}</p>
+        <span className={cx('grid size-9 shrink-0 place-items-center rounded-xl ring-1 ring-inset [&_svg]:size-5', metricTones[tone])}>
+          {icon}
+        </span>
+      </div>
+      <p className="mt-1 text-2xl font-bold tracking-tight text-ink-900 tabular-nums sm:text-[28px]">{value}</p>
+      {hint && <p className="mt-1 truncate text-xs text-paper-500">{hint}</p>}
     </>
   );
 
   const className = cx(
-    'dashboard-stagger block rounded-2xl border border-paper-200/90 bg-paper-50/90 p-4 shadow-[var(--shadow-surface)] transition-all duration-200',
-    to && 'hover:-translate-y-0.5 hover:border-ink-300 hover:shadow-[var(--shadow-elevated)]',
+    'dashboard-stagger block rounded-2xl border border-paper-200 bg-paper-50 p-4 shadow-[var(--shadow-surface)] transition-all duration-200 sm:p-5',
+    to && 'hover:-translate-y-0.5 hover:border-paper-300 hover:shadow-[var(--shadow-elevated)]',
   );
 
   if (to) {
@@ -93,28 +123,32 @@ function FolderCard({
 }) {
   return (
     <div
-      style={{ animationDelay: `${80 + index * 40}ms` }}
-      className="dashboard-stagger group flex flex-col overflow-hidden rounded-2xl border border-paper-200 bg-paper-50 transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-300 hover:bg-ink-50/40 hover:shadow-[var(--shadow-elevated)]"
+      style={{ animationDelay: `${80 + index * 30}ms` }}
+      className="dashboard-stagger group relative flex items-center gap-3 rounded-2xl border border-paper-200 bg-paper-50 p-3 pe-2 shadow-[var(--shadow-surface)] transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-200 hover:shadow-[var(--shadow-elevated)]"
     >
-      <button type="button" onClick={onOpen} className="flex flex-1 flex-col p-4 text-start">
-        <FolderIcon className="mx-auto h-14 w-16 transition-transform duration-300 group-hover:scale-105" />
-        <p className="mt-3 truncate text-sm font-semibold text-ink-900">{category.name}</p>
-        <p className="mt-0.5 text-xs text-paper-500">{category.canCreate ? 'قابل ثبت سند' : 'فقط مشاهده'}</p>
-        <div className="mt-3 flex items-center justify-between border-t border-paper-100 pt-3 text-xs text-paper-500">
-          <span>{countLabel}</span>
-          <span className="font-medium text-ink-600 opacity-0 transition-opacity group-hover:opacity-100">
-            {hasChildren ? 'پوشه‌های داخل ←' : 'باز کردن ←'}
+      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-start after:absolute after:inset-0 after:rounded-2xl">
+        <FolderIcon className="h-10 w-12 shrink-0 transition-transform duration-300 group-hover:scale-105" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-ink-900">{category.name}</span>
+          <span className="mt-0.5 block text-xs text-paper-500 tabular-nums">
+            {countLabel}
+            {hasChildren && ' · دارای زیرپوشه'}
+            {!category.canCreate && ' · فقط مشاهده'}
           </span>
-        </div>
+        </span>
       </button>
-      {hasChildren && (
+      {hasChildren ? (
         <button
           type="button"
           onClick={onOpenDocuments}
-          className="border-t border-paper-100 px-4 py-2 text-start text-xs font-medium text-ink-600 hover:bg-ink-50/70"
+          className="relative z-10 shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-ink-600 opacity-80 transition-colors hover:bg-ink-50 hover:opacity-100"
         >
           مشاهده اسناد
         </button>
+      ) : (
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="size-4 shrink-0 text-paper-400 transition-transform group-hover:-translate-x-0.5">
+          <path fillRule="evenodd" d="M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+        </svg>
       )}
     </div>
   );
@@ -155,22 +189,23 @@ function FolderGrid({
 
   return (
     <section className="dashboard-stagger" style={{ animationDelay: '80ms' }}>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           {trail.length > 0 && (
             <button
               type="button"
               onClick={() => setTrail((current) => current.slice(0, -1))}
-              className="mb-1 text-xs text-ink-500 hover:text-ink-800"
+              className="mb-1 inline-flex items-center gap-1 rounded-md text-xs font-medium text-ink-600 hover:text-ink-800"
             >
-              ← بازگشت
+              <ArrowBackIcon className="size-3.5" />
+              بازگشت
             </button>
           )}
-          <h2 className="text-xl font-bold text-ink-900">{focus?.name ?? 'پوشه‌های بایگانی'}</h2>
-          <p className="mt-1 text-sm text-paper-500">
+          <h2 className="text-base font-bold text-ink-900">{focus?.name ?? 'پوشه‌های بایگانی'}</h2>
+          <p className="mt-0.5 text-xs text-paper-500">
             {focus
-              ? 'زیرپوشه‌ها به همین شکل نمایش داده می‌شوند. عدد هر کارت، تعداد فایل‌های داخل آن پوشه است.'
-              : 'عدد روی هر پوشه، تعداد فایل‌های داخل آن است. اگر داخلش پوشه باشد، با کلیک همان‌طور باز می‌شود.'}
+              ? 'زیرپوشه‌های این پوشه؛ عدد هر کارت تعداد فایل‌های داخل آن است.'
+              : 'با کلیک روی هر پوشه، زیرپوشه‌ها یا اسناد آن باز می‌شود.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -191,7 +226,7 @@ function FolderGrid({
           <p className="py-8 text-center text-sm text-paper-500">پوشه‌ای برای نمایش نیست.</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {shown.map((cat, index) => (
             <FolderCard
               key={cat.id}
@@ -223,14 +258,14 @@ function RecentDocs({
   const navigate = useNavigate();
 
   return (
-    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '120ms' }}>
-      <div className="flex items-center justify-between gap-3 border-b border-paper-100 px-4 py-3.5 sm:px-5">
+    <section className="dashboard-stagger overflow-hidden rounded-2xl border border-paper-200 bg-paper-50 shadow-[var(--shadow-surface)]" style={{ animationDelay: '120ms' }}>
+      <div className="flex items-center justify-between gap-3 border-b border-paper-200 px-4 py-3.5 sm:px-5">
         <div>
           <h2 className="text-base font-bold text-ink-900">اسناد اخیر</h2>
           <p className="text-xs text-paper-500">آخرین پرونده‌هایی که به آن‌ها دسترسی دارید</p>
         </div>
-        <Button as={RouterLink} to="/search" size="sm" variant="ghost">
-          همه
+        <Button as={RouterLink} to="/search" size="sm" variant="outline">
+          مشاهده همه
         </Button>
       </div>
       {loading && <ProgressBar />}
@@ -246,7 +281,7 @@ function RecentDocs({
           </Button>
         </div>
       ) : (
-        <ul className="divide-y divide-paper-100">
+        <ul className="divide-y divide-paper-200/70">
           {items.map((item) => {
             const folder = categoryNameOf?.(item.categoryId)?.trim() || null;
             return (
@@ -254,9 +289,9 @@ function RecentDocs({
                 <button
                   type="button"
                   onClick={() => navigate(`/documents/${item.id}`)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-ink-50/60 sm:px-5"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-paper-100/80 sm:px-5"
                 >
-                  <FileTypeBadge fileName={item.fileName} mimeType={item.mimeType} className="size-10 rounded-xl" />
+                  <FileTypeBadge fileName={item.fileName} mimeType={item.mimeType} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink-900">{item.title}</p>
                     <p className="mt-0.5 truncate text-xs text-paper-500">
@@ -273,7 +308,7 @@ function RecentDocs({
                     {item.currentVersionLabel && (
                       <Chip size="small" variant="outlined" label={item.currentVersionLabel} dir="ltr" className="mb-1" />
                     )}
-                    <p className="text-[11px] text-paper-500">{formatDateTime(item.updatedAt)}</p>
+                    <p className="text-[11px] text-paper-500 tabular-nums">{formatDateTime(item.updatedAt)}</p>
                   </div>
                 </button>
               </li>
@@ -290,8 +325,8 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
   const preview = pending.slice(0, 4);
 
   return (
-    <section className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 shadow-[var(--shadow-surface)]" style={{ animationDelay: '160ms' }}>
-      <div className="flex items-center justify-between border-b border-paper-100 px-4 py-3">
+    <section className="dashboard-stagger overflow-hidden rounded-2xl border border-paper-200 bg-paper-50 shadow-[var(--shadow-surface)]" style={{ animationDelay: '160ms' }}>
+      <div className="flex items-center justify-between border-b border-paper-200 px-4 py-3">
         <div>
           <h2 className="text-sm font-bold text-ink-900">{w.inbox}</h2>
           <p className="text-[11px] text-paper-500">کارهای در انتظار تأیید شما</p>
@@ -305,12 +340,12 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
         <p className="px-4 py-6 text-center text-sm text-paper-500">کار بازی در کارتابل نیست.</p>
       )}
       {preview.length > 0 && (
-        <ul className="divide-y divide-paper-100">
+        <ul className="divide-y divide-paper-200/70">
           {preview.map((task) => (
             <li key={task.id}>
               <RouterLink
                 to="/tasks"
-                className="block px-4 py-3 transition-colors hover:bg-ink-50/60"
+                className="block px-4 py-3 transition-colors hover:bg-paper-100/80"
               >
                 <p className="truncate text-sm font-medium text-ink-900">{task.documentTitle}</p>
                 <p className="mt-0.5 truncate text-xs text-paper-500">
@@ -322,7 +357,7 @@ function TasksPanel({ tasks, loading }: { tasks: WorkflowTask[]; loading: boolea
           ))}
         </ul>
       )}
-      <div className="border-t border-paper-100 p-3">
+      <div className="border-t border-paper-200 p-3">
         <Button as={RouterLink} to="/tasks" fullWidth size="sm" variant="outline">
           باز کردن کارتابل
         </Button>
@@ -397,8 +432,8 @@ function UploadRail({
     <div className="dashboard-stagger space-y-3" style={{ animationDelay: '80ms' }}>
       <Card
         className={cx(
-          'border-dashed bg-gradient-to-b from-white to-ink-50/40 transition-colors',
-          dragOver ? 'border-ink-400 bg-ink-50/70' : 'border-paper-300',
+          'border-2 border-dashed transition-colors',
+          dragOver ? 'border-ink-400 bg-ink-50' : 'border-paper-300 hover:border-ink-300',
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -412,7 +447,7 @@ function UploadRail({
         }}
       >
         <div className="flex flex-col items-center py-3 text-center">
-          <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-ink-100 text-ink-600">
+          <span className="mb-3 grid size-12 place-items-center rounded-2xl bg-ink-50 text-ink-600 ring-1 ring-ink-100">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="size-7">
               <path
                 strokeLinecap="round"
@@ -435,26 +470,25 @@ function UploadRail({
               event.target.value = '';
             }}
           />
-          <Button className="mt-3" size="sm" onClick={() => inputRef.current?.click()}>
+          <Button className="mt-4" size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
             {t.chooseFile}
           </Button>
         </div>
       </Card>
 
+      {queue.length > 0 && (
       <Card flush className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-paper-200 px-4 py-3">
-          <p className="text-xs font-medium text-paper-500">بارگذاری‌های جاری</p>
+          <p className="text-xs font-semibold text-paper-600">بارگذاری‌های جاری</p>
           {busyCount > 0 && (
             <span className="text-[10px] font-semibold text-ink-600">{formatNumber(busyCount)} در حال ارسال</span>
           )}
         </div>
-        {queue.length === 0 ? (
-          <p className="px-4 py-7 text-center text-sm text-paper-500">فعلاً فایلی در صف نیست.</p>
-        ) : (
+        {(
           <ul className="max-h-64 divide-y divide-paper-200 overflow-y-auto">
             {queue.map((item) => (
               <li key={item.id} className="flex items-start gap-3 px-4 py-3">
-                <FileTypeBadge fileName={item.file.name} mimeType={item.file.type} className="size-10 rounded-xl" />
+                <FileTypeBadge fileName={item.file.name} mimeType={item.file.type} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-ink-900" dir="ltr">
                     {item.file.name}
@@ -468,7 +502,7 @@ function UploadRail({
                         <div
                           className={cx(
                             'h-full rounded-full transition-[width] duration-200',
-                            item.status === 'done' ? 'bg-emerald-500' : 'bg-gradient-to-l from-copper-500 to-ink-500',
+                            item.status === 'done' ? 'bg-emerald-500' : 'bg-ink-500',
                           )}
                           style={{ width: `${item.progress}%` }}
                         />
@@ -516,7 +550,7 @@ function UploadRail({
                 </div>
                 <button
                   type="button"
-                  className="shrink-0 text-paper-400 hover:text-rose-600"
+                  className="grid size-7 shrink-0 place-items-center rounded-lg text-paper-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                   aria-label="حذف"
                   onClick={() => {
                     setQueue((current) => current.filter((entry) => entry.id !== item.id));
@@ -530,14 +564,11 @@ function UploadRail({
           </ul>
         )}
       </Card>
+      )}
 
-      {readyUploads.length > 0 ? (
+      {readyUploads.length > 0 && (
         <Button fullWidth size="lg" onClick={() => registerUpload(readyUploads[0]!.upload!)}>
           ادامهٔ ثبت سند
-        </Button>
-      ) : (
-        <Button as={RouterLink} to={newDocHref} fullWidth size="lg">
-          {t.newDocument}
         </Button>
       )}
     </div>
@@ -677,86 +708,77 @@ export function DashboardHome({
 
   return (
     <div className="space-y-6 page-enter">
-      <section className="relative overflow-hidden rounded-3xl border border-ink-200/60 bg-gradient-to-bl from-ink-900 via-ink-800 to-ink-700 text-white shadow-[var(--shadow-elevated)]">
+      <section className="dashboard-stagger relative overflow-hidden rounded-2xl border border-paper-200 bg-paper-50 shadow-[var(--shadow-surface)]">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              'radial-gradient(circle at 12% 20%, rgb(249 115 22 / 0.35), transparent 40%), radial-gradient(circle at 88% 10%, rgb(167 139 250 / 0.35), transparent 42%), linear-gradient(135deg, transparent 40%, rgb(255 255 255 / 0.04) 40%, rgb(255 255 255 / 0.04) 41%, transparent 41%)',
+              'radial-gradient(60rem 18rem at 100% 0%, rgb(99 102 241 / 0.10), transparent 60%), radial-gradient(30rem 14rem at 0% 100%, rgb(14 165 233 / 0.06), transparent 60%)',
           }}
         />
-        <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-7">
+        <div className="relative flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-semibold tracking-[0.18em] text-ink-200 uppercase">Fillo · مدیریت اسناد</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-paper-100 px-2.5 py-1 text-xs font-medium text-paper-600 ring-1 ring-paper-200">
+              <CalendarIcon className="size-3.5" />
+              {today}
+            </p>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink-900 sm:text-[28px]">
               {hello}، {displayName}
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-ink-100/90">
-              داشبورد مدیریت خودکار — وضعیت بایگانی، کارتابل و بارگذاری امروز را یک‌جا ببینید.
+            <p className="mt-1.5 max-w-xl text-sm leading-6 text-paper-500">
+              وضعیت بایگانی، کارتابل و بارگذاری‌های امروز را یک‌جا ببینید.
             </p>
-            <p className="mt-3 text-xs text-ink-200/80">{today}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button as={RouterLink} to={filingTarget ? `/new?category=${filingTarget}` : '/new'} size="lg">
-              {t.newDocument}
-            </Button>
-            <Button as={RouterLink} to="/search" size="lg" variant="outline" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
+            {!fiscal.closed && (
+              <Button as={RouterLink} to={filingTarget ? `/new?category=${filingTarget}` : '/new'} size="lg">
+                <PlusIcon strokeWidth={2.2} />
+                {t.newDocument}
+              </Button>
+            )}
+            <Button as={RouterLink} to="/search" size="lg" variant="outline">
+              <SearchIcon />
               {t.searchEverything}
-            </Button>
-            <Button as={RouterLink} to="/help" size="lg" variant="ghost" className="text-ink-100 hover:bg-white/10 hover:text-white">
-              {t.userGuideShort}
             </Button>
           </div>
         </div>
-        {quotaBytes > 0 && (
-          <div className="relative border-t border-white/10 px-5 py-3 sm:px-7">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] text-ink-100/80">
-              <span>فضای ذخیره‌سازی</span>
-              <span>
-                {formatNumber(storagePct)}٪ · {storageHint}
-              </span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
-              <div
-                className="h-full rounded-full bg-gradient-to-l from-copper-400 to-ink-200 transition-[width] duration-700"
-                style={{ width: `${storagePct}%` }}
-              />
-            </div>
-          </div>
-        )}
       </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Metric
           label="اسناد قابل مشاهده"
           value={formatNumber(docTotal)}
           hint="در بایگانی شما"
           to="/search"
-          accent="bg-ink-500"
+          tone="ink"
+          icon={<DocumentStackIcon />}
           delay={40}
         />
         <Metric
           label="پوشه‌ها"
           value={formatNumber(folderTotal)}
           hint={`${formatNumber(roots.length)} پوشهٔ اصلی`}
-          accent="bg-copper-500"
+          tone="amber"
+          icon={<FolderOutlineIcon />}
           delay={80}
         />
         <Metric
           label="کارتابل"
           value={formatNumber(taskTotal)}
-          hint={taskTotal > 0 ? 'نیازمند اقدام' : 'خالی'}
+          hint={taskTotal > 0 ? 'نیازمند اقدام شما' : 'کاری در انتظار نیست'}
           to="/tasks"
-          accent="bg-emerald-500"
+          tone="emerald"
+          icon={<InboxIcon />}
           delay={120}
         />
         <Metric
-          label="اشتراک دریافتی"
-          value={formatNumber(shareTotal)}
-          hint={recycle.data && recycle.data.total > 0 ? `${formatNumber(recycle.data.total)} در سطل` : 'با شما به‌اشتراک گذاشته'}
-          to="/shared"
-          accent="bg-sky-500"
+          label={quotaBytes > 0 ? 'فضای مصرف‌شده' : 'اشتراک دریافتی'}
+          value={quotaBytes > 0 ? `${formatNumber(storagePct)}٪` : formatNumber(shareTotal)}
+          hint={quotaBytes > 0 ? storageHint : recycle.data && recycle.data.total > 0 ? `${formatNumber(recycle.data.total)} سند در سطل بازیافت` : 'با شما به‌اشتراک گذاشته شده'}
+          to={quotaBytes > 0 ? undefined : '/shared'}
+          tone="sky"
+          icon={quotaBytes > 0 ? <CloudIcon /> : <ShareIcon />}
           delay={160}
         />
       </div>
@@ -779,30 +801,10 @@ export function DashboardHome({
           />
         </div>
 
-        <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
+        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
           <UploadRail filingTarget={filingTarget} closed={fiscal.closed} />
           <TasksPanel tasks={demo ? [] : (tasks.data ?? [])} loading={!demo && tasks.isLoading} />
 
-          <section
-            className="dashboard-stagger rounded-2xl border border-paper-200/90 bg-paper-50/90 p-4 shadow-[var(--shadow-surface)]"
-            style={{ animationDelay: '200ms' }}
-          >
-            <p className="text-xs font-semibold tracking-wide text-paper-500 uppercase">میان‌برها</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button as={RouterLink} to="/shared" size="sm" variant="outline" fullWidth>
-                اشتراک‌ها
-              </Button>
-              <Button as={RouterLink} to="/recycle-bin" size="sm" variant="outline" fullWidth>
-                {t.recycleBin}
-              </Button>
-              <Button as={RouterLink} to="/help" size="sm" variant="outline" fullWidth>
-                {t.userGuideShort}
-              </Button>
-              <Button as={RouterLink} to="/search" size="sm" variant="outline" fullWidth>
-                جستجو
-              </Button>
-            </div>
-          </section>
         </aside>
       </div>
     </div>

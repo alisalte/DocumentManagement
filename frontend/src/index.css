@@ -1,42 +1,54 @@
 @import 'tailwindcss';
 
+/* Dark mode follows the html.dark class the theme switch sets, not the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: 'Vazirmatn', 'Segoe UI', Tahoma, Arial, sans-serif;
 
-  /* Light Fillo surfaces */
+  /* Neutral surfaces and text (cool slate). Dark mode remaps these below. */
   --color-paper-50: #ffffff;
-  --color-paper-100: #f4f5f8;
-  --color-paper-200: #e8eaf0;
-  --color-paper-300: #d5d8e2;
-  --color-paper-400: #a8adbb;
-  --color-paper-500: #7b8194;
-  --color-paper-600: #5c6274;
-  --color-paper-700: #434857;
-  --color-paper-800: #2d3140;
-  --color-paper-900: #1a1d27;
+  --color-paper-100: #f5f6fa;
+  --color-paper-200: #e8eaf1;
+  --color-paper-300: #d7dae4;
+  --color-paper-400: #a2a8b8;
+  --color-paper-500: #6b7287;
+  --color-paper-600: #4a5165;
+  --color-paper-700: #363c4e;
+  --color-paper-800: #232837;
+  --color-paper-900: #131722;
 
-  /* Primary violet */
-  --color-ink-50: #f5f0ff;
-  --color-ink-100: #ebe3ff;
-  --color-ink-200: #d4c4fe;
-  --color-ink-300: #b49af8;
-  --color-ink-400: #9575f0;
-  --color-ink-500: #7c56e0;
-  --color-ink-600: #6d44c9;
-  --color-ink-700: #5b35ad;
-  --color-ink-800: #3f2580;
-  --color-ink-900: #1f1638;
-  --color-ink-950: #120d22;
+  /* Brand indigo. ink-900 doubles as the main text color. */
+  --color-ink-50: #f0f2ff;
+  --color-ink-100: #e2e6ff;
+  --color-ink-200: #c9d0ff;
+  --color-ink-300: #a5b0fc;
+  --color-ink-400: #808cf8;
+  --color-ink-500: #6366f1;
+  --color-ink-600: #5048e5;
+  --color-ink-700: #4338ca;
+  --color-ink-800: #272a55;
+  --color-ink-900: #171a33;
+  --color-ink-950: #0e1022;
 
+  --color-copper-50: #fff7ed;
+  --color-copper-100: #ffedd5;
+  --color-copper-200: #fed7aa;
   --color-copper-400: #fb923c;
   --color-copper-500: #f97316;
   --color-copper-600: #ea580c;
+  --color-copper-700: #c2410c;
+  --color-copper-800: #9a3412;
+
+  --radius-card: 1rem;
 
   --animate-progress: progress 1.4s ease-in-out infinite;
-  --animate-fade-in: fade-in 0.35s ease-out both;
-  --animate-slide-in: slide-in 0.28s ease-out both;
-  --shadow-surface: 0 1px 2px rgb(31 22 56 / 0.04), 0 8px 24px rgb(31 22 56 / 0.06);
-  --shadow-elevated: 0 4px 12px rgb(31 22 56 / 0.08), 0 16px 40px rgb(31 22 56 / 0.1);
+  --animate-fade-in: fade-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slide-in: slide-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop-in: pop-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --shadow-surface: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
+  --shadow-elevated: 0 4px 8px -2px rgb(16 24 40 / 0.06), 0 16px 32px -8px rgb(16 24 40 / 0.14);
+  --shadow-brand: 0 1px 2px rgb(67 56 202 / 0.2), 0 4px 12px -2px rgb(80 72 229 / 0.35);
 }
 
 @keyframes progress {
@@ -62,7 +74,7 @@
 @keyframes slide-in {
   from {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateX(16px);
   }
   to {
     opacity: 1;
@@ -70,18 +82,26 @@
   }
 }
 
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);
+    font-feature-settings: 'ss01';
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-paper-100 text-ink-900 antialiased;
-    background-image:
-      radial-gradient(ellipse 110% 80% at 100% -10%, rgb(124 58 237 / 0.1), transparent 55%),
-      radial-gradient(ellipse 90% 60% at -5% 100%, rgb(249 115 22 / 0.06), transparent 50%),
-      linear-gradient(180deg, #f7f8fb 0%, #eef0f5 100%);
-    background-attachment: fixed;
     min-height: 100vh;
   }
 
@@ -96,7 +116,27 @@
   }
 
   ::selection {
-    background: rgb(124 58 237 / 0.2);
+    background: rgb(99 102 241 / 0.22);
+  }
+
+  /* Slim scrollbars for side panels and tables. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-paper-300) transparent;
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -106,12 +146,12 @@
   }
 
   .surface {
-    @apply rounded-2xl border border-paper-200/90 bg-paper-50/90 backdrop-blur-sm;
+    @apply rounded-2xl border border-paper-200 bg-paper-50;
     box-shadow: var(--shadow-surface);
   }
 
   .section-label {
-    @apply px-1 text-[11px] font-semibold tracking-[0.14em] text-paper-500 uppercase;
+    @apply px-1 text-[11px] font-semibold tracking-wide text-paper-500;
   }
 
   .guide-step {
@@ -123,46 +163,63 @@
     animation-fill-mode: both;
   }
 
+  /* Brand fill: buttons, avatars, the hero. */
   .fillo-gradient {
-    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 45%, #7c3aed 100%);
+    background: linear-gradient(135deg, var(--color-ink-500) 0%, var(--color-ink-600) 55%, var(--color-ink-700) 100%);
   }
 
   .fillo-gradient-hover:hover {
-    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 45%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #7477f5 0%, var(--color-ink-500) 55%, var(--color-ink-600) 100%);
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-/* Dark mode remaps paper surfaces. Brand blocks keep --color-ink-* (bg-ink-900 stays violet). */
+/* Dark mode remaps paper surfaces. Brand blocks keep --color-ink-* (bg-ink-900 stays navy). */
 html.dark {
   color-scheme: dark;
-  --color-paper-50: #221f2b;
-  --color-paper-100: #16141c;
-  --color-paper-200: #322e3c;
-  --color-paper-300: #453f52;
-  --color-paper-400: #7a728c;
-  --color-paper-500: #a89fba;
-  --color-paper-600: #d2cbe0;
-  --color-paper-700: #e4dcf0;
-  --color-paper-800: #f1ebf8;
-  --color-paper-900: #faf8fd;
-}
-
-html.dark body {
-  background-image:
-    radial-gradient(ellipse 110% 80% at 100% -10%, rgb(124 58 237 / 0.22), transparent 55%),
-    radial-gradient(ellipse 90% 60% at -5% 100%, rgb(249 115 22 / 0.1), transparent 50%),
-    linear-gradient(180deg, #16141c 0%, #100e14 100%);
+  --color-paper-50: #161925;
+  --color-paper-100: #0d0f17;
+  --color-paper-200: #252938;
+  --color-paper-300: #343949;
+  --color-paper-400: #687088;
+  --color-paper-500: #969db2;
+  --color-paper-600: #c0c5d4;
+  --color-paper-700: #dadee8;
+  --color-paper-800: #eceef4;
+  --color-paper-900: #f8f9fc;
+  --shadow-surface: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-elevated: 0 4px 8px -2px rgb(0 0 0 / 0.4), 0 16px 32px -8px rgb(0 0 0 / 0.55);
 }
 
 /* Unlayered so these beat Tailwind text utilities. Do not retarget --color-ink-* or --color-white. */
 html.dark :is(.text-ink-900, .hover\:text-ink-900:hover) {
-  color: #f6f3fb;
+  color: #f3f4f9;
 }
 
 html.dark :is(.text-ink-800, .hover\:text-ink-800:hover) {
-  color: #e7dff4;
+  color: #e1e4f4;
 }
 
 html.dark :is(.text-ink-700, .hover\:text-ink-700:hover) {
-  color: #d5c9ea;
+  color: #b4bcfc;
+}
+
+/* Tinted brand backgrounds read as glare on dark surfaces; soften them. */
+html.dark :is(.bg-ink-50, .hover\:bg-ink-50:hover) {
+  background-color: rgb(99 102 241 / 0.12);
+}
+
+html.dark :is(.bg-ink-100, .hover\:bg-ink-100:hover) {
+  background-color: rgb(99 102 241 / 0.2);
+}
+
+html.dark .bg-ink-50\/60,
+html.dark .hover\:bg-ink-50\/60:hover,
+html.dark .hover\:bg-ink-50\/70:hover,
+html.dark .bg-ink-50\/40,
+html.dark .hover\:bg-ink-50\/40:hover {
+  background-color: rgb(99 102 241 / 0.1);
 }

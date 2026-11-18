@@ -41,26 +41,26 @@ export function Dialog({ open, onClose, title, children, footer, maxWidth = 'md'
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-ink-950/45 backdrop-blur-[3px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-ink-950/50 backdrop-blur-sm animate-[fade-in_0.2s_ease-out]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         className={cx(
-          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl bg-paper-50 shadow-[0_4px_12px_rgb(31_22_56/0.08),0_16px_40px_rgb(31_22_56/0.12)] sm:rounded-2xl',
-          'animate-[fade-in_0.25s_ease-out]',
+          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl border border-paper-200 bg-paper-50 shadow-[var(--shadow-elevated)] sm:rounded-2xl',
+          'animate-[pop-in_0.2s_cubic-bezier(0.2,0.8,0.2,1)]',
           maxWidths[maxWidth],
           className,
         )}
       >
         {title !== undefined && (
-          <div className="flex items-center justify-between gap-4 border-b border-paper-200 px-5 py-4">
-            <h2 className="min-w-0 truncate text-base font-semibold text-ink-900">{title}</h2>
+          <div className="flex items-center justify-between gap-4 border-b border-paper-200 px-5 py-4 sm:px-6">
+            <h2 className="min-w-0 truncate text-base font-bold text-ink-900">{title}</h2>
             {!hideClose && (
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="بستن"
-                className="-me-1 size-8 shrink-0 rounded-xl text-paper-400 hover:bg-ink-50 hover:text-ink-800"
+                className="-me-1 size-8 shrink-0 rounded-lg text-paper-400 transition-colors hover:bg-paper-200/70 hover:text-ink-900"
               >
                 <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="mx-auto size-4">
                   <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -69,9 +69,9 @@ export function Dialog({ open, onClose, title, children, footer, maxWidth = 'md'
             )}
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
         {footer && (
-          <div className="flex flex-wrap justify-end gap-2 border-t border-paper-200 bg-paper-50/80 px-5 py-3">{footer}</div>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-paper-200 bg-paper-100/60 px-5 py-3.5 sm:px-6">{footer}</div>
         )}
       </div>
     </div>,

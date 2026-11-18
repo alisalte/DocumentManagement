@@ -1,4 +1,5 @@
-import { Alert, Button, Card, Pagination, ProgressBar, Switch, TextField } from '../components/ui';
+import { Alert, Button, Card, PageHeader, Pagination, ProgressBar, Switch, cx } from '../components/ui';
+import { PlusIcon, SearchIcon } from '../components/icons';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router';
@@ -15,23 +16,32 @@ export function BrowsePage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const categoryId = params.get('category');
-  const page = Number(params.get('page') ?? '1');
-  const [searchInput, setSearchInput] = useState(params.get('q') ?? '');
+  const requestedPage = Number(params.get('page') ?? '1');
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const search = params.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(search);
   const [includeSubcategories, setIncludeSubcategories] = useState(true);
 
+  // Another folder or a link can change the query; the box follows it.
   useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  // Typing filters after a pause. Only a changed query goes back to page 1: comparing the whole
+  // URL here used to drop ?page= every time, so the list snapped back to the first page.
+  useEffect(() => {
+    const value = searchInput.trim();
+    if (value === search) return;
     const handle = setTimeout(() => {
       const next = new URLSearchParams(params);
-      const value = searchInput.trim();
       if (value) next.set('q', value);
       else next.delete('q');
       next.delete('page');
-      if (next.toString() !== params.toString()) setParams(next, { replace: true });
+      setParams(next, { replace: true });
     }, 350);
     return () => clearTimeout(handle);
-  }, [searchInput, params, setParams]);
+  }, [searchInput, search, params, setParams]);
 
-  const search = params.get('q') ?? '';
   const isDemo = import.meta.env.DEV && params.get('demo') === '1';
   const fiscal = useFiscalYear();
   const fiscalYear = !isDemo && fiscal.ready && fiscal.selectedYear > 0 ? fiscal.selectedYear : undefined;
@@ -125,6 +135,17 @@ export function BrowsePage() {
   const showDashboard = !categoryId && !search && folderSource;
   const categoryNameOf = (id: string) => folderSource?.find((folder) => folder.id === id)?.name;
 
+  // A page past the end (a bookmark, or files moved away) shows the last page instead of nothing.
+  const lastPage = documents.data && !documents.isPlaceholderData ? pages : null;
+  useEffect(() => {
+    if (lastPage !== null && page > lastPage) {
+      const next = new URLSearchParams(params);
+      if (lastPage > 1) next.set('page', String(lastPage));
+      else next.delete('page');
+      setParams(next, { replace: true });
+    }
+  }, [lastPage, page, params, setParams]);
+
   if (showDashboard) {
     return (
       <DashboardHome
@@ -149,96 +170,165 @@ export function BrowsePage() {
     );
   }
 
+  const goToPage = (value: number) => {
+    const next = new URLSearchParams(params);
+    if (value > 1) next.set('page', String(value));
+    else next.delete('page');
+    setParams(next);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const backToDashboard = () => {
+    const next = new URLSearchParams(params);
+    next.delete('category');
+    next.delete('q');
+    next.delete('page');
+    setParams(next);
+  };
+
+  const trail = category ? ancestorTrail(folderSource ?? [], category.id) : [];
+  const folderLink = (id: string) => (isDemo ? `/?category=${id}&demo=1` : `/?category=${id}`);
+  const loading = !isDemo && documents.isLoading;
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <button
-            type="button"
-            onClick={() => {
-              const next = new URLSearchParams(params);
-              next.delete('category');
-              next.delete('q');
-              next.delete('page');
-              setParams(next);
-            }}
-            className="mb-1 text-xs text-ink-500 hover:text-ink-800"
-          >
-            ← بازگشت به مدیریت خودکار
-          </button>
-          <h1 className="text-2xl font-bold tracking-tight text-ink-900">
-            {heading}
-            <span className="ms-2 text-sm font-normal text-paper-500">({formatNumber(total)})</span>
-          </h1>
-        </div>
-        {filingTarget && (
-          <Button as={RouterLink} to={`/new?category=${filingTarget}`}>
-            {t.newDocument}
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: 'مدیریت خودکار', onClick: backToDashboard },
+          ...trail.map((folder) => ({ label: folder.name, to: folderLink(folder.id) })),
+          ...(category ? [{ label: category.name }] : search ? [{ label: t.search }] : []),
+        ]}
+        title={heading}
+        meta={
+          <span className="rounded-full bg-paper-200/70 px-2.5 py-0.5 text-xs font-semibold text-paper-600 tabular-nums">
+            {formatNumber(total)} سند
+          </span>
+        }
+        actions={
+          filingTarget && (
+            <Button as={RouterLink} to={`/new?category=${filingTarget}`}>
+              <PlusIcon strokeWidth={2.2} />
+              {t.newDocument}
+            </Button>
+          )
+        }
+      />
 
-      <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <TextField
-            label={t.search}
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            size="sm"
-            type="search"
-            className="flex-1"
-          />
+      <Card flush className="overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-paper-200 p-3 sm:flex-row sm:items-center sm:p-4">
+          <div className="relative flex-1">
+            <SearchIcon className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-paper-400" />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder={category ? `${t.search} «${category.name}»…` : `${t.search}…`}
+              aria-label={t.search}
+              className="h-10 w-full rounded-xl border border-paper-300 bg-paper-50 ps-9 pe-3 text-sm text-ink-900 shadow-[0_1px_2px_rgb(16_24_40/0.05)] transition-[border-color,box-shadow] placeholder:text-paper-400 hover:border-paper-400 focus:border-ink-500 focus:outline-none focus:ring-4 focus:ring-ink-500/15"
+            />
+          </div>
           {categoryId && (
-            <div className="shrink-0">
+            <div className="shrink-0 rounded-xl border border-paper-200 bg-paper-100/60 px-3 py-2">
               <Switch
                 label={t.includeSubcategories}
                 checked={includeSubcategories}
-                onChange={(event) => setIncludeSubcategories(event.target.checked)}
+                onChange={(event) => {
+                  setIncludeSubcategories(event.target.checked);
+                  if (params.has('page')) {
+                    const next = new URLSearchParams(params);
+                    next.delete('page');
+                    setParams(next, { replace: true });
+                  }
+                }}
               />
             </div>
           )}
         </div>
-      </Card>
 
-      <Card flush>
-        {!isDemo && documents.isFetching && <ProgressBar />}
+        {!isDemo && documents.isFetching && !loading && <ProgressBar />}
         {!isDemo && documents.isError ? (
-          <div className="p-3 sm:p-4">
-            <Alert severity="error" action={<Button size="sm" onClick={() => documents.refetch()}>{t.retry}</Button>}>
+          <div className="p-4">
+            <Alert severity="error" action={<Button size="sm" variant="outline" onClick={() => documents.refetch()}>{t.retry}</Button>}>
               {describeError(documents.error)}
             </Alert>
           </div>
+        ) : loading ? (
+          <ListSkeleton />
         ) : (
-          <div className="p-2 sm:p-0">
-            {listItems.length === 0 ? (
-              <div className="space-y-3 px-4 py-10 text-center">
-                <p className="text-sm text-paper-500">{t.noDocuments}</p>
-                <Button as={RouterLink} to="/help" variant="outline" size="sm">
-                  {t.userGuide}
-                </Button>
-              </div>
-            ) : (
-              <DocumentList
-                items={listItems}
-                categoryNameOf={categoryNameOf}
-                onOpen={(item) => navigate(`/documents/${item.id}`)}
-              />
-            )}
+          <div className={cx('transition-opacity', !isDemo && documents.isPlaceholderData && 'opacity-60')}>
+            <DocumentList
+              items={listItems}
+              categoryNameOf={categoryNameOf}
+              onOpen={(item) => navigate(`/documents/${item.id}`)}
+              emptyHint={
+                search
+                  ? 'عبارت دیگری را امتحان کنید یا جستجو را پاک کنید.'
+                  : 'هنوز سندی در این پوشه ثبت نشده است.'
+              }
+              emptyAction={
+                search ? (
+                  <Button variant="outline" size="sm" onClick={() => setSearchInput('')}>
+                    پاک کردن جستجو
+                  </Button>
+                ) : filingTarget ? (
+                  <Button as={RouterLink} to={`/new?category=${filingTarget}`} size="sm">
+                    <PlusIcon strokeWidth={2.2} />
+                    {t.newDocument}
+                  </Button>
+                ) : (
+                  <Button as={RouterLink} to="/help" variant="outline" size="sm">
+                    {t.userGuide}
+                  </Button>
+                )
+              }
+            />
+          </div>
+        )}
+
+        {total > 0 && (
+          <div className="border-t border-paper-200 bg-paper-100/40 px-4 py-3 sm:px-5">
+            <Pagination
+              count={pages}
+              page={Math.min(page, pages)}
+              total={total}
+              pageSize={pageSize}
+              disabled={!isDemo && documents.isFetching}
+              onChange={goToPage}
+            />
           </div>
         )}
       </Card>
+    </div>
+  );
+}
 
-      {pages > 1 && (
-        <Pagination
-          count={pages}
-          page={page}
-          onChange={(value) => {
-            const next = new URLSearchParams(params);
-            next.set('page', String(value));
-            setParams(next);
-          }}
-        />
-      )}
+/** Folders above this one, root first, so the header can show the path. */
+function ancestorTrail(categories: CategoryNode[], id: string): CategoryNode[] {
+  const byId = new Map(categories.map((folder) => [folder.id, folder]));
+  const trail: CategoryNode[] = [];
+  let current = byId.get(id);
+  while (current?.parentId) {
+    const parent = byId.get(current.parentId);
+    if (!parent) break;
+    trail.unshift(parent);
+    current = parent;
+  }
+  return trail;
+}
+
+function ListSkeleton() {
+  return (
+    <div className="divide-y divide-paper-200/70" aria-hidden>
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="flex items-center gap-3 px-5 py-4">
+          <span className="size-9 shrink-0 animate-pulse rounded-lg bg-paper-200" />
+          <div className="flex-1 space-y-2">
+            <span className="block h-3 w-2/5 animate-pulse rounded bg-paper-200" />
+            <span className="block h-2.5 w-1/4 animate-pulse rounded bg-paper-200/70" />
+          </div>
+          <span className="hidden h-3 w-24 animate-pulse rounded bg-paper-200/70 md:block" />
+        </div>
+      ))}
     </div>
   );
 }

@@ -14,7 +14,7 @@ export function WorkflowsPage() {
   return (
     <div className="max-w-4xl space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink-900">{a.workflows}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-ink-900 sm:text-2xl">{a.workflows}</h1>
         <Button onClick={() => setCreating(true)}>{a.newWorkflow}</Button>
       </div>
       {workflows.isError && <Alert severity="error">{describeError(workflows.error)}</Alert>}

@@ -7,19 +7,19 @@ export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'fillo-gradient fillo-gradient-hover text-white shadow-[0_2px_12px_rgb(124_58_237/0.28)] hover:shadow-[0_4px_16px_rgb(124_58_237/0.35)] active:brightness-95',
+    'bg-ink-600 text-white shadow-[var(--shadow-brand)] ring-1 ring-inset ring-white/10 hover:bg-ink-700 active:bg-ink-800',
   secondary:
-    'bg-copper-600 text-white shadow-[0_1px_2px_rgb(58_38_26/0.12)] hover:bg-copper-500 active:bg-copper-600',
+    'bg-ink-900 text-white shadow-sm hover:bg-ink-800 active:bg-ink-950 dark:bg-paper-200 dark:hover:bg-paper-300',
   outline:
-    'border border-paper-300 bg-paper-50 text-ink-800 shadow-sm hover:border-ink-300 hover:bg-ink-50 active:bg-ink-100',
-  ghost: 'text-paper-600 hover:bg-ink-50 hover:text-ink-900',
-  danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-500 active:bg-rose-700',
+    'border border-paper-300 bg-paper-50 text-paper-700 shadow-[0_1px_2px_rgb(16_24_40/0.05)] hover:border-paper-400 hover:bg-paper-100 hover:text-ink-900 active:bg-paper-200',
+  ghost: 'text-paper-600 hover:bg-paper-200/70 hover:text-ink-900 active:bg-paper-200',
+  danger: 'bg-rose-600 text-white shadow-[0_1px_2px_rgb(16_24_40/0.08)] hover:bg-rose-700 active:bg-rose-800',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-8 gap-1.5 px-3 text-xs',
-  md: 'h-10 gap-2 px-4 text-sm',
-  lg: 'h-11 gap-2.5 px-6 text-sm',
+  sm: 'h-8 gap-1.5 rounded-lg px-3 text-xs [&_svg]:size-3.5',
+  md: 'h-10 gap-2 rounded-xl px-4 text-sm [&_svg]:size-4',
+  lg: 'h-11 gap-2.5 rounded-xl px-5 text-sm [&_svg]:size-4.5',
 };
 
 /** Class list for a button, also usable on links styled as buttons. */
@@ -28,7 +28,7 @@ export function buttonClasses(
 ): string {
   const { variant = 'primary', size = 'md', fullWidth, className } = options;
   return cx(
-    'inline-flex select-none items-center justify-center rounded-xl font-medium transition-all duration-150',
+    'inline-flex shrink-0 select-none items-center justify-center whitespace-nowrap font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-150 active:scale-[0.98]',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-500',
     'disabled:pointer-events-none disabled:opacity-50',
     variantClasses[variant],
@@ -117,9 +117,9 @@ export function IconButton({ label, variant = 'ghost', size = 'md', className, c
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-500',
         'disabled:pointer-events-none disabled:opacity-50',
         variant === 'outline'
-          ? 'border border-paper-300 bg-paper-50 text-paper-600 hover:border-ink-300 hover:bg-ink-50'
-          : 'text-paper-500 hover:bg-ink-50 hover:text-ink-800',
-        size === 'sm' ? 'size-7' : 'size-9',
+          ? 'border border-paper-300 bg-paper-50 text-paper-600 shadow-[0_1px_2px_rgb(16_24_40/0.05)] hover:bg-paper-100 hover:text-ink-900'
+          : 'text-paper-500 hover:bg-paper-200/70 hover:text-ink-900',
+        size === 'sm' ? 'size-8 rounded-lg [&_svg]:size-4' : 'size-9 [&_svg]:size-[18px]',
         className,
       )}
     >

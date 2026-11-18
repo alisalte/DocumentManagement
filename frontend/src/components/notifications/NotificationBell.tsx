@@ -56,16 +56,16 @@ export function NotificationBell() {
         title={n.notifications}
         onClick={(event) => setAnchor(event.currentTarget)}
         aria-haspopup="dialog"
-        className="relative inline-flex size-9 items-center justify-center rounded-xl text-paper-500 transition-colors hover:bg-ink-50 hover:text-ink-800"
+        className="relative inline-flex size-9 items-center justify-center rounded-xl text-paper-500 transition-colors hover:bg-paper-200/70 hover:text-ink-900"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="size-5">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} aria-hidden className="size-5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M14.86 17.082a23.85 23.85 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
         </svg>
-        <Badge count={count} max={99} />
+        <Badge count={count} max={99} className="absolute top-1.5 end-1" />
       </button>
 
       <Menu anchor={anchor} onClose={() => setAnchor(null)} className="w-[calc(100vw-1.5rem)] sm:w-96">
-        <div className="flex items-center justify-between gap-3 border-b border-paper-100 px-3 py-2">
+        <div className="-mx-1 -mt-1 mb-1 flex items-center justify-between gap-3 border-b border-paper-200 px-3 py-2.5">
           <h2 className="text-sm font-semibold text-ink-800">{n.notifications}</h2>
           {count > 0 && (
             <Button variant="ghost" size="sm" onClick={markAll}>
