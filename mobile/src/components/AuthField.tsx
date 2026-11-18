@@ -2,6 +2,7 @@ import { StyleSheet, View, type TextInputProps } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Text } from './AppText';
 import { paperColors } from '../theme/paper';
+import { colors, radius } from '../theme';
 
 interface Props extends Pick<
   TextInputProps,
@@ -26,9 +27,10 @@ export function AuthField({ label, value, error, onChangeText, onBlur, ...props 
         onBlur={onBlur}
         error={Boolean(error)}
         selectionColor={paperColors.primary}
-        outlineColor="#D8DBE3"
+        outlineColor={colors.lineStrong}
+        outlineStyle={styles.outline}
         activeOutlineColor={paperColors.primary}
-        textColor={paperColors.secondary}
+        textColor={colors.ink}
         style={styles.input}
         contentStyle={styles.content}
         {...props}
@@ -39,6 +41,7 @@ export function AuthField({ label, value, error, onChangeText, onBlur, ...props 
 }
 
 const styles = StyleSheet.create({
+  outline: { borderRadius: radius.md },
   wrap: { width: '100%', marginVertical: 8 },
   input: { width: '100%', backgroundColor: paperColors.surface },
   content: { fontFamily: 'Vazir', textAlign: 'right', writingDirection: 'rtl' },

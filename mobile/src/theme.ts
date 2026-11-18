@@ -1,18 +1,25 @@
+/** Same palette as the web app: indigo brand on cool slate surfaces. */
 export const colors = {
-  background: '#ffffff',
+  background: '#f5f6fa',
   card: '#ffffff',
-  ink: '#414757',
-  muted: '#7A8194',
-  line: '#D8DBE3',
-  accent: '#600EE6',
-  accentPressed: '#4B0BB8',
-  accentSoft: '#F4EEFF',
-  danger: '#f13a59',
-  dangerSoft: '#FDE8EC',
-  success: '#600EE6',
-  successSoft: '#F4EEFF',
-  warning: '#E07A2F',
-  warningSoft: '#FFF1E6',
+  /** Headings and primary text. */
+  ink: '#171a33',
+  /** Body text. */
+  text: '#363c4e',
+  muted: '#6b7287',
+  subtle: '#a2a8b8',
+  line: '#e8eaf1',
+  lineStrong: '#d7dae4',
+  accent: '#5048e5',
+  accentPressed: '#4338ca',
+  accentSoft: '#f0f2ff',
+  accentLine: '#c9d0ff',
+  danger: '#e11d48',
+  dangerSoft: '#fff1f2',
+  success: '#059669',
+  successSoft: '#ecfdf5',
+  warning: '#d97706',
+  warningSoft: '#fffbeb',
 };
 
 export const space = {
@@ -24,18 +31,32 @@ export const space = {
 };
 
 export const radius = {
-  sm: 4,
-  md: 4,
-  lg: 4,
-  pill: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  pill: 999,
 };
 
 export const shadow = {
   card: {
-    shadowColor: '#1B1F33',
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  raised: {
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  brand: {
+    shadowColor: '#5048e5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
   },
 };

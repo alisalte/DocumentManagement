@@ -12,6 +12,7 @@ import { BrandMark } from '../../src/components/BrandMark';
 import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { PaperBackground } from '../../src/components/PaperBackground';
 import { paperColors } from '../../src/theme/paper';
+import { colors, radius, shadow } from '../../src/theme';
 import { ApiError, userMessage } from '../../src/utils/errors';
 import { passwordSchema, type PasswordValues } from '../../src/utils/validation';
 
@@ -41,9 +42,10 @@ export default function ChangePasswordScreen() {
 
   return (
     <PaperBackground>
-      <BrandMark size={96} />
+      <BrandMark size={72} />
       <Text style={styles.header}>تغییر رمز عبور</Text>
       <Text style={styles.note}>تا وقتی رمز را عوض نکنید، سامانه اجازهٔ ثبت سند نمی‌دهد.</Text>
+      <View style={styles.card}>
       <View style={styles.full}>
         <ErrorMessage message={error} />
       </View>
@@ -105,6 +107,7 @@ export default function ChangePasswordScreen() {
       >
         ثبت رمز جدید
       </Button>
+      </View>
       <Pressable accessibilityRole="button" onPress={() => void logout()} style={styles.logout}>
         <Text style={styles.logoutText}>خروج</Text>
       </Pressable>
@@ -114,25 +117,35 @@ export default function ChangePasswordScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: paperColors.primary,
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.ink,
     textAlign: 'center',
     writingDirection: 'rtl',
-    paddingTop: 14,
+    marginTop: 18,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg + 4,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 18,
+    ...shadow.raised,
   },
   note: {
-    color: paperColors.secondary,
+    color: colors.muted,
     textAlign: 'center',
     writingDirection: 'rtl',
     fontSize: 15,
     lineHeight: 24,
-    marginBottom: 8,
+    marginTop: 4,
+    marginBottom: 20,
   },
-  button: { width: '100%', borderRadius: 4, marginTop: 12 },
-  buttonContent: { height: 48 },
+  button: { width: '100%', borderRadius: radius.md, marginTop: 14, ...shadow.brand },
+  buttonContent: { height: 50 },
   buttonLabel: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal' },
-  logout: { marginTop: 8, padding: 8 },
-  logoutText: { color: paperColors.secondary, fontSize: 15, writingDirection: 'rtl' },
+  logout: { marginTop: 14, padding: 8 },
+  logoutText: { color: colors.muted, fontSize: 15, writingDirection: 'rtl' },
   full: { width: '100%' },
 });
