@@ -11,6 +11,7 @@ import { ErrorMessage } from '../../src/components/ErrorMessage';
 import { PaperBackground } from '../../src/components/PaperBackground';
 import { currentApiUrl, saveServerUrl } from '../../src/config/server-url-store';
 import { paperColors } from '../../src/theme/paper';
+import { colors, radius, shadow } from '../../src/theme';
 import { userMessage } from '../../src/utils/errors';
 import { loginSchema, type LoginValues } from '../../src/utils/validation';
 
@@ -41,8 +42,10 @@ export default function LoginScreen() {
 
   return (
     <PaperBackground>
-      <BrandMark size={112} />
-      <Text style={styles.header}>خوش آمدید.</Text>
+      <BrandMark size={72} />
+      <Text style={styles.header}>ورود به حساب</Text>
+      <Text style={styles.sub}>با نام کاربری و رمز سازمانی خود وارد بایگانی شوید.</Text>
+      <View style={styles.card}>
       <View style={styles.full}>
         <ErrorMessage message={error} />
       </View>
@@ -111,32 +114,52 @@ export default function LoginScreen() {
       >
         ورود
       </Button>
+      </View>
+      <Text style={styles.footer}>امن · قابل حسابرسی · فارسی</Text>
     </PaperBackground>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: paperColors.primary,
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.ink,
     textAlign: 'center',
     writingDirection: 'rtl',
-    paddingVertical: 14,
+    marginTop: 18,
   },
+  sub: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: colors.muted,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  card: {
+    width: '100%',
+    backgroundColor: colors.card,
+    borderRadius: radius.lg + 4,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 18,
+    ...shadow.raised,
+  },
+  footer: { marginTop: 20, color: colors.subtle, fontSize: 12, writingDirection: 'rtl' },
   hint: {
     width: '100%',
-    color: paperColors.secondary,
+    color: colors.muted,
     fontSize: 12,
     lineHeight: 20,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: -4,
     marginBottom: 8,
-    opacity: 0.75,
   },
-  button: { width: '100%', borderRadius: 4, marginTop: 12, marginBottom: 8 },
-  buttonContent: { height: 48 },
+  button: { width: '100%', borderRadius: radius.md, marginTop: 14, ...shadow.brand },
+  buttonContent: { height: 50 },
   buttonLabel: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal' },
   full: { width: '100%' },
 });

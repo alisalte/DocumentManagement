@@ -2,6 +2,7 @@ import { StyleSheet, View, type TextInputProps } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { Text } from './AppText';
 import { paperColors } from '../theme/paper';
+import { colors, radius } from '../theme';
 
 interface Props extends Pick<
   TextInputProps,
@@ -20,9 +21,10 @@ export function Input({ label, error, multiline, ...props }: Props) {
         error={Boolean(error)}
         multiline={multiline}
         selectionColor={paperColors.primary}
-        outlineColor="#D8DBE3"
+        outlineColor={colors.lineStrong}
+        outlineStyle={styles.outline}
         activeOutlineColor={paperColors.primary}
-        textColor={paperColors.secondary}
+        textColor={colors.ink}
         style={[styles.input, multiline ? styles.multiline : null]}
         contentStyle={styles.content}
         {...props}
@@ -33,6 +35,7 @@ export function Input({ label, error, multiline, ...props }: Props) {
 }
 
 const styles = StyleSheet.create({
+  outline: { borderRadius: radius.md },
   wrap: { width: '100%', marginVertical: 6 },
   input: { backgroundColor: paperColors.surface },
   multiline: { minHeight: 96 },

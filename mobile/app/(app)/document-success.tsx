@@ -81,14 +81,14 @@ export default function DocumentSuccessScreen() {
 
 const styles = StyleSheet.create({
   header: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: colors.accent,
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.ink,
     textAlign: 'center',
     writingDirection: 'rtl',
     paddingVertical: 12,
   },
-  paragraph: { color: colors.ink, fontSize: 16, lineHeight: 26, textAlign: 'center', writingDirection: 'rtl' },
+  paragraph: { color: colors.muted, fontSize: 16, lineHeight: 26, textAlign: 'center', writingDirection: 'rtl' },
   line: { fontSize: 16, fontWeight: '700', color: colors.ink, textAlign: 'center', writingDirection: 'rtl' },
   muted: { color: colors.muted, textAlign: 'center', writingDirection: 'rtl' },
   full: { width: '100%' },

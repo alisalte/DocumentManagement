@@ -1,6 +1,8 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './AppText';
-import { colors, radius, space } from '../theme';
+import { FileTypeBadge } from './FileTypeBadge';
+import { colors, radius, shadow, space } from '../theme';
 import { formatBytes, formatDateFa } from '../utils/format';
 
 interface Props {
@@ -9,12 +11,19 @@ interface Props {
   updatedAt?: string | null;
   fileSize?: number | null;
   badge?: string | null;
+  mimeType?: string | null;
   onPress: () => void;
 }
 
-export function DocumentRow({ title, subtitle, updatedAt, fileSize, badge, onPress }: Props) {
+export function DocumentRow({ title, subtitle, updatedAt, fileSize, badge, mimeType, onPress }: Props) {
+  const meta = [formatDateFa(updatedAt), fileSize != null ? formatBytes(fileSize) : null].filter(Boolean).join(' · ');
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+    >
+      <FileTypeBadge fileName={subtitle} mimeType={mimeType} />
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={2}>
           {title}
@@ -24,15 +33,18 @@ export function DocumentRow({ title, subtitle, updatedAt, fileSize, badge, onPre
             {subtitle}
           </Text>
         ) : null}
-        <Text style={styles.meta} numberOfLines={1}>
-          {[formatDateFa(updatedAt), fileSize != null ? formatBytes(fileSize) : null].filter(Boolean).join(' · ')}
-        </Text>
-      </View>
-      {badge ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badge}</Text>
+        <View style={styles.metaRow}>
+          {badge ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badge}</Text>
+            </View>
+          ) : null}
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
         </View>
-      ) : null}
+      </View>
+      <MaterialCommunityIcons name="chevron-left" size={20} color={colors.subtle} />
     </Pressable>
   );
 }
@@ -41,39 +53,44 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
+    gap: 12,
     backgroundColor: colors.card,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.line,
-    padding: space.md,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    ...shadow.card,
   },
-  pressed: { opacity: 0.85 },
-  body: { flex: 1, gap: 4 },
+  pressed: { backgroundColor: colors.accentSoft, borderColor: colors.accentLine },
+  body: { flex: 1, gap: 3 },
   title: {
     color: colors.ink,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    lineHeight: 23,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   subtitle: {
     color: colors.muted,
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'right',
-    writingDirection: 'rtl',
   },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.xs, marginTop: 2 },
   meta: {
+    flexShrink: 1,
     color: colors.muted,
     fontSize: 12,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   badge: {
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.lineStrong,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
   },
-  badgeText: { color: colors.accent, fontSize: 12, fontWeight: '700', writingDirection: 'rtl' },
+  badgeText: { color: colors.text, fontSize: 11, fontWeight: '600', writingDirection: 'ltr' },
 });

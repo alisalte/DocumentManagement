@@ -1,6 +1,7 @@
+import type { ComponentProps } from 'react';
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { Button as PaperButton } from 'react-native-paper';
-import { paperColors } from '../theme/paper';
+import { colors, radius, shadow } from '../theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -10,21 +11,30 @@ interface Props {
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
+  /** A MaterialCommunityIcons name shown before the label. */
+  icon?: ComponentProps<typeof PaperButton>['icon'];
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({ label, onPress, variant = 'primary', disabled, loading, style }: Props) {
+export function Button({ label, onPress, variant = 'primary', disabled, loading, icon, style }: Props) {
   const mode = variant === 'secondary' ? 'outlined' : variant === 'ghost' ? 'text' : 'contained';
   const filled = variant === 'primary' || variant === 'danger';
+  const blocked = disabled || loading;
   return (
     <PaperButton
       mode={mode}
       onPress={onPress}
-      disabled={disabled || loading}
+      disabled={blocked}
       loading={loading}
-      buttonColor={variant === 'danger' ? paperColors.error : variant === 'primary' ? paperColors.primary : undefined}
-      textColor={filled ? '#ffffff' : paperColors.primary}
-      style={[styles.button, style]}
+      icon={icon}
+      buttonColor={variant === 'danger' ? colors.danger : variant === 'primary' ? colors.accent : variant === 'secondary' ? colors.card : undefined}
+      textColor={filled ? '#ffffff' : variant === 'secondary' ? colors.text : colors.accent}
+      style={[
+        styles.button,
+        variant === 'secondary' && styles.outlined,
+        variant === 'primary' && !blocked && shadow.brand,
+        style,
+      ]}
       contentStyle={styles.content}
       labelStyle={styles.label}
     >
@@ -34,7 +44,8 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading,
 }
 
 const styles = StyleSheet.create({
-  button: { alignSelf: 'stretch', borderRadius: 4 },
-  content: { minHeight: 48 },
+  button: { alignSelf: 'stretch', borderRadius: radius.md },
+  outlined: { borderColor: colors.lineStrong },
+  content: { minHeight: 50 },
   label: { fontFamily: 'Vazir-Bold', fontSize: 15, fontWeight: 'normal', writingDirection: 'rtl' },
 });

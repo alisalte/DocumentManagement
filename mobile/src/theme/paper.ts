@@ -1,25 +1,31 @@
 import { MD3LightTheme, configureFonts, type MD3Theme } from 'react-native-paper';
+import { colors } from '../theme';
 
-/** Colors from the Callstack Paper login template. */
+/** Paper components follow the app palette in src/theme.ts. */
 export const paperColors = {
-  primary: '#600EE6',
-  secondary: '#414757',
-  error: '#f13a59',
-  surface: '#ffffff',
+  primary: colors.accent,
+  secondary: colors.text,
+  error: colors.danger,
+  surface: colors.card,
 };
 
 export const paperTheme: MD3Theme = {
   ...MD3LightTheme,
-  roundness: 4,
+  // Paper multiplies this by 4 for buttons and outlined inputs: 12px corners.
+  roundness: 3,
   colors: {
     ...MD3LightTheme.colors,
     primary: paperColors.primary,
+    primaryContainer: colors.accentSoft,
     secondary: paperColors.secondary,
     error: paperColors.error,
-    background: paperColors.surface,
+    background: colors.background,
     surface: paperColors.surface,
-    onSurface: paperColors.secondary,
-    outline: '#D8DBE3',
+    surfaceVariant: colors.background,
+    onSurface: colors.ink,
+    onSurfaceVariant: colors.muted,
+    outline: colors.lineStrong,
+    outlineVariant: colors.line,
   },
   fonts: configureFonts({ config: { fontFamily: 'Vazir' } }),
 };

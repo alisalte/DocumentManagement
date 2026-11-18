@@ -25,6 +25,13 @@ export default function RootLayout() {
   useEffect(() => {
     void loadServerUrl().finally(() => setServerReady(true));
   }, []);
+  // React Native Web has no `direction` style; the page's dir lays rows right to left as on a phone.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.dir = 'rtl';
+      document.documentElement.lang = 'fa';
+    }
+  }, []);
   if ((!fontsLoaded && !fontError) || !serverReady) {
     return <View style={styles.root} />;
   }
