@@ -20,6 +20,7 @@ public sealed class ProcessObjectJob(
     IRenditionRepository renditions,
     IFileStorage files,
     IMalwareScanner scanner,
+    ScanPolicy scanPolicy,
     IEnumerable<IPageRenderer> renderers,
     IEnumerable<IObjectProcessedListener> listeners,
     IAuditWriter audit,
@@ -74,7 +75,8 @@ public sealed class ProcessObjectJob(
             return false;
         }
 
-        if (!scanner.IsEnabled)
+        // Switched off (configuration, or an administrator): the file is released unscanned.
+        if (!await scanPolicy.IsScanningOnAsync(cancellationToken))
         {
             file.RecordScanResult(ScanStatus.Skipped, timeProvider.GetUtcNow());
             return true;

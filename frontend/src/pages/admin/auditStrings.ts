@@ -169,6 +169,8 @@ export const actionLabels: Record<string, string> = {
   EXTRACTED_TEXT_VIEWED: 'دیدن متن OCR فایل',
   EXTRACTED_TEXT_UPDATED: 'اصلاح دستی متن OCR فایل',
   EXTRACTED_TEXT_REQUEUED: 'اجرای دوبارهٔ OCR فایل',
+  MALWARE_SCANNING_CHANGED: 'تغییر بررسی بدافزار',
+  FILES_REPROCESS_QUEUED: 'خواندن دوبارهٔ همهٔ فایل‌ها (OCR)',
 
   CATEGORY_CREATED: 'ایجاد پوشه',
   CATEGORY_UPDATED: 'به‌روزرسانی پوشه',

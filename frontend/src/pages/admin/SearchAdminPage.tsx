@@ -25,6 +25,7 @@ const methodLabels: Record<string, string> = {
 /** Indexing status, a full rebuild and a retry of failed text extractions (ADMIN_MANAGE_SEARCH). */
 export function SearchAdminPage() {
   const status = useQuery({ queryKey: ['search-status'], queryFn: api.searchAdmin.status, refetchInterval: 15_000 });
+  const scan = useQuery({ queryKey: ['malware-scan'], queryFn: api.searchAdmin.malwareScan, refetchInterval: 15_000 });
   const [message, setMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [method, setMethod] = useState('');
@@ -55,7 +56,7 @@ export function SearchAdminPage() {
     setMessage(null);
     try {
       setMessage({ severity: 'success', text: await action() });
-      await Promise.all([status.refetch(), activity.refetch()]);
+      await Promise.all([status.refetch(), activity.refetch(), scan.refetch()]);
     } catch (caught) {
       setMessage({ severity: 'error', text: describeError(caught) });
     } finally {
@@ -101,6 +102,80 @@ export function SearchAdminPage() {
       {status.isLoading && <ProgressBar className="rounded-full" />}
       {status.isError && <Alert severity="error">{describeError(status.error)}</Alert>}
       {message && <Alert severity={message.severity}>{message.text}</Alert>}
+
+      {scan.data && (
+        <Card>
+          <div className="space-y-3">
+            <Row label={t.malwareScan}>
+              <span className="flex flex-wrap items-center gap-1.5">
+                <Chip
+                  size="small"
+                  color={scan.data.enabled ? 'success' : 'default'}
+                  label={scan.data.enabled ? t.malwareScanOn : t.malwareScanOff}
+                />
+                {scan.data.waitingFiles > 0 && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    label={`${scan.data.waitingFiles.toLocaleString('fa-IR')} ${t.malwareScanWaiting}`}
+                  />
+                )}
+              </span>
+            </Row>
+            <p className="text-sm text-paper-600">
+              {scan.data.scannerConfigured ? t.malwareScanHelp : t.malwareScanNotConfigured}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {scan.data.enabled ? (
+                <Button
+                  variant="danger"
+                  disabled={busy}
+                  onClick={() => {
+                    if (!window.confirm(t.malwareScanConfirmOff)) return;
+                    void run(async () => {
+                      await api.searchAdmin.setMalwareScan(false);
+                      return t.malwareScanTurnedOff;
+                    });
+                  }}
+                >
+                  {t.malwareScanTurnOff}
+                </Button>
+              ) : (
+                <>
+                  {scan.data.waitingFiles > 0 && (
+                    <Button
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await api.searchAdmin.setMalwareScan(false);
+                          return t.malwareScanTurnedOff;
+                        })
+                      }
+                    >
+                      {t.malwareScanRelease}
+                    </Button>
+                  )}
+                  {scan.data.scannerConfigured && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          await api.searchAdmin.setMalwareScan(true);
+                          return t.malwareScanTurnedOn;
+                        })
+                      }
+                    >
+                      {t.malwareScanTurnOn}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {ocr && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -281,6 +356,25 @@ export function SearchAdminPage() {
               {t.retryFailed}
             </Button>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="space-y-3">
+          <p className="text-sm text-paper-500">{t.reprocessAllHelp}</p>
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(t.reprocessAllConfirm)) return;
+              void run(async () => {
+                await api.searchAdmin.reprocessAll();
+                return t.reprocessAllQueued;
+              });
+            }}
+          >
+            {t.reprocessAll}
+          </Button>
         </div>
       </Card>
     </div>

@@ -73,6 +73,16 @@ export function DocumentPage() {
     }
   };
 
+  const rereadText = async () => {
+    setError(null);
+    try {
+      await api.rereadText(id);
+      setNotice(t.rereadTextQueued);
+    } catch (caught) {
+      setError(describeError(caught));
+    }
+  };
+
   if (document.isPending) {
     return <ProgressBar />;
   }
@@ -120,6 +130,11 @@ export function DocumentPage() {
               {can(doc, 'DOCUMENT_EDIT') && (
                 <Button variant="ghost" onClick={() => setDialog('edit')}>
                   {t.edit}
+                </Button>
+              )}
+              {can(doc, 'DOCUMENT_EDIT') && (
+                <Button variant="ghost" onClick={rereadText}>
+                  {t.rereadText}
                 </Button>
               )}
               {can(doc, 'DOCUMENT_MANAGE_PERMISSION') && (

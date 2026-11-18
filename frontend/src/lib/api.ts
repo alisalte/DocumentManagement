@@ -500,6 +500,12 @@ export interface PreviewInfo {
   canDownload: boolean;
 }
 
+export interface MalwareScanState {
+  scannerConfigured: boolean;
+  enabled: boolean;
+  waitingFiles: number;
+}
+
 export interface SearchStatus {
   engineEnabled: boolean;
   extractorEnabled: boolean;
@@ -1490,7 +1496,18 @@ export const api = {
       request<void>(`/api/v1/admin/search/extractions/${storageObjectId}/rerun`, { method: 'POST' }),
     reindex: () => request<void>('/api/v1/admin/search/reindex', { method: 'POST' }),
     retryFailed: () => request<{ queued: number }>('/api/v1/admin/search/retry-failed', { method: 'POST' }),
+    malwareScan: () => request<MalwareScanState>('/api/v1/admin/search/malware-scan'),
+    setMalwareScan: (enabled: boolean) =>
+      request<MalwareScanState>('/api/v1/admin/search/malware-scan', {
+        method: 'PUT',
+        body: JSON.stringify({ enabled }),
+      }),
+    reprocessAll: () => request<void>('/api/v1/admin/search/reprocess-all', { method: 'POST' }),
   },
+
+  /** Read a document's file text again (OCR); DOCUMENT_EDIT on the document. */
+  rereadText: (documentId: string) =>
+    request<{ queued: number }>(`/api/v1/search/documents/${documentId}/reread`, { method: 'POST' }),
 
   /** Access control lists: DOCUMENT_MANAGE_PERMISSION on the resource (or the audited administrator bypass). */
   acl: {

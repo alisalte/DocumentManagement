@@ -221,6 +221,28 @@ namespace Dms.Storage.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Dms.Storage.Domain.StorageSetting", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("key");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("value");
+
+                    b.HasKey("Key");
+
+                    b.ToTable("settings", "storage");
+                });
+
             modelBuilder.Entity("Dms.Storage.Domain.Rendition", b =>
                 {
                     b.HasOne("Dms.Storage.Domain.StorageObject", null)

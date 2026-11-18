@@ -194,3 +194,29 @@ public interface IObjectProcessedListener
 {
     Task OnProcessedAsync(StorageObjectInfo file, CancellationToken cancellationToken);
 }
+
+/// <param name="ScannerConfigured">ClamAV is set up for this deployment (Dms:Storage:Scanning:Enabled).</param>
+/// <param name="Enabled">New files are scanned: configured, and not switched off by an administrator.</param>
+/// <param name="WaitingFiles">Attached files that cannot be opened yet because their scan has not passed.</param>
+public sealed record MalwareScanState(bool ScannerConfigured, bool Enabled, int WaitingFiles);
+
+/// <summary>
+/// What an administrator may change about file processing while the system runs. The caller
+/// checks the permission; this only does the work.
+/// </summary>
+public interface IFileProcessingAdmin
+{
+    Task<MalwareScanState> GetScanStateAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Switches the malware scan on or off. Switching it off also releases every file still
+    /// waiting for a scan (in the background), so old imports can be opened and read by OCR.
+    /// </summary>
+    Task SetScanningAsync(bool enabled, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Queues page images and text extraction (OCR) again for every attached file. Files that
+    /// already have their pages and text are passed over quickly; text corrected by hand is kept.
+    /// </summary>
+    Task QueueReprocessAllAsync(CancellationToken cancellationToken);
+}
