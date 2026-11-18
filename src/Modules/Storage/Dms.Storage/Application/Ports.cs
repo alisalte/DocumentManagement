@@ -63,7 +63,25 @@ public interface IStorageObjectRepository
     /// <summary>Bytes of original files that still occupy storage.</summary>
     Task<long> SumLiveOriginalBytesAsync(CancellationToken cancellationToken);
 
+    /// <summary>Attached originals whose scan has not passed yet (pending, or a scan that failed).</summary>
+    Task<IReadOnlyList<StorageObject>> ListWaitingForScanAsync(int limit, CancellationToken cancellationToken);
+
+    Task<int> CountWaitingForScanAsync(CancellationToken cancellationToken);
+
+    /// <summary>Attached originals whose content may be served, in id order after <paramref name="after"/>.</summary>
+    Task<IReadOnlyList<StorageObjectId>> ListAvailableOriginalsAsync(
+        StorageObjectId? after,
+        int limit,
+        CancellationToken cancellationToken);
+
     void Add(StorageObject storageObject);
+}
+
+public interface IStorageSettingRepository
+{
+    Task<StorageSetting?> FindAsync(string key, CancellationToken cancellationToken);
+
+    void Add(StorageSetting setting);
 }
 
 public interface IRenditionRepository

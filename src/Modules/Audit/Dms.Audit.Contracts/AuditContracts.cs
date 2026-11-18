@@ -168,6 +168,12 @@ public static class AuditActions
     /// <summary>A file was queued to be read (OCR) again.</summary>
     public const string ExtractedTextRequeued = "EXTRACTED_TEXT_REQUEUED";
 
+    /// <summary>An administrator switched the malware scan on or off.</summary>
+    public const string MalwareScanningChanged = "MALWARE_SCANNING_CHANGED";
+
+    /// <summary>Every file was queued for page images and text extraction (OCR) again.</summary>
+    public const string FilesReprocessQueued = "FILES_REPROCESS_QUEUED";
+
     public const string CategoryCreated = "CATEGORY_CREATED";
     public const string CategoryUpdated = "CATEGORY_UPDATED";
     public const string CategoryMoved = "CATEGORY_MOVED";

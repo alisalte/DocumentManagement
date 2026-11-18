@@ -10,7 +10,7 @@ namespace Dms.Storage.Application;
 public sealed class StorageService(
     IFileStorage fileStorage,
     IStorageObjectRepository repository,
-    IMalwareScanner scanner,
+    ScanPolicy scanPolicy,
     IJobQueue jobs,
     ICurrentUser currentUser,
     IOptions<StorageOptions> options,
@@ -69,9 +69,9 @@ public sealed class StorageService(
             measured.Digest));
     }
 
-    public Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken)
+    public async Task<StagedUpload> RegisterAsync(WrittenFile file, CancellationToken cancellationToken)
     {
-        var scanStatus = scanner.IsEnabled ? ScanStatus.Pending : ScanStatus.Skipped;
+        var scanStatus = await scanPolicy.IsScanningOnAsync(cancellationToken) ? ScanStatus.Pending : ScanStatus.Skipped;
 
         var storageObject = StorageObject.Stage(
             file.Id,
@@ -92,12 +92,12 @@ public sealed class StorageService(
         // is never served and is collected instead.
         repository.Add(storageObject);
 
-        return Task.FromResult(new StagedUpload(
+        return new StagedUpload(
             storageObject.Id,
             file.FileName,
             file.DetectedMimeType,
             file.Size,
-            Convert.ToHexStringLower(file.Sha256)));
+            Convert.ToHexStringLower(file.Sha256));
     }
 
     public Task DiscardAsync(WrittenFile file, CancellationToken cancellationToken) =>

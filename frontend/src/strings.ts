@@ -131,6 +131,30 @@ export const t = {
   previewScan: 'تا پایان بررسی ضدبدافزار، پیش‌نمایش در دسترس نیست.',
   reprocess: 'پردازش دوباره',
   reprocessQueued: 'پردازش دوباره در صف قرار گرفت.',
+  rereadText: 'خواندن دوبارهٔ متن (OCR)',
+  rereadTextQueued: 'فایل این سند برای خواندن دوبارهٔ متن (OCR) در صف قرار گرفت. چند دقیقه بعد در جستجو پیدا می‌شود.',
+  scanBlockedAction: 'این فایل هنوز از بررسی ضدبدافزار نگذشته است و تا آن زمان باز یا دریافت نمی‌شود. مدیر سامانه می‌تواند در صفحهٔ «جستجو و OCR» بررسی بدافزار را خاموش کند.',
+  draftBlockedAction: 'این نسخه پیش‌نویس است و هنوز تأیید نشده؛ فقط نویسنده، بررسی‌کنندهٔ کار یا دارندهٔ مجوز «دیدن پیش‌نویس» به آن دسترسی دارد.',
+  malwareScan: 'بررسی بدافزار (ClamAV)',
+  malwareScanHelp:
+    'وقتی روشن است، هر فایل تازه تا پایان بررسی ضدبدافزار باز، دریافت یا OCR نمی‌شود. با خاموش کردن، فایل‌هایی که منتظر بررسی مانده‌اند (مثلاً فایل‌های سیستم قدیمی) آزاد می‌شوند و پیش‌نمایش و OCR آن‌ها در پس‌زمینه انجام می‌شود.',
+  malwareScanNotConfigured:
+    'برای این سرور اسکنر بدافزار (ClamAV) تنظیم نشده است؛ فایل‌ها بدون بررسی پذیرفته می‌شوند. اگر فایل‌هایی از قبل منتظر بررسی مانده‌اند، «آزاد کردن فایل‌های منتظر» را بزنید.',
+  malwareScanOn: 'روشن',
+  malwareScanOff: 'خاموش',
+  malwareScanTurnOff: 'خاموش کردن بررسی بدافزار',
+  malwareScanTurnOn: 'روشن کردن بررسی بدافزار',
+  malwareScanConfirmOff:
+    'با خاموش کردن، فایل‌های تازه و فایل‌های منتظر بدون بررسی ضدبدافزار در دسترس قرار می‌گیرند. ادامه می‌دهید؟',
+  malwareScanWaiting: 'فایل منتظر بررسی',
+  malwareScanRelease: 'آزاد کردن فایل‌های منتظر',
+  malwareScanTurnedOff: 'بررسی بدافزار خاموش شد؛ فایل‌های منتظر در پس‌زمینه آزاد و پردازش می‌شوند.',
+  malwareScanTurnedOn: 'بررسی بدافزار روشن شد.',
+  reprocessAll: 'خواندن دوبارهٔ همهٔ فایل‌ها (OCR)',
+  reprocessAllHelp:
+    'پیش‌نمایش و متن (OCR) همهٔ فایل‌ها را دوباره در صف می‌گذارد؛ برای فایل‌های ورودی از سیستم قدیمی که هنوز خوانده نشده‌اند. فایل‌هایی که متن دارند سریع رد می‌شوند و متن اصلاح‌شدهٔ دستی دست نمی‌خورد.',
+  reprocessAllConfirm: 'همهٔ فایل‌ها برای پیش‌نمایش و OCR در صف قرار می‌گیرند و ممکن است چند ساعت طول بکشد. ادامه می‌دهید؟',
+  reprocessAllQueued: 'همهٔ فایل‌ها برای خواندن دوباره در صف قرار گرفتند؛ پیشرفت را در همین صفحه ببینید.',
   page: 'صفحه',
   print: 'چاپ',
   preparingPrint: 'آماده‌سازی چاپ…',
@@ -199,6 +223,10 @@ export function describeError(error: unknown): string {
     if (code === 'search.text_too_long') return t.ocrTextTooLong;
     if (code === 'search.text_edited') return t.ocrRerunEdited;
     if (code === 'document.duplicate_file') return t.duplicateBlocked;
+    if (code === 'storage.scan_incomplete' || code === 'search.scan_pending') return t.scanBlockedAction;
+    if (status === 403 && /malware scan|quarantined/i.test(message ?? '')) return t.scanBlockedAction;
+    if (status === 403 && /is a draft/i.test(message ?? '')) return t.draftBlockedAction;
+    if (code === 'storage.scanner_not_configured') return t.malwareScanNotConfigured;
     if (code === 'fiscal_year.closed') return 'این سال مالی بسته است و فقط برای گزارش‌گیری است.';
     if (code === 'category.root_fixed') return 'پوشه‌ی ریشه‌ی سامانه جابه‌جا نمی‌شود.';
     if (code === 'category.duplicate_code') return 'در مقصد پوشه‌ی دیگری با همین کد وجود دارد.';

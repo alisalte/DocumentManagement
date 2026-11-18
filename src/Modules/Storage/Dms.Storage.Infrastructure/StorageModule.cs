@@ -25,6 +25,9 @@ public static class StorageModule
         services.AddDmsModuleDbContext<StorageDbContext>(MigrationOrder, StorageDbContext.Schema);
         services.AddScoped<IStorageObjectRepository, StorageObjectRepository>();
         services.AddScoped<IStorageService, StorageService>();
+        services.AddScoped<IStorageSettingRepository, StorageSettingRepository>();
+        services.AddScoped<ScanPolicy>();
+        services.AddScoped<IFileProcessingAdmin, FileProcessingAdmin>();
 
         var provider = configuration[$"{StorageOptions.SectionName}:Provider"] ?? "s3";
         if (string.Equals(provider, "filesystem", StringComparison.OrdinalIgnoreCase))
@@ -62,6 +65,8 @@ public static class StorageModule
         services.AddScoped<IJobHandler, ScanStorageObjectJob>();
         services.AddScoped<IJobHandler, PurgeStorageObjectsJob>();
         services.AddScoped<IJobHandler, CollectStagedUploadsJob>();
+        services.AddScoped<IJobHandler, ReleaseScanWaitingJob>();
+        services.AddScoped<IJobHandler, ReprocessAllObjectsJob>();
         services.AddRecurringJob(CollectStagedUploadsJob.Type, TimeSpan.FromHours(1));
         services.AddRecurringJob(PurgeStorageObjectsJob.Type, TimeSpan.FromHours(6));
 

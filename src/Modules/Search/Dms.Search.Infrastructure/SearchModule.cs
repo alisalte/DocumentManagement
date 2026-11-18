@@ -78,6 +78,10 @@ public static class SearchModule
         services.AddScoped<ICommandHandler<StartReindexCommand, Result>, StartReindexHandler>();
         services.AddScoped<ICommandHandler<RetryFailedExtractionsCommand, Result<int>>, RetryFailedExtractionsHandler>();
         services.AddScoped<ICommandHandler<RequeueExtractionCommand, Result>, RequeueExtractionHandler>();
+        services.AddScoped<IQueryHandler<MalwareScanStateQuery, Result<MalwareScanState>>, MalwareScanStateHandler>();
+        services.AddScoped<ICommandHandler<SetMalwareScanningCommand, Result<MalwareScanState>>, SetMalwareScanningHandler>();
+        services.AddScoped<ICommandHandler<ReprocessAllFilesCommand, Result>, ReprocessAllFilesHandler>();
+        services.AddScoped<ICommandHandler<RereadDocumentTextCommand, Result<int>>, RereadDocumentTextHandler>();
         services.AddScoped<ExtractedTextAccess>();
         services.AddScoped<IQueryHandler<GetExtractedTextQuery, Result<ExtractedTextDto>>, GetExtractedTextHandler>();
         services.AddScoped<ICommandHandler<UpdateExtractedTextCommand, Result<ExtractedTextDto>>, UpdateExtractedTextHandler>();
@@ -101,6 +105,8 @@ public static class SearchModule
         bool InFile = false);
 
     public sealed record ExtractedTextRequest(string Text);
+
+    public sealed record MalwareScanningRequest(bool Enabled);
 
     public sealed record MetadataFilterRequest(string Field, string Op, JsonElement Value);
 
@@ -147,6 +153,10 @@ public static class SearchModule
             })
             .WithSummary("Search with typed metadata conditions (eq, gt, gte, lt, lte, contains) within one document type.");
 
+        search.MapPost("/documents/{documentId:guid}/reread", async (Guid documentId, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new RereadDocumentTextCommand(documentId), ct)).ToHttpResult(count => Results.Accepted(value: new { queued = count })))
+            .WithSummary("Read the file text of a document again (OCR); needs EDIT on the document. Text corrected by hand is kept.");
+
         var admin = endpoints.MapGroup("/api/v1/admin/search")
             .WithTags("Administration: search")
             .RequireAuthorization()
@@ -191,6 +201,21 @@ public static class SearchModule
                 return result.IsSuccess ? Results.Accepted() : ApiResults.Problem(result.Error);
             })
             .WithSummary("Rebuild the index into a new generation from Postgres and the stored text; no OCR is repeated.");
+
+        admin.MapGet("/malware-scan", async (IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.QueryAsync(new MalwareScanStateQuery(), ct)).ToHttpResult())
+            .WithSummary("Whether new files are scanned for malware, and how many files still wait for a scan.");
+
+        admin.MapPut("/malware-scan", async (MalwareScanningRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+                (await dispatcher.SendAsync(new SetMalwareScanningCommand(request.Enabled), ct)).ToHttpResult())
+            .WithSummary("Switch the malware scan on or off. Off also releases every file still waiting for a scan.");
+
+        admin.MapPost("/reprocess-all", async (IDispatcher dispatcher, CancellationToken ct) =>
+            {
+                var result = await dispatcher.SendAsync(new ReprocessAllFilesCommand(), ct);
+                return result.IsSuccess ? Results.Accepted() : ApiResults.Problem(result.Error);
+            })
+            .WithSummary("Queue pages and text extraction (OCR) again for every file; done work is skipped, hand-corrected text kept.");
 
         admin.MapPost("/retry-failed", async (IDispatcher dispatcher, CancellationToken ct) =>
                 (await dispatcher.SendAsync(new RetryFailedExtractionsCommand(), ct)).ToHttpResult(count => Results.Ok(new { queued = count })))

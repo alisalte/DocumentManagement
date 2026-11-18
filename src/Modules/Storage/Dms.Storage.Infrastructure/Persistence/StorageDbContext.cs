@@ -17,6 +17,8 @@ public sealed class StorageDbContext : DbContext
 
     public DbSet<Rendition> Renditions => Set<Rendition>();
 
+    public DbSet<StorageSetting> Settings => Set<StorageSetting>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Schema);
@@ -100,6 +102,15 @@ public sealed class StorageDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_rendition_pages_rendition");
             entity.Navigation(rendition => rendition.Pages).UsePropertyAccessMode(PropertyAccessMode.Field);
+        });
+
+        modelBuilder.Entity<StorageSetting>(entity =>
+        {
+            entity.ToTable("settings");
+            entity.HasKey(setting => setting.Key);
+            entity.Property(setting => setting.Key).HasColumnName("key").HasMaxLength(64);
+            entity.Property(setting => setting.Value).HasColumnName("value").HasMaxLength(256).IsRequired();
+            entity.Property(setting => setting.UpdatedAt).HasColumnName("updated_at");
         });
 
         modelBuilder.Entity<RenditionPage>(entity =>
